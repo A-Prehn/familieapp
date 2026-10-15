@@ -27,7 +27,8 @@ struct ChildDetailView: View {
                         tile(child.onTheWay ? "Svangerskabs\u{00AD}dagbog" : "Dagbog", "book", Theme.neutralDark)
                     }
                     NavigationLink { GalleryView(child: child, kind: .belly) } label: {
-                        tile("Maven måned for måned", "figure.and.child.holdinghands", Theme.neutralDark)
+                        // Billeder af maven der vokser — gravid-emoji siger det med det samme.
+                        tile("Maven måned for måned", "🤰", Theme.rose)
                     }
                     NavigationLink { GalleryView(child: child, kind: .monthly) } label: {
                         tile("Måned for måned", "photo.on.rectangle", Theme.tint)
@@ -95,10 +96,17 @@ struct ChildDetailView: View {
         return months < 24 ? "\(max(0, months)) mdr." : "\(months / 12) år"
     }
 
+    /// `symbol` er et SF Symbol-navn — eller en emoji (fx "🤰"), når der ikke findes et passende symbol.
     private func tile(_ title: String, _ symbol: String, _ color: Color, wide: Bool = false) -> some View {
         HStack(spacing: 12) {
             Circle().fill(color.opacity(0.15)).frame(width: 38, height: 38)
-                .overlay(Image(systemName: symbol).font(.system(size: 17)).foregroundStyle(color))
+                .overlay {
+                    if symbol.unicodeScalars.first?.properties.isEmojiPresentation == true {
+                        Text(symbol).font(.system(size: 19))
+                    } else {
+                        Image(systemName: symbol).font(.system(size: 17)).foregroundStyle(color)
+                    }
+                }
             Text(title)
                 .font(.system(size: 13, weight: .semibold))
                 .foregroundStyle(Theme.text)
