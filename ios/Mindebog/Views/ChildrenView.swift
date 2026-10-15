@@ -18,8 +18,10 @@ struct ChildrenView: View {
                         NavigationLink(value: child) { ChildCard(child: child) }
                             .buttonStyle(.plain)
                     }
-                    Button { showNewChild = true } label: { AddChildCard() }
-                        .buttonStyle(.plain)
+                    if state.canEdit {
+                        Button { showNewChild = true } label: { AddChildCard() }
+                            .buttonStyle(.plain)
+                    }
                 }
             }
             .padding(16)
@@ -30,7 +32,7 @@ struct ChildrenView: View {
         .navigationDestination(for: Child.self) { ChildDetailView(child: $0) }
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
-                Button { showNewChild = true } label: { Image(systemName: "plus") }
+                if state.canEdit { Button { showNewChild = true } label: { Image(systemName: "plus") } }
             }
         }
         .sheet(isPresented: $showNewChild, onDismiss: { Task { await load() } }) {

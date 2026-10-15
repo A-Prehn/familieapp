@@ -33,6 +33,17 @@ final class AppState: ObservableObject {
     @Published var user: AppUser?
     @Published var familyId: String?
     @Published var errorMessage: String?
+    /// false for "Kun visning" (fx bedsteforældre): tilføj/redigér/slet skjules overalt.
+    @Published private(set) var canEdit: Bool =
+        UserDefaults.standard.object(forKey: "mindebog.canEdit") as? Bool ?? true
+
+    /// Læser ens adgang til familien fra iCloud (ejer / kan redigere / kun visning).
+    func refreshPermissions() async {
+        guard let familyId else { return }
+        let value = await store.canEdit(familyId: familyId)
+        canEdit = value
+        UserDefaults.standard.set(value, forKey: "mindebog.canEdit")
+    }
 
     private let userIdKey = "mindebog.userId"
     private let familyKey = "mindebog.familyId"
@@ -71,7 +82,7 @@ final class AppState: ObservableObject {
             familyId = fams.first { $0.id == saved }?.id ?? fams.first?.id
         }
         ready = true
-        Task { await publishDisplayName() }
+        Task { await publishDisplayName(); await refreshPermissions() }
     }
 
     /// Efter hurtig opstart: hvis iCloud er logget ud eller familien er væk, ret op.
@@ -89,6 +100,7 @@ final class AppState: ObservableObject {
             setFamily(fams.first?.id)
         }
         await publishDisplayName()   // også for navne sat før denne version
+        await refreshPermissions()
     }
 
     func signIn(name: String) async {
@@ -154,6 +166,6 @@ final class AppState: ObservableObject {
         familyId = id
         if let id { UserDefaults.standard.set(id, forKey: familyKey) }
         else { UserDefaults.standard.removeObject(forKey: familyKey) }
-        if id != nil { Task { await publishDisplayName() } }   // fx lige efter man har accepteret en deling
+        if id != nil { Task { await publishDisplayName(); await refreshPermissions() } }   // fx lige efter man har accepteret en deling
     }
 }

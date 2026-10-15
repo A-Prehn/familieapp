@@ -56,7 +56,7 @@ struct AboutMeView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(14)
         .contentShape(Rectangle())
-        .onTapGesture { editing = QuestionItem(question: question) }
+        .onTapGesture { if state.canEdit { editing = QuestionItem(question: question) } }
     }
 
     private func load() async {

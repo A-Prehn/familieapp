@@ -47,6 +47,8 @@ actor MemoryStore: Store {
         return family.memberIds.compactMap { users[$0] }
     }
 
+    func canEdit(familyId: String) async -> Bool { true }
+
     func setMemberName(familyId: String, userId: String, name: String) async throws {
         users[userId]?.name = name.trimmingCharacters(in: .whitespaces)
     }

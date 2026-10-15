@@ -38,7 +38,7 @@ struct GalleryView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
-                Button { showAdd = true } label: { Image(systemName: "plus") }
+                if state.canEdit { Button { showAdd = true } label: { Image(systemName: "plus") } }
             }
         }
         .sheet(isPresented: $showAdd, onDismiss: { Task { await load() } }) {
@@ -75,9 +75,9 @@ struct GalleryView: View {
         .clipShape(RoundedRectangle(cornerRadius: 14))
         .overlay(RoundedRectangle(cornerRadius: 14).stroke(Theme.sep))
         .contentShape(RoundedRectangle(cornerRadius: 14))
-        .onTapGesture { editing = item }
+        .onTapGesture { if state.canEdit { editing = item } }
         .contextMenu {
-            Button { editing = item } label: { Label("Redigér", systemImage: "pencil") }
+            Button { if state.canEdit { editing = item } } label: { Label("Redigér", systemImage: "pencil") }
         }
     }
 
@@ -97,15 +97,17 @@ struct GalleryView: View {
                 .onTapGesture { openLightbox(at: item) }
                 // Lille blyant: redigér tekst/billede (tryk på selve billedet = fuld skærm).
                 .overlay(alignment: .topTrailing) {
-                    Button { editing = item } label: {
-                        Image(systemName: "pencil.circle.fill")
-                            .font(.title3)
-                            .symbolRenderingMode(.palette)
-                            .foregroundStyle(.white, .black.opacity(0.45))
-                            .padding(6)
+                    if state.canEdit {
+                        Button { editing = item } label: {
+                            Image(systemName: "pencil.circle.fill")
+                                .font(.title3)
+                                .symbolRenderingMode(.palette)
+                                .foregroundStyle(.white, .black.opacity(0.45))
+                                .padding(6)
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel("Redigér")
                     }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("Redigér")
                 }
             if !item.caption.isEmpty {
                 Text(item.caption)
@@ -114,14 +116,14 @@ struct GalleryView: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(10)
                     .contentShape(Rectangle())
-                    .onTapGesture { editing = item }
+                    .onTapGesture { if state.canEdit { editing = item } }
             }
         }
         .background(Theme.card)
         .clipShape(RoundedRectangle(cornerRadius: 14))
         .overlay(RoundedRectangle(cornerRadius: 14).stroke(Theme.sep))
         .contextMenu {
-            Button { editing = item } label: { Label("Redigér", systemImage: "pencil") }
+            Button { if state.canEdit { editing = item } } label: { Label("Redigér", systemImage: "pencil") }
         }
     }
 

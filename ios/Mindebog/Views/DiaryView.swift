@@ -27,7 +27,7 @@ struct DiaryView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
-                Button { showAdd = true } label: { Image(systemName: "plus") }
+                if state.canEdit { Button { showAdd = true } label: { Image(systemName: "plus") } }
             }
         }
         .sheet(isPresented: $showAdd, onDismiss: { Task { await load() } }) {
@@ -63,9 +63,9 @@ struct DiaryView: View {
         .clipShape(RoundedRectangle(cornerRadius: 14))
         .overlay(RoundedRectangle(cornerRadius: 14).stroke(Theme.sep))
         .contentShape(RoundedRectangle(cornerRadius: 14))
-        .onTapGesture { editing = entry }
+        .onTapGesture { if state.canEdit { editing = entry } }
         .contextMenu {
-            Button { editing = entry } label: { Label("Redigér", systemImage: "pencil") }
+            Button { if state.canEdit { editing = entry } } label: { Label("Redigér", systemImage: "pencil") }
         }
     }
 

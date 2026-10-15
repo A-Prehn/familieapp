@@ -27,7 +27,7 @@ struct HighlightsView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
-                Button { showAdd = true } label: { Image(systemName: "plus") }
+                if state.canEdit { Button { showAdd = true } label: { Image(systemName: "plus") } }
             }
         }
         .sheet(isPresented: $showAdd, onDismiss: { Task { await load() } }) {
@@ -66,9 +66,9 @@ struct HighlightsView: View {
         .clipShape(RoundedRectangle(cornerRadius: 14))
         .overlay(RoundedRectangle(cornerRadius: 14).stroke(Theme.sep))
         .contentShape(RoundedRectangle(cornerRadius: 14))
-        .onTapGesture { editing = highlight }
+        .onTapGesture { if state.canEdit { editing = highlight } }
         .contextMenu {
-            Button { editing = highlight } label: { Label("Redigér", systemImage: "pencil") }
+            Button { if state.canEdit { editing = highlight } } label: { Label("Redigér", systemImage: "pencil") }
         }
     }
 

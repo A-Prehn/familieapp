@@ -42,7 +42,7 @@ struct FamilyView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
-                Button { activeSheet = tab } label: { Image(systemName: "plus") }
+                if state.canEdit { Button { activeSheet = tab } label: { Image(systemName: "plus") } }
             }
         }
         .sheet(item: $activeSheet, onDismiss: { Task { await load() } }) { which in
@@ -93,7 +93,7 @@ struct FamilyView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(14)
                 .contentShape(Rectangle())
-                .onTapGesture { editingEvent = event }
+                .onTapGesture { if state.canEdit { editingEvent = event } }
                 .background(Theme.card)
                 .clipShape(RoundedRectangle(cornerRadius: 14))
                 .overlay(RoundedRectangle(cornerRadius: 14).stroke(Theme.sep))
@@ -128,7 +128,7 @@ struct FamilyView: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(14)
                     .contentShape(Rectangle())
-                    .onTapGesture { editingVacation = vacation }
+                    .onTapGesture { if state.canEdit { editingVacation = vacation } }
                     .background(Theme.card)
                     .clipShape(RoundedRectangle(cornerRadius: 14))
                     .overlay(RoundedRectangle(cornerRadius: 14).stroke(Theme.sep))
@@ -211,7 +211,7 @@ struct FamilyView: View {
                     }
                     .padding(.vertical, 12)
                     .contentShape(Rectangle())
-                    .onTapGesture { if let custom = row.custom { editingBirthday = custom } }
+                    .onTapGesture { if state.canEdit, let custom = row.custom { editingBirthday = custom } }
                 }
             }
             .padding(.horizontal, 16)

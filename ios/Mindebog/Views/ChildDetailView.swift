@@ -49,7 +49,7 @@ struct ChildDetailView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
-                Button("Redigér") { editing = true }
+                if state.canEdit { Button("Redigér") { editing = true } }
             }
         }
         .sheet(isPresented: $editing) {

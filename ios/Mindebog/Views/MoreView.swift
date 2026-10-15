@@ -23,7 +23,7 @@ struct MoreView: View {
                 }
             }
 
-            Section("Del med den anden forælder") {
+            Section("Deling med familien") {
                 if state.usingCloud {
                     Button { Task { await openSharing() } } label: {
                         Label(busy ? "Åbner…" : "Invitér og administrér deling", systemImage: "person.badge.plus")
@@ -41,6 +41,12 @@ struct MoreView: View {
                     } else {
                         Text("Invitér partneren via Beskeder eller mail — så kan kun de åbne linket. Vil du bruge QR-kode, så vælg \"Alle med linket\" under delingsindstillinger.")
                             .font(.footnote).foregroundStyle(Theme.muted)
+                    }
+                    Text("Bedsteforældre og familie: invitér dem, og vælg \"Kun visning\" under Tilladelser — så kan de se alt, men ikke ændre noget.")
+                        .font(.footnote).foregroundStyle(Theme.muted)
+                    if !state.canEdit {
+                        Label("Du har kun visning af denne familie.", systemImage: "eye")
+                            .font(.footnote).foregroundStyle(Theme.neutralDark)
                     }
                 } else if let invite {
                     HStack {

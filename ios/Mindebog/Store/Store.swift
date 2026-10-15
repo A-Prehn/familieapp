@@ -11,6 +11,8 @@ protocol Store {
     func families(for userId: String) async throws -> [Family]
     func createFamily(userId: String, name: String) async throws -> Family
     func members(familyId: String) async throws -> [AppUser]
+    /// false for medlemmer med "Kun visning" (fx bedsteforældre) — så skjules tilføj/redigér/slet.
+    func canEdit(familyId: String) async -> Bool
     /// Gemmer brugerens visningsnavn i familien, så de andre medlemmer kan se det.
     func setMemberName(familyId: String, userId: String, name: String) async throws
     func createInvite(userId: String, familyId: String) async throws -> String

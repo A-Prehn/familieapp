@@ -107,6 +107,7 @@ actor CloudKitStore: Store {
                 var tags: [String] = []
                 if p.role == .owner { tags.append("ejer") }
                 if p == me { tags.append("dig") }
+                if p.role != .owner && p.permission == .readOnly { tags.append("kun visning") }
                 if p.acceptanceStatus == .pending { tags.append("inviteret") }
                 let label = tags.isEmpty ? name : "\(name) (\(tags.joined(separator: ", ")))"
 
@@ -120,6 +121,14 @@ actor CloudKitStore: Store {
                                    name: family["ownerName"] as? String ?? "Forælder"))
         }
         return members
+    }
+
+    func canEdit(familyId: String) async -> Bool {
+        // Ejeren (familien ligger i egen private database) kan altid redigere.
+        guard let (db, zoneID) = try? await locate(familyId), db === sharedDB else { return true }
+        guard let share = try? await fetchShare(db: db, zoneID: zoneID),
+              let me = share.currentUserParticipant else { return true }
+        return me.permission != .readOnly
     }
 
     func setMemberName(familyId: String, userId: String, name: String) async throws {

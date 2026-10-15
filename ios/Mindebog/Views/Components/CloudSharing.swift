@@ -7,7 +7,8 @@ import CloudKit
 enum CloudSharing {
     static func present(share: CKShare, container: CKContainer, onChange: @escaping () -> Void) {
         let controller = UICloudSharingController(share: share, container: container)
-        controller.availablePermissions = [.allowPrivate, .allowPublic, .allowReadWrite]
+        // .allowReadOnly: ejeren kan give fx bedsteforældre "Kun visning" pr. person.
+        controller.availablePermissions = [.allowPrivate, .allowPublic, .allowReadWrite, .allowReadOnly]
         let delegate = Delegate(onChange: onChange)
         controller.delegate = delegate
         // Delegaten er weak i UIKit — hold den i live så længe arket vises.

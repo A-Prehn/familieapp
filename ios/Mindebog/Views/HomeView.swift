@@ -27,7 +27,7 @@ struct HomeView: View {
                 if children.isEmpty {
                     emptyState
                 } else {
-                    quickAddSection
+                    if state.canEdit { quickAddSection }
                     if !onThisDay.isEmpty {
                         memorySection("På denne dag", onThisDay) { m in
                             "\(yearsAgo(m.date)) · \(m.childName) · \(m.kind)"

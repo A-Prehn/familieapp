@@ -50,7 +50,7 @@ struct MilestonesView: View {
                         }
                         .clipped()
                         .contentShape(Rectangle())
-                        .onTapGesture { editing = def }
+                        .onTapGesture { if state.canEdit { editing = def } }
                 }
             }
 
@@ -67,7 +67,7 @@ struct MilestonesView: View {
             .padding(.horizontal, 8)
             .padding(.vertical, 10)
             .contentShape(Rectangle())
-            .onTapGesture { editing = def }
+            .onTapGesture { if state.canEdit { editing = def } }
         }
         .background(filled ? Theme.card : Theme.bg)
         .clipShape(RoundedRectangle(cornerRadius: 10))
