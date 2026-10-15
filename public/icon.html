@@ -88,11 +88,14 @@
       <rect width="1024" height="1024" fill="url(#c-bg)"/>
       <!-- Blødt lys øverst til venstre -->
       <circle cx="300" cy="240" r="420" fill="#fff" opacity="0.08"/>
-      <g filter="url(#c-shadow)">
-        <path d="M512 868C512 868 150 648 150 398C150 290 236 206 344 206C416 206 474 246 512 302C550 246 608 206 680 206C788 206 874 290 874 398C874 648 512 868 512 868Z" fill="url(#c-heart)"/>
+      <!-- Hjertet skaleret 1,12× om midten, så det fylder mere (som i A) -->
+      <g transform="translate(512 537) scale(1.12) translate(-512 -537)">
+        <g filter="url(#c-shadow)">
+          <path d="M512 868C512 868 150 648 150 398C150 290 236 206 344 206C416 206 474 246 512 302C550 246 608 206 680 206C788 206 874 290 874 398C874 648 512 868 512 868Z" fill="url(#c-heart)"/>
+        </g>
+        <!-- Lille rosa hjerte inde i det store -->
+        <path d="M512 868C512 868 150 648 150 398C150 290 236 206 344 206C416 206 474 246 512 302C550 246 608 206 680 206C788 206 874 290 874 398C874 648 512 868 512 868Z" fill="#d4547a" opacity="0.9" transform="translate(512 520) scale(0.38) translate(-512 -540)"/>
       </g>
-      <!-- Lille rosa hjerte inde i det store -->
-      <path d="M512 868C512 868 150 648 150 398C150 290 236 206 344 206C416 206 474 246 512 302C550 246 608 206 680 206C788 206 874 290 874 398C874 648 512 868 512 868Z" fill="#d4547a" opacity="0.9" transform="translate(512 520) scale(0.34) translate(-512 -540)"/>
     </svg>
 
   </div>
@@ -101,7 +104,7 @@
     const variants = [
       { id: 'icon-a', label: 'A · Varmt hjerte', sub: 'rosa→terracotta, lys creme' },
       { id: 'icon-b', label: 'B · Hjerte i hjerte', sub: 'familie: stort + lille' },
-      { id: 'icon-c', label: 'C · Creme på terracotta', sub: 'mest kontrast' },
+      { id: 'icon-c', label: 'C · Creme på terracotta', sub: 'større hjerte (valgt)' },
     ];
     const row = document.getElementById('previews');
     for (const v of variants) {
