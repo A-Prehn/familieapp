@@ -39,6 +39,51 @@ enum ChildAge {
     }
 }
 
+/// Søskendefarver: hvert køn har sin farveserie, og børn af samme køn får hver sin farve
+/// efter alder (ældste først) — som på websitet (William blå, Nohr grøn).
+/// Rækkefølgen gemmes på enheden, så alle skærme viser samme farve for samme barn.
+enum ChildPalette {
+    private static let key = "mindebog.childColorIndex"
+
+    private static func hex(_ value: UInt32) -> Color {
+        Color(red: Double((value >> 16) & 0xff) / 255,
+              green: Double((value >> 8) & 0xff) / 255,
+              blue: Double(value & 0xff) / 255)
+    }
+
+    static let boys: [Color] = [Theme.tint, Theme.green, hex(0x2a9d8f), hex(0x5b6bc0), hex(0x4f7a94)]
+    static let girls: [Color] = [Theme.rose, hex(0xe07a5f), hex(0x9b6bb8), hex(0xa0446a), hex(0xd98c5f)]
+    static let neutral: [Color] = [hex(0x7a8a5a), hex(0x8a6f5a), hex(0x5f7f8a), hex(0x8a5f7a)]
+
+    /// Kaldes når børnene er indlæst; tildeler farveplads pr. køn efter alder.
+    static func update(_ children: [Child]) {
+        var map: [String: Int] = [:]
+        for gender in Gender.allCases {
+            let sameGender = children
+                .filter { $0.gender == gender }
+                .sorted { a, b in
+                    let da = a.birthDate ?? a.dueDate ?? .distantFuture
+                    let db = b.birthDate ?? b.dueDate ?? .distantFuture
+                    return da == db ? a.name < b.name : da < db
+                }
+            for (index, child) in sameGender.enumerated() { map[child.id] = index }
+        }
+        UserDefaults.standard.set(map, forKey: key)
+    }
+
+    static func color(for child: Child) -> Color {
+        let map = UserDefaults.standard.dictionary(forKey: key) as? [String: Int] ?? [:]
+        let index = map[child.id] ?? 0
+        let series: [Color]
+        switch child.gender {
+        case .boy: series = boys
+        case .girl: series = girls
+        case .unspecified: series = neutral
+        }
+        return series[index % series.count]
+    }
+}
+
 /// Avatar som på websitet: barnets billede hvis sat, ellers initialer i serif —
 /// og et hjerte for et barn på vej. Cirklens farve følger kønnet.
 struct ChildAvatar: View {
@@ -70,23 +115,13 @@ struct ChildAvatar: View {
         .accessibilityLabel("\(child.name), \(ChildAge.short(child))")
     }
 
-    // Som på websitet: på vej = varm gul, ellers efter køn.
+    // Som på websitet: på vej = varm gul, ellers søskendefarven for kønnet.
     private var tint: Color {
-        if child.onTheWay { return Theme.neutral }
-        switch child.gender {
-        case .girl: return Theme.rose
-        case .boy: return Theme.tint
-        case .unspecified: return Theme.green
-        }
+        child.onTheWay ? Theme.neutral : ChildPalette.color(for: child)
     }
 
     private var textTint: Color {
-        if child.onTheWay { return Theme.neutralDark }
-        switch child.gender {
-        case .girl: return Theme.rose
-        case .boy: return Theme.tint
-        case .unspecified: return Theme.green
-        }
+        child.onTheWay ? Theme.neutralDark : ChildPalette.color(for: child)
     }
 
     /// "William" → "WI", "Baby Blob" → "BB" (første bogstav i de to første ord).

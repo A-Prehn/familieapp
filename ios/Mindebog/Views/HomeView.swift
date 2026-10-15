@@ -191,6 +191,7 @@ struct HomeView: View {
         let todayKey = Fmt.iso(Date())
         if children.isEmpty, let cached = ScreenCache.load(Cached.self, key: cacheKey) {
             children = cached.children
+            ChildPalette.update(children)
             recent = cached.recent
             onThisDay = cached.day == todayKey ? cached.onThisDay : []
         }
@@ -198,6 +199,7 @@ struct HomeView: View {
         let store = state.store
         guard let loadedKids = try? await store.children(familyId: familyId) else { return }
         children = loadedKids
+        ChildPalette.update(children)
         defer {
             ScreenCache.save(Cached(children: children, recent: recent, onThisDay: onThisDay, day: todayKey), key: cacheKey)
         }

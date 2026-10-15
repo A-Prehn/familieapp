@@ -48,10 +48,12 @@ struct ChildrenView: View {
         if children.isEmpty, let cached = ScreenCache.load(Cached.self, key: cacheKey) {
             family = cached.family
             children = cached.children
+            ChildPalette.update(children)
         }
         // Børnene først — det er dem skærmen handler om; familienavnet bagefter.
         guard let loaded = try? await state.store.children(familyId: familyId) else { return }
         children = loaded
+        ChildPalette.update(children)
         if let fams = try? await state.store.families(for: state.user?.id ?? "") {
             family = fams.first { $0.id == familyId }
         }

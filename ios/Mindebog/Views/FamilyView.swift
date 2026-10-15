@@ -242,12 +242,13 @@ struct FamilyView: View {
             events = cached.events
             vacations = cached.vacations
             children = cached.children
+            ChildPalette.update(children)
             customBirthdays = cached.birthdays
         }
         // Behold det viste ved netværksfejl i stedet for at tømme listerne.
         if let v = try? await state.store.events(familyId: familyId) { events = v }
         if let v = try? await state.store.vacations(familyId: familyId) { vacations = v }
-        if let v = try? await state.store.children(familyId: familyId) { children = v }
+        if let v = try? await state.store.children(familyId: familyId) { children = v; ChildPalette.update(v) }
         if let v = try? await state.store.birthdays(familyId: familyId) { customBirthdays = v }
         ScreenCache.save(Cached(events: events, vacations: vacations, children: children, birthdays: customBirthdays),
                          key: cacheKey)
