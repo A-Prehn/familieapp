@@ -43,8 +43,16 @@ jobs:
 
       - name: Skriv API-nøgle
         run: |
-          printf '%s' "${{ secrets.ASC_KEY_P8 }}" > "$KEY_PATH"
+          printf '%s\n' "${{ secrets.ASC_KEY_P8 }}" | tr -d '\r' > "$KEY_PATH"
           chmod 600 "$KEY_PATH"
+          # Sanity-tjek uden at afsløre nøglen
+          head -c 27 "$KEY_PATH"; echo
+          echo "Linjer: $(wc -l < "$KEY_PATH")"
+          echo "Key ID-længde: ${#ASC_KEY_ID_CHECK} (skal være 10)"
+          echo "Issuer ID-længde: ${#ASC_ISSUER_ID_CHECK} (skal være 36)"
+        env:
+          ASC_KEY_ID_CHECK: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID_CHECK: ${{ secrets.ASC_ISSUER_ID }}
 
       - name: Skriv ExportOptions.plist
         working-directory: ios
