@@ -8,6 +8,7 @@ struct MoreView: View {
     @State private var busy = false
     @State private var showQR = false
     @State private var shareIsPublic = false
+    @State private var displayName = ""
     @State private var notificationsOn = NotificationManager.isEnabled
     @State private var notificationMessage: String?
     @State private var notificationBusy = false
@@ -69,8 +70,22 @@ struct MoreView: View {
                 Text("Få besked når den anden forælder lægger noget nyt op.")
             }
 
+            Section {
+                TextField("Dit navn", text: $displayName)
+                    .textContentType(.givenName)
+                    .submitLabel(.done)
+                    .onSubmit { state.setDisplayName(displayName) }
+                if displayName.trimmingCharacters(in: .whitespaces) != (state.user?.name ?? "") {
+                    Button("Gem navn") { state.setDisplayName(displayName) }
+                        .disabled(displayName.trimmingCharacters(in: .whitespaces).isEmpty)
+                }
+            } header: {
+                Text("Dit navn")
+            } footer: {
+                Text("Bruges i hilsenen på forsiden.")
+            }
+
             Section("Konto") {
-                if let user = state.user { Text("Logget ind som \(user.name)") }
                 Label(state.usingCloud ? "Data gemmes i din iCloud" : "Data gemmes kun i hukommelsen (ingen iCloud)",
                       systemImage: state.usingCloud ? "icloud" : "icloud.slash")
                     .font(.footnote).foregroundStyle(Theme.muted)
@@ -107,6 +122,10 @@ struct MoreView: View {
     }
 
     private func load() async {
+        if displayName.isEmpty {
+            let current = state.user?.name ?? ""
+            displayName = current == "Forælder" ? "" : current
+        }
         guard let familyId = state.familyId else { return }
         family = try? await state.store.families(for: state.user?.id ?? "").first { $0.id == familyId }
         members = (try? await state.store.members(familyId: familyId)) ?? []

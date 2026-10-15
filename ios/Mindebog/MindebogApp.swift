@@ -124,6 +124,15 @@ final class AppState: ObservableObject {
         }
     }
 
+    /// Navnet bruges i hilsenen på Hjem. Gemmes lokalt på enheden (samme nøgle som CloudKitStore).
+    func setDisplayName(_ name: String) {
+        let trimmed = name.trimmingCharacters(in: .whitespaces)
+        guard !trimmed.isEmpty, var current = user else { return }
+        UserDefaults.standard.set(trimmed, forKey: "mindebog.displayName")
+        current.name = trimmed
+        user = current
+    }
+
     func signOut() {
         user = nil
         familyId = nil
