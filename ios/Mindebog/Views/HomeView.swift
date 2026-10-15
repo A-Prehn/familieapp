@@ -1,11 +1,10 @@
 import SwiftUI
 
-// Hjem = "lige nu": hilsen, børnene i dag, det næste der sker, seneste minder
-// og hurtig-tilføj. Oversigten/strukturen ligger under Familie-fanen.
+// Hjem = "lige nu": hilsen, børnene i dag, hurtig-tilføj og seneste minder.
+// Oversigten/strukturen ligger under Familie-fanen.
 struct HomeView: View {
     @EnvironmentObject var state: AppState
     @State private var children: [Child] = []
-    @State private var next: Upcoming?
     @State private var recent: [RecentMemory] = []
     @State private var quickAdd: QuickAdd?
     @State private var chooseChildFor: QuickAdd.Kind?
@@ -25,7 +24,6 @@ struct HomeView: View {
                 } else {
                     todaySection
                     quickAddSection
-                    if let next { nextCard(next) }
                     if !recent.isEmpty { recentSection }
                 }
             }
@@ -119,32 +117,6 @@ struct HomeView: View {
         .buttonStyle(.plain)
     }
 
-    private func nextCard(_ item: Upcoming) -> some View {
-        VStack(spacing: 10) {
-            SectionLabel("Næste")
-            HStack(spacing: 14) {
-                VStack(spacing: 0) {
-                    if item.days == 0 {
-                        Text("🎉").font(.title3)
-                    } else {
-                        Text("\(item.days)").font(.serifTitle(20))
-                        Text(item.days == 1 ? "dag" : "dage").font(.caption2).foregroundStyle(Theme.muted)
-                    }
-                }
-                .frame(width: 60).padding(.vertical, 8)
-                .background(Theme.bgDark).clipShape(RoundedRectangle(cornerRadius: 10))
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(item.title).font(.system(size: 15, weight: .medium))
-                    Text("\(item.kind) · \(Fmt.long(item.date))").font(.footnote).foregroundStyle(Theme.muted)
-                }
-                Spacer()
-            }
-            .padding(14)
-            .background(Theme.card).clipShape(RoundedRectangle(cornerRadius: 14))
-            .overlay(RoundedRectangle(cornerRadius: 14).stroke(Theme.sep))
-        }
-    }
-
     private var recentSection: some View {
         VStack(spacing: 10) {
             SectionLabel("Seneste minder")
@@ -196,30 +168,6 @@ struct HomeView: View {
         let store = state.store
         let loadedKids = (try? await store.children(familyId: familyId)) ?? []
         children = loadedKids
-        let loadedEvents = (try? await store.events(familyId: familyId)) ?? []
-        let loadedVacations = (try? await store.vacations(familyId: familyId)) ?? []
-        let loadedBirthdays = (try? await store.birthdays(familyId: familyId)) ?? []
-
-        // Næste: fødselsdage (årlige), begivenheder og ferier fremad i tiden.
-        let cal = Calendar.current
-        let today = cal.startOfDay(for: Date())
-        var candidates: [Upcoming] = []
-        func days(to date: Date) -> Int { cal.dateComponents([.day], from: today, to: cal.startOfDay(for: date)).day ?? 0 }
-        for child in loadedKids {
-            if let birth = child.birthDate {
-                let next = Fmt.nextOccurrence(of: birth, from: today)
-                candidates.append(Upcoming(title: "\(child.name)s fødselsdag", kind: "Fødselsdag", date: next, days: days(to: next)))
-            } else if let due = child.dueDate, due >= today {
-                candidates.append(Upcoming(title: "Termin · \(child.name)", kind: "Termin", date: due, days: days(to: due)))
-            }
-        }
-        for b in loadedBirthdays {
-            let next = Fmt.nextOccurrence(of: b.date, from: today)
-            candidates.append(Upcoming(title: "\(b.emoji) \(b.name)", kind: "Fødselsdag", date: next, days: days(to: next)))
-        }
-        for e in loadedEvents { if let d = e.date, d >= today { candidates.append(Upcoming(title: e.title, kind: "Begivenhed", date: d, days: days(to: d))) } }
-        for v in loadedVacations { if let d = v.startDate, d >= today { candidates.append(Upcoming(title: v.title, kind: "Ferie", date: d, days: days(to: d))) } }
-        next = candidates.min { $0.days < $1.days }
 
         // Seneste minder på tværs af børnene (højdepunkter + dagbog).
         var memories: [RecentMemory] = []
@@ -238,13 +186,6 @@ struct HomeView: View {
 }
 
 // MARK: - Hjælpetyper
-
-struct Upcoming {
-    let title: String
-    let kind: String
-    let date: Date
-    let days: Int
-}
 
 struct RecentMemory: Identifiable {
     let id: String

@@ -5,8 +5,7 @@ import { Modal, Lightbox } from "../components/ui";
 import Hero from "../components/Hero";
 import { useState } from "react";
 
-// Hjem = "lige nu": hilsen, børnene i dag, hurtig-tilføj, det næste der sker,
-// seneste minder. Oversigten/strukturen ligger under Familie-fanen.
+// Hjem = "lige nu": hilsen, børnene i dag, hurtig-tilføj, seneste minder. Oversigten/strukturen ligger under Familie-fanen.
 // Spejler ios/Mindebog/Views/HomeView.swift.
 
 const AVATAR = { boy: { cls: "blue", emoji: "👦" }, girl: { cls: "pink", emoji: "👧" }, unspecified: { cls: "", emoji: "🧒" } };
@@ -36,13 +35,6 @@ export function ageToday(c) {
   return days === 0 ? m : `${m} og ${days} ${days === 1 ? "dag" : "dage"}`;
 }
 
-function nextOccurrence(dateStr, today) {
-  const d = new Date(dateStr);
-  const next = new Date(today.getFullYear(), d.getMonth(), d.getDate());
-  if (next < today) next.setFullYear(today.getFullYear() + 1);
-  return next;
-}
-
 function greeting(user) {
   const h = new Date().getHours();
   const word = h >= 5 && h < 10 ? "Godmorgen" : h >= 10 && h < 18 ? "Hej" : "Godaften";
@@ -52,25 +44,11 @@ function greeting(user) {
 
 export default function HomeTab({ nav }) {
   const { user, familyId, store } = useApp();
-  const { data: family } = useLiveData(() => store.getFamily(familyId), [familyId]);
   const { data: children } = useLiveData(() => store.listChildren(familyId), [familyId]);
   const [choose, setChoose] = useState(null); // { kind } når der er flere børn
   const [lb, setLb] = useState(null);
 
   const kids = children || [];
-  const today = startOfDay(new Date());
-  const daysTo = (d) => Math.round((startOfDay(d) - today) / DAY);
-
-  // Næste: fødselsdage (årlige), termin, begivenheder og ferier fremad i tiden.
-  const candidates = [];
-  kids.forEach((c) => {
-    if (c.birthDate) { const n = nextOccurrence(c.birthDate, today); candidates.push({ title: `${c.name}s fødselsdag`, kind: "Fødselsdag", date: n, days: daysTo(n) }); }
-    else if (c.dueDate && daysTo(c.dueDate) >= 0) candidates.push({ title: `Termin · ${c.name}`, kind: "Termin", date: new Date(c.dueDate), days: daysTo(c.dueDate) });
-  });
-  (family?.birthdays || []).forEach((b) => { const n = nextOccurrence(b.date, today); candidates.push({ title: `${b.emoji || "🎂"} ${b.name}`, kind: "Fødselsdag", date: n, days: daysTo(n) }); });
-  (family?.events || []).forEach((e) => { if (e.date && daysTo(e.date) >= 0) candidates.push({ title: e.title, kind: "Begivenhed", date: new Date(e.date), days: daysTo(e.date) }); });
-  (family?.vacations || []).forEach((v) => { if (v.startDate && daysTo(v.startDate) >= 0) candidates.push({ title: v.title, kind: "Ferie", date: new Date(v.startDate), days: daysTo(v.startDate) }); });
-  const next = candidates.sort((a, b) => a.days - b.days)[0];
 
   // Seneste minder på tværs af børnene (højdepunkter + dagbog).
   const memories = [];
@@ -131,23 +109,6 @@ export default function HomeTab({ nav }) {
               <button className="quick-btn" onClick={() => quickAdd("diary")}><BookOpen size={20} strokeWidth={1.6} style={{ color: "var(--neutral-dark)" }} /><span>Dagbog</span></button>
               <button className="quick-btn" onClick={() => quickAdd("photo")}><Camera size={20} strokeWidth={1.6} style={{ color: "var(--tint)" }} /><span>Foto</span></button>
             </div>
-
-            {next && (
-              <>
-                <div className="section-label">Næste</div>
-                <div className="card" style={{ padding: "12px 16px" }}>
-                  <div className="event-item" style={{ padding: 0, border: "none" }}>
-                    <div className="bday-count">
-                      {next.days === 0 ? <div className="n">🎉</div> : <><div className="n">{next.days}</div><div className="u">{next.days === 1 ? "dag" : "dage"}</div></>}
-                    </div>
-                    <div className="event-main">
-                      <div className="event-title">{next.title}</div>
-                      <div className="event-sub">{next.kind} · {formatDate(next.date)}</div>
-                    </div>
-                  </div>
-                </div>
-              </>
-            )}
 
             {recent.length > 0 && (
               <>
