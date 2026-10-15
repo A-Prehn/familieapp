@@ -211,6 +211,7 @@ final class CloudKitStore: Store {
         record["gender"] = child.gender.rawValue as CKRecordValue
         record["birthDate"] = child.birthDate as CKRecordValue?
         record["dueDate"] = child.dueDate as CKRecordValue?
+        record["photo"] = child.photo.flatMap { Self.asset(from: $0) }
         let saved = try await db.save(record)
         // Fødsels-/terminsdato ligger også i milepælene (som på websitet).
         if let birth = child.birthDate {
@@ -643,7 +644,8 @@ final class CloudKitStore: Store {
               name: record["name"] as? String ?? "",
               birthDate: record["birthDate"] as? Date,
               dueDate: record["dueDate"] as? Date,
-              gender: Gender(rawValue: record["gender"] as? String ?? "") ?? .unspecified)
+              gender: Gender(rawValue: record["gender"] as? String ?? "") ?? .unspecified,
+              photo: assetData(record["photo"]))
     }
 
     // CKAsset <-> Data

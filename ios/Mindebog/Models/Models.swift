@@ -34,6 +34,8 @@ struct Child: Identifiable, Hashable, Codable {
     var birthDate: Date?
     var dueDate: Date?
     var gender: Gender
+    /// Profilbillede (valgfrit); ellers vises en emoji efter alder og køn.
+    var photo: Data? = nil
 
     var onTheWay: Bool { birthDate == nil && dueDate != nil }
 }

@@ -39,42 +39,66 @@ enum ChildAge {
     }
 }
 
-/// Avatar der viser trin (på vej, baby, barn, teenager) og køn (farve) — som på websitet.
+/// Avatar som på websitet: barnets billede hvis sat, ellers initialer i serif —
+/// og et hjerte for et barn på vej. Cirklens farve følger kønnet.
 struct ChildAvatar: View {
     let child: Child
     var size: CGFloat = 56
 
     var body: some View {
         ZStack {
-            Circle().fill(
-                LinearGradient(colors: [tint.opacity(0.55), tint.opacity(0.22)],
-                               startPoint: .topLeading, endPoint: .bottomTrailing))
-            Circle().strokeBorder(tint.opacity(0.35), lineWidth: 1)
-            Text(emoji).font(.system(size: size * 0.52))
+            if let photo = child.photo {
+                DataImage(data: photo)
+                    .frame(width: size, height: size)
+                    .clipShape(Circle())
+                Circle().strokeBorder(tint.opacity(0.35), lineWidth: 1)
+            } else {
+                Circle().fill(tint.opacity(0.18))
+                Circle().strokeBorder(tint.opacity(0.25), lineWidth: 1)
+                if child.onTheWay {
+                    Image(systemName: "heart")
+                        .font(.system(size: size * 0.38, weight: .light))
+                        .foregroundStyle(textTint)
+                } else {
+                    Text(initials)
+                        .font(.system(size: size * 0.34, weight: .medium, design: .serif))
+                        .foregroundStyle(textTint)
+                }
+            }
         }
         .frame(width: size, height: size)
         .accessibilityLabel("\(child.name), \(ChildAge.short(child))")
     }
 
+    // Som på websitet: på vej = varm gul, ellers efter køn.
     private var tint: Color {
+        if child.onTheWay { return Theme.neutral }
         switch child.gender {
         case .girl: return Theme.rose
         case .boy: return Theme.tint
-        case .unspecified: return Theme.neutral
+        case .unspecified: return Theme.green
         }
     }
 
-    private var emoji: String {
-        if child.onTheWay { return "🌱" }
-        let years = child.birthDate.map {
-            Calendar.current.dateComponents([.year], from: $0, to: Date()).year ?? 0
-        } ?? 0
-        if years < 1 { return "👶" }
+    private var textTint: Color {
+        if child.onTheWay { return Theme.neutralDark }
         switch child.gender {
-        case .girl: return years < 13 ? "👧" : "👩"
-        case .boy: return years < 13 ? "👦" : "👨"
-        case .unspecified: return years < 13 ? "🧒" : "🧑"
+        case .girl: return Theme.rose
+        case .boy: return Theme.tint
+        case .unspecified: return Theme.green
         }
+    }
+
+    /// "William" → "WI", "Baby Blob" → "BB" (første bogstav i de to første ord).
+    private var initials: String {
+        let words = child.name.split(separator: " ").filter { !$0.isEmpty }
+        let letters: String
+        if words.count >= 2 {
+            letters = String(words[0].prefix(1)) + String(words[1].prefix(1))
+        } else {
+            letters = String(child.name.trimmingCharacters(in: .whitespaces).prefix(2))
+        }
+        return letters.uppercased()
     }
 }
 

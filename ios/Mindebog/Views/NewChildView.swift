@@ -14,6 +14,7 @@ struct NewChildView: View {
     @State private var birthDate = Date()
     @State private var dueDate = Date()
     @State private var gender: Gender = .unspecified
+    @State private var photo: Data?
     @State private var saving = false
     @State private var errorMessage: String?
     @State private var loaded = false
@@ -42,6 +43,13 @@ struct NewChildView: View {
                     }
                     .pickerStyle(.segmented)
                 }
+                Section {
+                    PhotoField(data: $photo)
+                } header: {
+                    Text("Billede")
+                } footer: {
+                    Text("Vises i cirklen i stedet for initialerne. Kan udelades.")
+                }
                 if let errorMessage {
                     Text(errorMessage).font(.footnote).foregroundStyle(Theme.rose)
                 }
@@ -66,6 +74,7 @@ struct NewChildView: View {
         loaded = true
         name = child.name
         gender = child.gender
+        photo = child.photo
         born = child.birthDate != nil
         if let b = child.birthDate { birthDate = b }
         if let d = child.dueDate { dueDate = d }
@@ -79,6 +88,7 @@ struct NewChildView: View {
             if var child = editing {
                 child.name = name
                 child.gender = gender
+                child.photo = photo
                 if born {
                     child.birthDate = birthDate   // terminsdatoen bevares som minde
                 } else {
@@ -87,10 +97,14 @@ struct NewChildView: View {
                 }
                 onSaved(try await state.store.updateChild(child))
             } else {
-                let child = try await state.store.createChild(
+                var child = try await state.store.createChild(
                     familyId: familyId, name: name, gender: gender,
                     birthDate: born ? birthDate : nil,
                     dueDate: born ? nil : dueDate)
+                if let photo {
+                    child.photo = photo
+                    child = try await state.store.updateChild(child)
+                }
                 onSaved(child)
             }
             dismiss()

@@ -40,6 +40,7 @@ DEFINE SCHEMA
         gender          STRING,
         birthDate       TIMESTAMP,
         dueDate         TIMESTAMP,
+        photo           ASSET,
         GRANT WRITE TO "_creator",
         GRANT CREATE TO "_icloud",
         GRANT READ TO "_world"
