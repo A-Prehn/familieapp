@@ -10,7 +10,7 @@ import CloudKit
 // Plan for mapping (fase 2b):
 //   Family -> CKRecord("Family") i privat DB; deles med CKShare (begge forældre).
 //   Child  -> CKRecord("Child"), reference til Family.
-//   Highlight/Event/… -> CKRecord med reference til Child/Family.
+//   Highlight/Diary/Gallery/Milestone/Event/Vacation -> CKRecord med reference til Child/Family.
 //   Fotos  -> CKAsset.
 //   Realtids-sync -> CKDatabaseSubscription + push (aps-environment).
 //
@@ -24,22 +24,47 @@ final class CloudKitStore: Store {
         self.container = CKContainer(identifier: containerIdentifier)
     }
 
-    func signIn(name: String) async throws -> AppUser { throw StoreError.notImplemented }
-    func user(id: String) async throws -> AppUser? { throw StoreError.notImplemented }
+    private func todo<T>() throws -> T { throw StoreError.notImplemented }
 
-    func families(for userId: String) async throws -> [Family] { throw StoreError.notImplemented }
-    func createFamily(userId: String, name: String) async throws -> Family { throw StoreError.notImplemented }
-    func members(familyId: String) async throws -> [AppUser] { throw StoreError.notImplemented }
-    func createInvite(userId: String, familyId: String) async throws -> String { throw StoreError.notImplemented }
-    func acceptInvite(userId: String, code: String) async throws -> Family { throw StoreError.notImplemented }
+    func signIn(name: String) async throws -> AppUser { try todo() }
+    func user(id: String) async throws -> AppUser? { try todo() }
 
-    func children(familyId: String) async throws -> [Child] { throw StoreError.notImplemented }
+    func families(for userId: String) async throws -> [Family] { try todo() }
+    func createFamily(userId: String, name: String) async throws -> Family { try todo() }
+    func members(familyId: String) async throws -> [AppUser] { try todo() }
+    func createInvite(userId: String, familyId: String) async throws -> String { try todo() }
+    func acceptInvite(userId: String, code: String) async throws -> Family { try todo() }
+
+    func children(familyId: String) async throws -> [Child] { try todo() }
     func createChild(familyId: String, name: String, gender: Gender,
-                     birthDate: Date?, dueDate: Date?) async throws -> Child { throw StoreError.notImplemented }
+                     birthDate: Date?, dueDate: Date?) async throws -> Child { try todo() }
 
-    func highlights(childId: String) async throws -> [Highlight] { throw StoreError.notImplemented }
-    func addHighlight(childId: String, date: Date?, text: String) async throws -> Highlight { throw StoreError.notImplemented }
+    func highlights(childId: String) async throws -> [Highlight] { try todo() }
+    func addHighlight(childId: String, date: Date?, text: String, photos: [Data]) async throws -> Highlight { try todo() }
 
-    func events(familyId: String) async throws -> [FamilyEvent] { throw StoreError.notImplemented }
-    func addEvent(familyId: String, title: String, date: Date?, details: String) async throws -> FamilyEvent { throw StoreError.notImplemented }
+    func milestones(childId: String) async throws -> [String: MilestoneEntry] { try todo() }
+    func setMilestone(childId: String, key: String, value: String?, photo: Data?) async throws {
+        throw StoreError.notImplemented
+    }
+
+    func answers(childId: String) async throws -> [String: String] { try todo() }
+    func setAnswer(childId: String, question: String, answer: String) async throws {
+        throw StoreError.notImplemented
+    }
+
+    func diary(childId: String) async throws -> [DiaryEntry] { try todo() }
+    func addDiary(childId: String, date: Date?, text: String, photo: Data?) async throws -> DiaryEntry { try todo() }
+
+    func gallery(childId: String, kind: GalleryKind) async throws -> [GalleryItem] { try todo() }
+    func addGalleryItem(childId: String, kind: GalleryKind, caption: String, photo: Data?) async throws -> GalleryItem { try todo() }
+
+    func events(familyId: String) async throws -> [FamilyEvent] { try todo() }
+    func addEvent(familyId: String, title: String, date: Date?, details: String) async throws -> FamilyEvent { try todo() }
+
+    func vacations(familyId: String) async throws -> [Vacation] { try todo() }
+    func addVacation(familyId: String, title: String, start: Date?, end: Date?,
+                     details: String, photo: Data?) async throws -> Vacation { try todo() }
+
+    func birthdays(familyId: String) async throws -> [CustomBirthday] { try todo() }
+    func addBirthday(familyId: String, name: String, date: Date, emoji: String) async throws -> CustomBirthday { try todo() }
 }

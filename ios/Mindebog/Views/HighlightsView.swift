@@ -5,6 +5,7 @@ struct HighlightsView: View {
     let child: Child
     @State private var items: [Highlight] = []
     @State private var showAdd = false
+    @State private var lightbox: LightboxState?
 
     var body: some View {
         ScrollView {
@@ -12,18 +13,9 @@ struct HighlightsView: View {
                 ContentUnavailableView("Ingen højdepunkter endnu", systemImage: "star")
                     .padding(.top, 60)
             } else {
-                VStack(spacing: 12) {
-                    ForEach(items) { h in
-                        VStack(alignment: .leading, spacing: 4) {
-                            if let date = h.date {
-                                Text(date, style: .date).font(.caption).foregroundStyle(Theme.muted)
-                            }
-                            Text(h.text).font(.body).foregroundStyle(Theme.text)
-                        }
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(14)
-                        .background(Theme.card).clipShape(RoundedRectangle(cornerRadius: 14))
-                        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Theme.sep))
+                VStack(alignment: .leading, spacing: 12) {
+                    ForEach(items) { highlight in
+                        card(highlight)
                     }
                 }
                 .padding(16)
@@ -40,7 +32,33 @@ struct HighlightsView: View {
         .sheet(isPresented: $showAdd, onDismiss: { Task { await load() } }) {
             AddHighlightView(childId: child.id)
         }
+        .fullScreenCover(item: $lightbox) { LightboxView(state: $0) }
         .task { await load() }
+    }
+
+    private func card(_ highlight: Highlight) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            if let date = highlight.date {
+                Text(Fmt.long(date)).font(.caption).foregroundStyle(Theme.muted)
+            }
+            Text(highlight.text)
+                .font(.serifTitle(16))
+                .foregroundStyle(Theme.text)
+            ForEach(highlight.photos.indices, id: \.self) { index in
+                Color.clear
+                    .aspectRatio(4.0 / 3.0, contentMode: .fit)
+                    .overlay { DataImage(data: highlight.photos[index]) }
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                    .onTapGesture {
+                        lightbox = LightboxState(photos: highlight.photos, index: index)
+                    }
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(14)
+        .background(Theme.card)
+        .clipShape(RoundedRectangle(cornerRadius: 14))
+        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Theme.sep))
     }
 
     private func load() async {
@@ -54,6 +72,7 @@ struct AddHighlightView: View {
     let childId: String
     @State private var date = Date()
     @State private var text = ""
+    @State private var photos: [Data] = []
 
     var body: some View {
         NavigationStack {
@@ -63,6 +82,9 @@ struct AddHighlightView: View {
                     TextField("Hvad skete der?", text: $text, axis: .vertical)
                         .lineLimit(3...6)
                 }
+                Section("Billeder") {
+                    MultiPhotoField(photos: $photos)
+                }
             }
             .navigationTitle("Nyt højdepunkt")
             .navigationBarTitleDisplayMode(.inline)
@@ -71,11 +93,11 @@ struct AddHighlightView: View {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Gem") {
                         Task {
-                            _ = try? await state.store.addHighlight(childId: childId, date: date, text: text)
+                            _ = try? await state.store.addHighlight(childId: childId, date: date, text: text, photos: photos)
                             dismiss()
                         }
                     }
-                    .disabled(text.trimmingCharacters(in: .whitespaces).isEmpty)
+                    .disabled(text.trimmingCharacters(in: .whitespaces).isEmpty && photos.isEmpty)
                 }
             }
         }
