@@ -69,44 +69,37 @@ struct FamilyView: View {
             ContentUnavailableView("Ingen begivenheder endnu", systemImage: "calendar")
                 .padding(.top, 40)
         } else {
-            VStack(spacing: 0) {
-                ForEach(Array(events.enumerated()), id: \.element.id) { index, event in
-                    if index > 0 { Divider() }
-                    HStack(alignment: .top, spacing: 14) {
-                        VStack(spacing: 0) {
-                            Text(monthShort(event.date))
-                                .font(.caption2).foregroundStyle(Theme.muted)
-                            Text(dayNumber(event.date))
-                                .font(.serifTitle(20))
-                        }
-                        .frame(width: 44)
-                        VStack(alignment: .leading, spacing: 6) {
-                            Text(event.title).font(.system(size: 15, weight: .medium))
-                            if !event.details.isEmpty {
-                                Text(event.details).font(.footnote).foregroundStyle(Theme.muted)
-                            }
-                            if let place = event.place { PlaceLabel(place: place) }
-                            if let photo = event.photo {
-                                Color.clear
-                                    .aspectRatio(4.0 / 3.0, contentMode: .fit)
-                                    .overlay { DataImage(data: photo) }
-                                    .clipShape(RoundedRectangle(cornerRadius: 8))
-                                    .onTapGesture { lightbox = LightboxState(photos: [photo]) }
-                            } else if let place = event.place {
-                                PlaceMap(place: place)
-                            }
-                        }
-                        Spacer(minLength: 0)
+            // Tidslinje som ferier og højdepunkter: nyeste øverst, årstal når året skifter.
+            TimelineView(items: events,
+                         year: { $0.date.map { Calendar.current.component(.year, from: $0) } }) { event in
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(event.title).font(.serifTitle(16))
+                    if let date = event.date {
+                        Text(Fmt.long(date)).font(.caption).foregroundStyle(Theme.muted)
                     }
-                    .padding(.vertical, 12)
-                    .contentShape(Rectangle())
-                    .onTapGesture { editingEvent = event }
+                    if !event.details.isEmpty {
+                        Text(event.details).font(.footnote).foregroundStyle(Theme.muted)
+                    }
+                    if let photo = event.photo {
+                        Color.clear
+                            .aspectRatio(4.0 / 3.0, contentMode: .fit)
+                            .overlay { DataImage(data: photo) }
+                            .clipShape(RoundedRectangle(cornerRadius: 8))
+                            .onTapGesture { lightbox = LightboxState(photos: [photo]) }
+                    }
+                    if let place = event.place {
+                        PlaceLabel(place: place)
+                        PlaceMap(place: place)
+                    }
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(14)
+                .contentShape(Rectangle())
+                .onTapGesture { editingEvent = event }
+                .background(Theme.card)
+                .clipShape(RoundedRectangle(cornerRadius: 14))
+                .overlay(RoundedRectangle(cornerRadius: 14).stroke(Theme.sep))
             }
-            .padding(.horizontal, 16)
-            .background(Theme.card)
-            .clipShape(RoundedRectangle(cornerRadius: 16))
-            .overlay(RoundedRectangle(cornerRadius: 16).stroke(Theme.sep))
         }
     }
 
@@ -229,19 +222,6 @@ struct FamilyView: View {
 
     // MARK: Hjælpere
     private static let danish = Locale(identifier: "da_DK")
-
-    private func monthShort(_ date: Date?) -> String {
-        guard let date else { return "—" }
-        let f = DateFormatter()
-        f.locale = Self.danish
-        f.dateFormat = "MMM"
-        return f.string(from: date).uppercased()
-    }
-
-    private func dayNumber(_ date: Date?) -> String {
-        guard let date else { return "·" }
-        return String(Calendar.current.component(.day, from: date))
-    }
 
     private func dayMonth(_ date: Date) -> String {
         let f = DateFormatter()
