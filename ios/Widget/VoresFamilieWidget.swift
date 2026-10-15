@@ -89,6 +89,7 @@ private func upcoming(_ snapshot: WidgetSnapshot, now: Date) -> [UpcomingBirthda
 
 struct BirthdaysView: View {
     @Environment(\.widgetFamily) private var family
+    @Environment(\.widgetRenderingMode) private var renderingMode
     let entry: FamilyEntry
 
     var body: some View {
@@ -117,8 +118,18 @@ struct BirthdaysView: View {
                     HStack(spacing: 10) {
                         Text(b.days == 0 ? "🎉" : "\(b.days)")
                             .font(WTheme.serif(16))
+                            .minimumScaleFactor(0.6)
+                            .lineLimit(1)
                             .frame(width: 40, height: 30)
-                            .background(RoundedRectangle(cornerRadius: 8).fill(WTheme.card))
+                            .background {
+                                // I gennemsigtig/tonet stil tegner iOS alt i én farve, så en fyldt
+                                // kasse ville skjule tallet. Der bruges en kant i stedet.
+                                if renderingMode == .fullColor {
+                                    RoundedRectangle(cornerRadius: 8).fill(WTheme.card)
+                                } else {
+                                    RoundedRectangle(cornerRadius: 8).strokeBorder(.primary.opacity(0.5), lineWidth: 1)
+                                }
+                            }
                         VStack(alignment: .leading, spacing: 0) {
                             Text("\(b.emoji) \(b.name)").font(.subheadline.weight(.medium)).lineLimit(1)
                             Text(b.days == 0 ? "I dag · fylder \(b.turning)"
