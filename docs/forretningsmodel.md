@@ -77,7 +77,7 @@ Deling bag Premium er den stærkeste driver: det er præcis det, to forældre vi
 1. Skal den gratis version have deling, så begge forældre kan prøve det før køb?
 2. Pris i andre markeder (Apple foreslår automatisk, men bør tjekkes).
 3. Vil vi lave fotobøger på print (høj margin, men kræver partner som fx Peecho/Pixum-API)?
-4. Navnet "Mindebog" — tjek varemærke og App Store-tilgængelighed før lancering.
+4. App-navnet er "Vores familie" (skiftet fra "Mindebog" 2026-10-15) — tjek varemærke og App Store-tilgængelighed før lancering.
 
 ## Næste skridt
 

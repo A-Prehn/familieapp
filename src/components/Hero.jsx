@@ -19,7 +19,7 @@ export default function Hero() {
   const { tagline, Icon } = SLIDES[i];
   return (
     <div className="hero">
-      <div className="hero-eyebrow">Mindebog</div>
+      <div className="hero-eyebrow">Vores familie</div>
       <div className="hero-tagline">{tagline}</div>
       <div className="hero-art">
         <Icon size={60} strokeWidth={1.3} absoluteStrokeWidth aria-hidden="true" />

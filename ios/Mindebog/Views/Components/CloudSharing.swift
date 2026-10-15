@@ -29,7 +29,7 @@ enum CloudSharing {
         let onChange: () -> Void
         init(onChange: @escaping () -> Void) { self.onChange = onChange }
 
-        func itemTitle(for csc: UICloudSharingController) -> String? { "Mindebog" }
+        func itemTitle(for csc: UICloudSharingController) -> String? { "Vores familie" }
 
         func cloudSharingController(_ csc: UICloudSharingController, failedToSaveShareWithError error: Error) {
             onChange()

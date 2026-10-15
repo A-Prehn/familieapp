@@ -13,7 +13,7 @@ struct HeroView: View {
 
     var body: some View {
         VStack(spacing: 10) {
-            Text("MINDEBOG")
+            Text("VORES FAMILIE")
                 .font(.caption2).tracking(1.6)
                 .foregroundStyle(Theme.muted)
             Text(slides[index].tagline)

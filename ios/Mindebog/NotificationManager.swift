@@ -48,13 +48,18 @@ enum NotificationManager {
     static func refreshOnLaunch() {
         guard isEnabled else { return }
         UIApplication.shared.registerForRemoteNotifications()
+        // Gem abonnementerne igen, så ændret notifikationstekst (fx nyt app-navn) slår igennem.
+        Task {
+            try? await save(subscription(id: privateSubID), in: container.privateCloudDatabase)
+            try? await save(subscription(id: sharedSubID), in: container.sharedCloudDatabase)
+        }
     }
 
     private static func subscription(id: String) -> CKDatabaseSubscription {
         let sub = CKDatabaseSubscription(subscriptionID: id)
         let info = CKSubscription.NotificationInfo()
-        info.title = "Mindebog"
-        info.alertBody = "Der er kommet noget nyt i jeres mindebog 💛"
+        info.title = "Vores familie"
+        info.alertBody = "Der er kommet noget nyt i familien 💛"
         info.soundName = "default"
         sub.notificationInfo = info
         return sub

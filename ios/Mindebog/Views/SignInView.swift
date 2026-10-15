@@ -10,7 +10,7 @@ struct SignInView: View {
             Image(systemName: "book.closed")
                 .font(.system(size: 52, weight: .light))
                 .foregroundStyle(Theme.neutralDark)
-            Text("Mindebog")
+            Text("Vores familie")
                 .font(.serifTitle(34))
                 .foregroundStyle(Theme.text)
             Text("Saml milepæle, billeder og øjeblikke for jeres børn — og del dem med den I har dem sammen med.")

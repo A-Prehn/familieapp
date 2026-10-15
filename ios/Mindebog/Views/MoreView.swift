@@ -164,7 +164,7 @@ struct MoreView: View {
                 notificationsOn = true
             case .denied:
                 notificationsOn = false
-                notificationMessage = "Notifikationer er slået fra for Mindebog. Slå dem til i iPhonens Indstillinger → Mindebog → Notifikationer."
+                notificationMessage = "Notifikationer er slået fra for Vores familie. Slå dem til i iPhonens Indstillinger → Vores familie → Notifikationer."
             case .failed(let message):
                 notificationsOn = false
                 notificationMessage = "Kunne ikke slå notifikationer til: \(message)"

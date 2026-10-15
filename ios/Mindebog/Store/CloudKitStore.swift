@@ -100,7 +100,7 @@ final class CloudKitStore: Store {
             return url.absoluteString
         }
         let share = CKShare(recordZoneID: zoneID)
-        share[CKShare.SystemFieldKey.title] = "Mindebog" as CKRecordValue
+        share[CKShare.SystemFieldKey.title] = "Vores familie" as CKRecordValue
         share.publicPermission = .none
         let (saveResults, _) = try await db.modifyRecords(saving: [share], deleting: [])
         guard let saved = try saveResults[share.recordID]?.get() as? CKShare, let url = saved.url else {
@@ -117,7 +117,7 @@ final class CloudKitStore: Store {
             return (existing, container)
         }
         let share = CKShare(recordZoneID: zoneID)
-        share[CKShare.SystemFieldKey.title] = "Mindebog" as CKRecordValue
+        share[CKShare.SystemFieldKey.title] = "Vores familie" as CKRecordValue
         share.publicPermission = .none
         let (saveResults, _) = try await db.modifyRecords(saving: [share], deleting: [])
         guard let saved = try saveResults[share.recordID]?.get() as? CKShare else { throw StoreError.notFound }

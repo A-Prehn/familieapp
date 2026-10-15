@@ -10,7 +10,7 @@ export default function SignIn() {
     <div className="center-screen">
       <div className="hero-emoji">👶</div>
       <h1 className="large-title" style={{ textAlign: "center", margin: "4px 0 8px" }}>
-        Mindebog
+        Vores familie
       </h1>
       <p className="tagline">
         Saml milepæle, billeder og øjeblikke for jeres børn — og del dem med den
