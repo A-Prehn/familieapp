@@ -5,20 +5,21 @@ import SwiftUI
 // Tegnes lokalt med UIGraphicsPDFRenderer (A4) — ingen server. Forseglede breve udelades.
 @MainActor
 enum BookExporter {
-    private static let page = CGRect(x: 0, y: 0, width: 595, height: 842)   // A4 i punkter
-    private static let margin: CGFloat = 48
+    nonisolated(unsafe) private static let page = CGRect(x: 0, y: 0, width: 595, height: 842)   // A4 i punkter
+    nonisolated(unsafe) private static let margin: CGFloat = 48
 
-    private static func serif(_ size: CGFloat, _ weight: UIFont.Weight = .regular) -> UIFont {
+    nonisolated private static func serif(_ size: CGFloat, _ weight: UIFont.Weight = .regular) -> UIFont {
         let base = UIFont.systemFont(ofSize: size, weight: weight)
         guard let d = base.fontDescriptor.withDesign(.serif) else { return base }
         return UIFont(descriptor: d, size: size)
     }
-    private static func sans(_ size: CGFloat, _ weight: UIFont.Weight = .regular) -> UIFont {
+    nonisolated private static func sans(_ size: CGFloat, _ weight: UIFont.Weight = .regular) -> UIFont {
         UIFont.systemFont(ofSize: size, weight: weight)
     }
-    private static let ink = UIColor(Theme.text)
-    private static let muted = UIColor(Theme.muted)
-    private static let accent = UIColor(Theme.neutralDark)
+    nonisolated(unsafe) private static let ink = UIColor(Theme.text)
+    nonisolated(unsafe) private static let muted = UIColor(Theme.muted)
+    nonisolated(unsafe) private static let accent = UIColor(Theme.neutralDark)
+    nonisolated(unsafe) private static let sep = UIColor(Theme.sep)
 
     /// Bygger bogen for ét barn og returnerer stien til PDF-filen.
     static func make(child: Child, store: Store, familyName: String) async throws -> URL {
@@ -76,7 +77,7 @@ enum BookExporter {
             func heading(_ title: String) {
                 newPage()
                 text(title.uppercased(), sans(11, .semibold), muted, spacing: 4)
-                ctx.cgContext.setFillColor(UIColor(Theme.sep).cgColor)
+                ctx.cgContext.setFillColor(sep.cgColor)
                 ctx.cgContext.fill(CGRect(x: margin, y: y, width: width, height: 1))
                 y += 16
             }
