@@ -59,8 +59,7 @@ struct ChildDetailView: View {
     private var header: some View {
         VStack(spacing: 14) {
             HStack(spacing: 16) {
-                Circle().fill(Theme.bgDark).frame(width: 64, height: 64)
-                    .overlay(Image(systemName: "figure.child").font(.title2).foregroundStyle(Theme.neutralDark))
+                ChildAvatar(child: child, size: 64)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(child.name).font(.serifTitle(22))
                     Text(subtitle).font(.subheadline).foregroundStyle(Theme.muted)

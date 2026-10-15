@@ -284,7 +284,8 @@ struct ChooseChildrenView: View {
                         Button {
                             if selected.contains(child.id) { selected.remove(child.id) } else { selected.insert(child.id) }
                         } label: {
-                            HStack {
+                            HStack(spacing: 12) {
+                                ChildAvatar(child: child, size: 36)
                                 Text(child.name).foregroundStyle(Theme.text)
                                 Spacer()
                                 Image(systemName: selected.contains(child.id) ? "checkmark.circle.fill" : "circle")

@@ -39,14 +39,50 @@ enum ChildAge {
     }
 }
 
+/// Avatar der viser trin (på vej, baby, barn, teenager) og køn (farve) — som på websitet.
+struct ChildAvatar: View {
+    let child: Child
+    var size: CGFloat = 56
+
+    var body: some View {
+        ZStack {
+            Circle().fill(
+                LinearGradient(colors: [tint.opacity(0.55), tint.opacity(0.22)],
+                               startPoint: .topLeading, endPoint: .bottomTrailing))
+            Circle().strokeBorder(tint.opacity(0.35), lineWidth: 1)
+            Text(emoji).font(.system(size: size * 0.52))
+        }
+        .frame(width: size, height: size)
+        .accessibilityLabel("\(child.name), \(ChildAge.short(child))")
+    }
+
+    private var tint: Color {
+        switch child.gender {
+        case .girl: return Theme.rose
+        case .boy: return Theme.tint
+        case .unspecified: return Theme.neutral
+        }
+    }
+
+    private var emoji: String {
+        if child.onTheWay { return "🌱" }
+        let years = child.birthDate.map {
+            Calendar.current.dateComponents([.year], from: $0, to: Date()).year ?? 0
+        } ?? 0
+        if years < 1 { return "👶" }
+        switch child.gender {
+        case .girl: return years < 13 ? "👧" : "👩"
+        case .boy: return years < 13 ? "👦" : "👨"
+        case .unspecified: return years < 13 ? "🧒" : "🧑"
+        }
+    }
+}
+
 struct ChildCard: View {
     let child: Child
     var body: some View {
         VStack(spacing: 10) {
-            Circle()
-                .fill(Theme.bgDark)
-                .frame(width: 56, height: 56)
-                .overlay(Image(systemName: "figure.child").foregroundStyle(Theme.neutralDark))
+            ChildAvatar(child: child, size: 56)
             Text(child.name).font(.serifTitle(16)).foregroundStyle(Theme.text)
             Text(ChildAge.short(child)).font(.caption).foregroundStyle(Theme.muted)
         }
