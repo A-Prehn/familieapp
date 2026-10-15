@@ -46,6 +46,7 @@ struct HomeView: View {
         .sheet(isPresented: $showNewChild, onDismiss: { Task { await load() } }) {
             NewChildView()
         }
+        .refreshable { await load() }
         .task { await load() }
     }
 

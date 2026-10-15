@@ -39,6 +39,7 @@ struct AboutMeView: View {
         .sheet(item: $editing, onDismiss: { Task { await load() } }) { item in
             AnswerEditView(childId: child.id, question: item.question, answer: answers[item.question] ?? "")
         }
+        .refreshable { await load() }
         .task { await load() }
     }
 

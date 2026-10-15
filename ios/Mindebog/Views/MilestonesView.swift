@@ -25,6 +25,7 @@ struct MilestonesView: View {
             MilestoneEditView(child: child, def: def, entry: entries[def.key])
         }
         .fullScreenCover(item: $lightbox) { LightboxView(state: $0) }
+        .refreshable { await load() }
         .task { await load() }
     }
 

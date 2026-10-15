@@ -37,6 +37,7 @@ struct GalleryView: View {
             AddGalleryItemView(childId: child.id, kind: kind)
         }
         .fullScreenCover(item: $lightbox) { LightboxView(state: $0) }
+        .refreshable { await load() }
         .task { await load() }
     }
 

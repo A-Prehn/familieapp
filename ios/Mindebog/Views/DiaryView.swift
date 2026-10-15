@@ -33,6 +33,7 @@ struct DiaryView: View {
             AddDiaryView(childId: child.id)
         }
         .fullScreenCover(item: $lightbox) { LightboxView(state: $0) }
+        .refreshable { await load() }
         .task { await load() }
     }
 
