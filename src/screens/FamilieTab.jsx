@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Plus } from "lucide-react";
 import { useApp, useLiveData } from "../lib/AppContext";
 import { EmptyState, Modal, Lightbox, PhotoPicker } from "../components/ui";
 import { MONTHS_SHORT, MONTHS_FULL, formatDate } from "../lib/constants";
@@ -36,7 +37,7 @@ export default function FamilieTab() {
       <div className="nav">
         <span style={{ width: 52 }} />
         <div className="title">{family?.name || "Familie"}</div>
-        <button className="action" onClick={openAdd}>＋</button>
+        <button className="action" onClick={openAdd} aria-label="Tilføj"><Plus size={22} strokeWidth={1.8} /></button>
       </div>
       <div className="content">
         <div className="subnav">

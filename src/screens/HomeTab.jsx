@@ -1,3 +1,4 @@
+import { Plus } from "lucide-react";
 import { useApp, useLiveData } from "../lib/AppContext";
 import { daysUntil, ageFromBirth } from "../lib/constants";
 import Hero from "../components/Hero";
@@ -26,7 +27,7 @@ export default function HomeTab({ nav }) {
       <div className="nav">
         <span style={{ width: 52 }} />
         <div className="title">{family?.name || "Hjem"}</div>
-        <button className="action" onClick={() => nav.push("newChild")}>＋</button>
+        <button className="action" onClick={() => nav.push("newChild")} aria-label="Tilføj barn"><Plus size={22} strokeWidth={1.8} /></button>
       </div>
 
       <div className="content">
@@ -46,7 +47,7 @@ export default function HomeTab({ nav }) {
               );
             })}
             <div className="home-card add" onClick={() => nav.push("newChild")}>
-              <div className="plus">＋</div>
+              <Plus size={30} strokeWidth={1.5} />
               <div className="home-card-name">Tilføj barn</div>
             </div>
           </div>

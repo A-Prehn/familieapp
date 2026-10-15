@@ -1,17 +1,23 @@
 import { useState, useEffect } from "react";
+import { ChevronLeft, Plus } from "lucide-react";
 import { fileToResizedDataURL } from "../lib/photo";
 
 export function ScreenHeader({ title, onBack, backLabel = "Tilbage", action }) {
   return (
     <div className="nav">
       {onBack ? (
-        <button className="back" onClick={onBack}>‹ {backLabel}</button>
+        <button className="back" onClick={onBack}>
+          <ChevronLeft size={20} strokeWidth={1.8} />
+          <span>{backLabel}</span>
+        </button>
       ) : (
         <span style={{ width: 52 }} />
       )}
       <div className="title">{title}</div>
       {action ? (
-        <button className="action" onClick={action.onClick}>{action.label}</button>
+        <button className="action" onClick={action.onClick} aria-label="Tilføj">
+          {action.label === "＋" ? <Plus size={22} strokeWidth={1.8} /> : action.label}
+        </button>
       ) : (
         <span style={{ width: 52 }} />
       )}

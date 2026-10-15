@@ -1,3 +1,4 @@
+import { Star, BookOpen, Baby, Images, MessageCircleHeart, Milestone } from "lucide-react";
 import { useApp, useLiveData } from "../lib/AppContext";
 import { ScreenHeader } from "../components/ui";
 import { daysUntil, ageFromBirth, MONTHS_FULL, MILESTONES } from "../lib/constants";
@@ -21,12 +22,12 @@ export default function ChildDetail({ nav, childId }) {
   const answered = Object.values(child.aboutMe || {}).filter((v) => v && v.trim()).length;
 
   const sections = [
-    { key: "highlights", wide: true, ico: "⭐", bg: "var(--rose-soft)", title: "Højdepunkter", sub: `${child.highlights.length} ${child.highlights.length === 1 ? "højdepunkt" : "højdepunkter"}`, go: () => nav.push("highlights", { childId }) },
-    { key: "diary", ico: "📖", bg: "var(--neutral-soft)", title: onTheWay ? "Svangerskabsdagbog" : "Dagbog", sub: `${child.diary.length} indlæg`, go: () => nav.push("diary", { childId }) },
-    { key: "belly", ico: "🤰", bg: "var(--neutral-soft)", title: "Maven måned for måned", sub: `${child.bellyGallery.length} fotos`, go: () => nav.push("gallery", { childId, kind: "bellyGallery" }) },
-    { key: "monthly", ico: "👶", bg: "var(--tint-soft)", title: "Måned for måned", sub: `${child.monthlyGallery.length} ${child.monthlyGallery.length === 1 ? "måned" : "måneder"}`, go: () => nav.push("gallery", { childId, kind: "monthlyGallery" }) },
-    { key: "about", ico: "💬", bg: "var(--rose-soft)", title: "Om dig", sub: `${answered} svar`, go: () => nav.push("aboutMe", { childId }) },
-    { key: "milestones", ico: "🌱", bg: "var(--green-soft)", title: "Milepæle", sub: `${filledMs} udfyldt`, go: () => nav.push("milestones", { childId }) },
+    { key: "highlights", wide: true, Icon: Star, bg: "var(--rose-soft)", color: "var(--rose)", title: "Højdepunkter", sub: `${child.highlights.length} ${child.highlights.length === 1 ? "højdepunkt" : "højdepunkter"}`, go: () => nav.push("highlights", { childId }) },
+    { key: "diary", Icon: BookOpen, bg: "var(--neutral-soft)", color: "var(--neutral-dark)", title: onTheWay ? "Svangerskabsdagbog" : "Dagbog", sub: `${child.diary.length} indlæg`, go: () => nav.push("diary", { childId }) },
+    { key: "belly", Icon: Baby, bg: "var(--neutral-soft)", color: "var(--neutral-dark)", title: "Maven måned for måned", sub: `${child.bellyGallery.length} fotos`, go: () => nav.push("gallery", { childId, kind: "bellyGallery" }) },
+    { key: "monthly", Icon: Images, bg: "var(--tint-soft)", color: "var(--tint-dark)", title: "Måned for måned", sub: `${child.monthlyGallery.length} ${child.monthlyGallery.length === 1 ? "måned" : "måneder"}`, go: () => nav.push("gallery", { childId, kind: "monthlyGallery" }) },
+    { key: "about", Icon: MessageCircleHeart, bg: "var(--rose-soft)", color: "var(--rose)", title: "Om dig", sub: `${answered} svar`, go: () => nav.push("aboutMe", { childId }) },
+    { key: "milestones", Icon: Milestone, bg: "var(--green-soft)", color: "var(--green)", title: "Milepæle", sub: `${filledMs} udfyldt`, go: () => nav.push("milestones", { childId }) },
   ];
 
   return (
@@ -58,7 +59,7 @@ export default function ChildDetail({ nav, childId }) {
         <div className="section-grid">
           {sections.map((s) => (
             <button key={s.key} className={`section-btn ${s.wide ? "wide" : ""}`} onClick={s.go}>
-              <div className="section-ico" style={{ background: s.bg }}>{s.ico}</div>
+              <div className="section-ico" style={{ background: s.bg, color: s.color }}><s.Icon size={19} strokeWidth={1.8} /></div>
               <div>
                 <div className="s-title">{s.title}</div>
                 <div className="s-sub">{s.sub}</div>

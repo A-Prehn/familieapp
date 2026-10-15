@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { House, Users, Settings } from "lucide-react";
 import { AppProvider, useApp, useLiveData } from "./lib/AppContext";
 import SignIn from "./screens/SignIn";
 import Onboarding from "./screens/Onboarding";
@@ -14,9 +15,9 @@ import AboutMe from "./screens/AboutMe";
 import Milestones from "./screens/Milestones";
 
 const TABS = [
-  { key: "home", label: "Hjem", icon: "🏠" },
-  { key: "familie", label: "Familie", icon: "👨‍👩‍👧" },
-  { key: "settings", label: "Mere", icon: "⚙️" },
+  { key: "home", label: "Hjem", Icon: House },
+  { key: "familie", label: "Familie", Icon: Users },
+  { key: "settings", label: "Mere", Icon: Settings },
 ];
 
 function Shell() {
@@ -103,7 +104,7 @@ function Shell() {
             className={`tabbar-btn ${tab === t.key ? "active" : ""}`}
             onClick={() => switchTab(t.key)}
           >
-            <span className="tabbar-icon">{t.icon}</span>
+            <t.Icon className="tabbar-icon" size={23} strokeWidth={tab === t.key ? 2 : 1.6} />
             <span className="tabbar-label">{t.label}</span>
           </button>
         ))}
