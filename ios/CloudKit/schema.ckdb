@@ -175,6 +175,25 @@ DEFINE SCHEMA
         GRANT READ TO "_world"
     );
 
+    RECORD TYPE Letter (
+        "___createTime" TIMESTAMP,
+        "___createdBy"  REFERENCE,
+        "___etag"       STRING,
+        "___modTime"    TIMESTAMP,
+        "___modifiedBy" REFERENCE,
+        "___recordID"   REFERENCE QUERYABLE,
+        childRef        REFERENCE QUERYABLE,
+        title           STRING,
+        text            STRING,
+        author          STRING,
+        writtenAt       TIMESTAMP,
+        openDate        TIMESTAMP,
+        photo           ASSET,
+        GRANT WRITE TO "_creator",
+        GRANT CREATE TO "_icloud",
+        GRANT READ TO "_world"
+    );
+
     RECORD TYPE Member (
         "___createTime" TIMESTAMP,
         "___createdBy"  REFERENCE,

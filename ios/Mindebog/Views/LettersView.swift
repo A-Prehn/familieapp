@@ -1,0 +1,259 @@
+import SwiftUI
+
+// "Breve til dig": breve til barnet, forseglet indtil en dato (typisk 18-års fødselsdagen).
+// Forseglede breve vises som en lukket kuvert; indholdet vises først, når datoen er nået.
+struct LettersView: View {
+    @EnvironmentObject var state: AppState
+    let child: Child
+    @State private var letters: [Letter] = []
+    @State private var showAdd = false
+    @State private var editing: Letter?
+    @State private var reading: Letter?
+
+    var body: some View {
+        ScrollView {
+            if letters.isEmpty {
+                ContentUnavailableView {
+                    Label("Ingen breve endnu", systemImage: "envelope")
+                } description: {
+                    Text("Skriv et brev til \(child.name), der først kan åbnes på 18-års fødselsdagen — eller når I vælger.")
+                }
+                .padding(.top, 60)
+            } else {
+                VStack(spacing: 12) {
+                    ForEach(letters) { letter in
+                        card(letter)
+                    }
+                }
+                .padding(16)
+            }
+        }
+        .background(Theme.bg.ignoresSafeArea())
+        .navigationTitle("Breve til dig")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                if state.canEdit { Button { showAdd = true } label: { Image(systemName: "plus") } }
+            }
+        }
+        .sheet(isPresented: $showAdd, onDismiss: { Task { await load() } }) {
+            LetterEditView(child: child)
+        }
+        .sheet(item: $editing, onDismiss: { Task { await load() } }) { letter in
+            LetterEditView(child: child, editing: letter)
+        }
+        .sheet(item: $reading) { letter in
+            LetterReadView(letter: letter)
+        }
+        .refreshable { await load() }
+        .task { await load() }
+    }
+
+    private func card(_ letter: Letter) -> some View {
+        HStack(alignment: .top, spacing: 14) {
+            Circle()
+                .fill((letter.isSealed ? Theme.neutral : Theme.rose).opacity(0.15))
+                .frame(width: 44, height: 44)
+                .overlay(Image(systemName: letter.isSealed ? "envelope" : "envelope.open")
+                    .foregroundStyle(letter.isSealed ? Theme.neutralDark : Theme.rose))
+            VStack(alignment: .leading, spacing: 4) {
+                Text(letter.title.isEmpty ? "Brev til \(child.name)" : letter.title)
+                    .font(.serifTitle(16))
+                    .foregroundStyle(Theme.text)
+                Text("Skrevet af \(letter.author.isEmpty ? "—" : letter.author) · \(Fmt.long(letter.writtenAt))")
+                    .font(.caption).foregroundStyle(Theme.muted)
+                if letter.isSealed, let open = letter.openDate {
+                    Label("Forseglet · åbnes \(Fmt.long(open))", systemImage: "lock")
+                        .font(.footnote).foregroundStyle(Theme.neutralDark)
+                } else {
+                    Text(letter.text).font(.footnote).foregroundStyle(Theme.muted).lineLimit(2)
+                }
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(14)
+        .background(Theme.card)
+        .clipShape(RoundedRectangle(cornerRadius: 14))
+        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Theme.sep))
+        .contentShape(RoundedRectangle(cornerRadius: 14))
+        .onTapGesture { if !letter.isSealed { reading = letter } }
+        .contextMenu {
+            if !letter.isSealed {
+                Button { reading = letter } label: { Label("Læs", systemImage: "envelope.open") }
+            }
+            if state.canEdit {
+                Button { editing = letter } label: { Label("Redigér", systemImage: "pencil") }
+            }
+        }
+    }
+
+    private func load() async {
+        letters = (try? await state.store.letters(childId: child.id)) ?? []
+    }
+}
+
+/// Et åbnet brev, læst i ro og mag.
+struct LetterReadView: View {
+    let letter: Letter
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 16) {
+                    Text(letter.title)
+                        .font(.serifTitle(24))
+                    Text("Skrevet af \(letter.author) · \(Fmt.long(letter.writtenAt))")
+                        .font(.footnote).foregroundStyle(Theme.muted)
+                    if let photo = letter.photo {
+                        DataImage(data: photo, contentMode: .fit)
+                            .clipShape(RoundedRectangle(cornerRadius: 10))
+                    }
+                    Text(letter.text)
+                        .font(.system(size: 17, design: .serif))
+                        .lineSpacing(5)
+                        .foregroundStyle(Theme.text)
+                }
+                .padding(24)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .background(Theme.bg.ignoresSafeArea())
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) { Button("Luk") { dismiss() } }
+            }
+        }
+    }
+}
+
+/// Skriv eller redigér et brev.
+struct LetterEditView: View {
+    @EnvironmentObject var state: AppState
+    @Environment(\.dismiss) private var dismiss
+    let child: Child
+    var editing: Letter? = nil
+
+    enum Opening: String, CaseIterable, Identifiable {
+        case eighteen = "På 18-års dagen"
+        case date = "Vælg dato"
+        case now = "Med det samme"
+        var id: String { rawValue }
+    }
+
+    @State private var title = ""
+    @State private var text = ""
+    @State private var author = ""
+    @State private var opening: Opening = .eighteen
+    @State private var openDate = Date()
+    @State private var photo: Data?
+    @State private var saving = false
+    @State private var saveError: String?
+    @State private var loaded = false
+    @State private var confirmDelete = false
+
+    /// 18-års dagen ud fra fødselsdato — eller termin, hvis barnet er på vej.
+    private var eighteenth: Date? {
+        guard let base = child.birthDate ?? child.dueDate else { return nil }
+        return Calendar.current.date(byAdding: .year, value: 18, to: base)
+    }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    TextField("Overskrift (fx Til dig på din 18-års dag)", text: $title)
+                    TextField("Skrevet af", text: $author)
+                }
+                Section("Brevet") {
+                    TextField("Kære \(child.name) …", text: $text, axis: .vertical)
+                        .lineLimit(8...30)
+                }
+                Section {
+                    Picker("Åbnes", selection: $opening) {
+                        ForEach(Opening.allCases) { Text($0.rawValue).tag($0) }
+                    }
+                    if opening == .eighteen {
+                        if let date = eighteenth {
+                            LabeledContent("Dato", value: Fmt.long(date))
+                        } else {
+                            Text("Sæt fødsels- eller terminsdato på barnet for at bruge 18-års dagen.")
+                                .font(.footnote).foregroundStyle(Theme.muted)
+                        }
+                    } else if opening == .date {
+                        DatePicker("Dato", selection: $openDate, in: Date()..., displayedComponents: .date)
+                    }
+                } header: {
+                    Text("Hvornår må det læses?")
+                } footer: {
+                    Text("Indtil datoen vises brevet som en lukket kuvert i appen.")
+                }
+                Section("Billede (valgfrit)") {
+                    PhotoField(data: $photo)
+                }
+                if editing != nil {
+                    Section {
+                        Button("Slet brev", role: .destructive) { confirmDelete = true }
+                    }
+                }
+            }
+            .navigationTitle(editing == nil ? "Nyt brev" : "Redigér brev")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) { Button("Annullér") { dismiss() } }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Gem") { Task { await save() } }
+                        .disabled(saving || text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                }
+            }
+            .saveErrorAlert($saveError)
+            .confirmationDialog("Slet brevet?", isPresented: $confirmDelete, titleVisibility: .visible) {
+                Button("Slet", role: .destructive) {
+                    Task {
+                        await performSave(saving: $saving, errorMessage: $saveError, dismiss: dismiss) {
+                            if let id = editing?.id { try await state.store.deleteLetter(childId: child.id, id: id) }
+                        }
+                    }
+                }
+            } message: {
+                Text("Brevet slettes for hele familien og kan ikke gendannes.")
+            }
+            .onAppear(perform: prefill)
+        }
+    }
+
+    private func prefill() {
+        guard !loaded else { return }
+        loaded = true
+        guard let l = editing else {
+            let me = state.user?.name ?? ""
+            author = me == "Forælder" ? "" : me
+            return
+        }
+        title = l.title; text = l.text; author = l.author; photo = l.photo
+        if let open = l.openDate {
+            if let e = eighteenth, Calendar.current.isDate(open, inSameDayAs: e) { opening = .eighteen }
+            else { opening = .date; openDate = open }
+        } else {
+            opening = .now
+        }
+    }
+
+    private func save() async {
+        let open: Date?
+        switch opening {
+        case .eighteen: open = eighteenth
+        case .date: open = openDate
+        case .now: open = nil
+        }
+        await performSave(saving: $saving, errorMessage: $saveError, dismiss: dismiss) {
+            var letter = editing ?? Letter(id: newId("letter"), title: "", text: "", author: "",
+                                           writtenAt: Date(), openDate: nil)
+            letter.title = title; letter.text = text; letter.author = author
+            letter.openDate = open; letter.photo = photo
+            if editing == nil {
+                try await state.store.addLetter(childId: child.id, letter)
+            } else {
+                try await state.store.updateLetter(childId: child.id, letter)
+            }
+        }
+    }
+}

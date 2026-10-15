@@ -46,6 +46,12 @@ protocol Store {
     func updateGalleryItem(childId: String, _ item: GalleryItem) async throws
     func deleteGalleryItem(childId: String, id: String) async throws
 
+    // Breve til barnet
+    func letters(childId: String) async throws -> [Letter]
+    func addLetter(childId: String, _ letter: Letter) async throws
+    func updateLetter(childId: String, _ letter: Letter) async throws
+    func deleteLetter(childId: String, id: String) async throws
+
     // Pr. familie
     func events(familyId: String) async throws -> [FamilyEvent]
     func addEvent(familyId: String, title: String, date: Date?, details: String,

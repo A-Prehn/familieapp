@@ -39,6 +39,9 @@ struct ChildDetailView: View {
                     NavigationLink { MilestonesView(child: child) } label: {
                         tile("Milepæle", "flag", Theme.green)
                     }
+                    NavigationLink { LettersView(child: child) } label: {
+                        tile("Breve til dig", "envelope", Theme.neutralDark)
+                    }
                 }
                 .buttonStyle(.plain)
             }

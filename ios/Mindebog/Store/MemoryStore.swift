@@ -282,6 +282,26 @@ actor MemoryStore: Store {
         return birthday
     }
 
+    // MARK: Breve
+    private var lettersByChild: [String: [Letter]] = [:]
+
+    func letters(childId: String) async throws -> [Letter] {
+        (lettersByChild[childId] ?? []).sorted { $0.writtenAt > $1.writtenAt }
+    }
+
+    func addLetter(childId: String, _ letter: Letter) async throws {
+        lettersByChild[childId, default: []].append(letter)
+    }
+
+    func updateLetter(childId: String, _ letter: Letter) async throws {
+        guard let i = lettersByChild[childId]?.firstIndex(where: { $0.id == letter.id }) else { throw StoreError.notFound }
+        lettersByChild[childId]?[i] = letter
+    }
+
+    func deleteLetter(childId: String, id: String) async throws {
+        lettersByChild[childId]?.removeAll { $0.id == id }
+    }
+
     // MARK: Redigér / slet
     func updateHighlight(childId: String, _ highlight: Highlight) async throws {
         guard let i = highlightsByChild[childId]?.firstIndex(where: { $0.id == highlight.id }) else { throw StoreError.notFound }

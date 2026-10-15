@@ -448,6 +448,50 @@ actor CloudKitStore: Store {
         _ = try await db.deleteRecord(withID: CKRecord.ID(recordName: id, zoneID: zoneID))
     }
 
+    // MARK: - Breve til barnet
+
+    func letters(childId: String) async throws -> [Letter] {
+        try await childRecords(childId, type: "Letter").map { r in
+            Letter(id: r.recordID.recordName,
+                   title: r["title"] as? String ?? "",
+                   text: r["text"] as? String ?? "",
+                   author: r["author"] as? String ?? "",
+                   writtenAt: r["writtenAt"] as? Date ?? r.creationDate ?? Date(),
+                   openDate: r["openDate"] as? Date,
+                   photo: Self.assetData(r["photo"]))
+        }
+        .sorted { $0.writtenAt > $1.writtenAt }
+    }
+
+    func addLetter(childId: String, _ letter: Letter) async throws {
+        let (db, zoneID) = try await locateChild(childId)
+        let record = CKRecord(recordType: "Letter", recordID: CKRecord.ID(recordName: letter.id, zoneID: zoneID))
+        record["childRef"] = childRef(childId, zoneID)
+        Self.fill(record, with: letter)
+        _ = try await persist(record, in: db)
+    }
+
+    func updateLetter(childId: String, _ letter: Letter) async throws {
+        let (db, zoneID) = try await locateChild(childId)
+        let record = try await db.record(for: CKRecord.ID(recordName: letter.id, zoneID: zoneID))
+        Self.fill(record, with: letter)
+        _ = try await persist(record, in: db)
+    }
+
+    func deleteLetter(childId: String, id: String) async throws {
+        let (db, zoneID) = try await locateChild(childId)
+        _ = try await db.deleteRecord(withID: CKRecord.ID(recordName: id, zoneID: zoneID))
+    }
+
+    private static func fill(_ record: CKRecord, with letter: Letter) {
+        record["title"] = letter.title.trimmingCharacters(in: .whitespaces) as CKRecordValue
+        record["text"] = letter.text as CKRecordValue
+        record["author"] = letter.author as CKRecordValue
+        record["writtenAt"] = letter.writtenAt as CKRecordValue
+        record["openDate"] = letter.openDate as CKRecordValue?
+        record["photo"] = letter.photo.flatMap { asset(from: $0) }
+    }
+
     // MARK: - Familie-indhold
 
     func events(familyId: String) async throws -> [FamilyEvent] {

@@ -168,6 +168,19 @@ struct Vacation: Identifiable, Hashable, Codable {
     var photo: Data? { photos.coverPhoto }
 }
 
+/// Brev til barnet — forseglet indtil `openDate` (fx 18-års fødselsdagen).
+struct Letter: Identifiable, Hashable, Codable {
+    let id: String
+    var title: String
+    var text: String
+    var author: String          // hvem skrev det ("Mor", "Andreas")
+    var writtenAt: Date
+    var openDate: Date?         // nil = kan læses med det samme
+    var photo: Data? = nil
+
+    var isSealed: Bool { openDate.map { $0 > Date() } ?? false }
+}
+
 /// Let oversigt over et minde (uden billeder) — til Hjem, så forsiden ikke skal
 /// hente alle familiens billeder for at finde de få, der vises.
 struct MemorySummary: Identifiable, Hashable, Codable {
