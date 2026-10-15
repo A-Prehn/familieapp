@@ -40,9 +40,21 @@ struct ChildrenView: View {
         .task { await load() }
     }
 
+    private struct Cached: Codable { var family: Family?; var children: [Child] }
+
     private func load() async {
         guard let familyId = state.familyId else { return }
-        family = try? await state.store.families(for: state.user?.id ?? "").first { $0.id == familyId }
-        children = (try? await state.store.children(familyId: familyId)) ?? []
+        let cacheKey = "children_\(familyId)"
+        if children.isEmpty, let cached = ScreenCache.load(Cached.self, key: cacheKey) {
+            family = cached.family
+            children = cached.children
+        }
+        // Børnene først — det er dem skærmen handler om; familienavnet bagefter.
+        guard let loaded = try? await state.store.children(familyId: familyId) else { return }
+        children = loaded
+        if let fams = try? await state.store.families(for: state.user?.id ?? "") {
+            family = fams.first { $0.id == familyId }
+        }
+        ScreenCache.save(Cached(family: family, children: children), key: cacheKey)
     }
 }

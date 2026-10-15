@@ -49,7 +49,7 @@ final class CloudKitStore: Store {
                 let query = CKQuery(recordType: "Family", predicate: NSPredicate(value: true))
                 let (matches, _) = try await db.records(matching: query, inZoneWith: zone.zoneID, resultsLimit: 1)
                 if let record = matches.compactMap({ try? $0.1.get() }).first {
-                    zoneCache[zone.zoneID.zoneName] = (db, zone.zoneID)
+                    remember(zone.zoneID, in: db)
                     result.append(Self.family(from: record, zoneName: zone.zoneID.zoneName))
                 }
             }
@@ -61,7 +61,7 @@ final class CloudKitStore: Store {
         let zoneName = newId("family")
         let zoneID = CKRecordZone.ID(zoneName: zoneName, ownerName: CKCurrentUserDefaultName)
         _ = try await privateDB.save(CKRecordZone(zoneID: zoneID))
-        zoneCache[zoneName] = (privateDB, zoneID)
+        remember(zoneID, in: privateDB)
 
         let trimmed = name.trimmingCharacters(in: .whitespaces)
         let record = CKRecord(recordType: "Family", recordID: CKRecord.ID(recordName: "family", zoneID: zoneID))
@@ -116,7 +116,7 @@ final class CloudKitStore: Store {
         let metadata = try await container.shareMetadata(for: url)
         _ = try await container.accept(metadata)
         let zoneID = metadata.share.recordID.zoneID
-        zoneCache[zoneID.zoneName] = (sharedDB, zoneID)
+        remember(zoneID, in: sharedDB)
         let record = try await familyRecord(db: sharedDB, zoneID: zoneID)
         return Self.family(from: record, zoneName: zoneID.zoneName)
     }
@@ -126,8 +126,10 @@ final class CloudKitStore: Store {
     func children(familyId: String) async throws -> [Child] {
         let (db, zoneID) = try await locate(familyId)
         let records = try await all(db: db, zoneID: zoneID, type: "Child")
-        return records.map { Self.child(from: $0, familyId: familyId) }
+        let kids = records.map { Self.child(from: $0, familyId: familyId) }
             .sorted { $0.name < $1.name }
+        for kid in kids { rememberChild(kid.id, zoneName: familyId) }
+        return kids
     }
 
     func createChild(familyId: String, name: String, gender: Gender,
@@ -141,6 +143,7 @@ final class CloudKitStore: Store {
         if let dueDate { record["dueDate"] = dueDate as CKRecordValue }
         let saved = try await db.save(record)
         let child = Self.child(from: saved, familyId: familyId)
+        rememberChild(child.id, zoneName: familyId)
         if let birthDate { try await setMilestone(childId: child.id, key: "birth_date", value: Fmt.iso(birthDate), photo: nil) }
         if let dueDate { try await setMilestone(childId: child.id, key: "due_date", value: Fmt.iso(dueDate), photo: nil) }
         return child
@@ -360,19 +363,56 @@ final class CloudKitStore: Store {
 
     // MARK: - Hjælpere
 
+    // Zone-placeringer gemmes på enheden, så opstart ikke skal slå alle zoner op
+    // over netværket før første skærm kan vises.
+    private static let zoneIndexKey = "mindebog.zoneIndex"     // zoneName -> "private|<owner>" / "shared|<owner>"
+    private static let childZoneKey = "mindebog.childZones"    // childId -> zoneName
+
+    private func remember(_ zoneID: CKRecordZone.ID, in db: CKDatabase) {
+        zoneCache[zoneID.zoneName] = (db, zoneID)
+        var index = UserDefaults.standard.dictionary(forKey: Self.zoneIndexKey) as? [String: String] ?? [:]
+        let scope = db === sharedDB ? "shared" : "private"
+        index[zoneID.zoneName] = "\(scope)|\(zoneID.ownerName)"
+        UserDefaults.standard.set(index, forKey: Self.zoneIndexKey)
+    }
+
+    private func rememberChild(_ childId: String, zoneName: String) {
+        var map = UserDefaults.standard.dictionary(forKey: Self.childZoneKey) as? [String: String] ?? [:]
+        guard map[childId] != zoneName else { return }
+        map[childId] = zoneName
+        UserDefaults.standard.set(map, forKey: Self.childZoneKey)
+    }
+
+    private func restore(_ zoneName: String) -> (CKDatabase, CKRecordZone.ID)? {
+        let index = UserDefaults.standard.dictionary(forKey: Self.zoneIndexKey) as? [String: String] ?? [:]
+        guard let entry = index[zoneName] else { return nil }
+        let parts = entry.split(separator: "|", maxSplits: 1).map(String.init)
+        guard parts.count == 2 else { return nil }
+        let db = parts[0] == "shared" ? sharedDB : privateDB
+        let zoneID = CKRecordZone.ID(zoneName: zoneName, ownerName: parts[1])
+        zoneCache[zoneName] = (db, zoneID)
+        return (db, zoneID)
+    }
+
     private func locate(_ familyId: String) async throws -> (CKDatabase, CKRecordZone.ID) {
         if let cached = zoneCache[familyId] { return (cached.db, cached.zone) }
+        if let restored = restore(familyId) { return restored }
         _ = try await families(for: "")
         guard let cached = zoneCache[familyId] else { throw StoreError.notFound }
         return (cached.db, cached.zone)
     }
 
-    // Barne-id'er er unikke; find zonen ved at slå barnet op i alle kendte zoner.
+    // Barne-id'er er unikke. Kendt barn → dets zone direkte; ellers slå op i alle kendte zoner.
     private func locateChild(_ childId: String) async throws -> (CKDatabase, CKRecordZone.ID) {
+        let map = UserDefaults.standard.dictionary(forKey: Self.childZoneKey) as? [String: String] ?? [:]
+        if let zoneName = map[childId], let found = try? await locate(zoneName) { return found }
         if zoneCache.isEmpty { _ = try await families(for: "") }
         for (_, entry) in zoneCache {
             let id = CKRecord.ID(recordName: childId, zoneID: entry.zone)
-            if (try? await entry.db.record(for: id)) != nil { return (entry.db, entry.zone) }
+            if (try? await entry.db.record(for: id)) != nil {
+                rememberChild(childId, zoneName: entry.zone.zoneName)
+                return (entry.db, entry.zone)
+            }
         }
         throw StoreError.notFound
     }

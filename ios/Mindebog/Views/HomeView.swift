@@ -147,11 +147,29 @@ struct HomeView: View {
         return name.isEmpty || name == "Forælder" ? word : "\(word), \(name)"
     }
 
+    private struct Cached: Codable {
+        var children: [Child]
+        var recent: [RecentMemory]
+        var onThisDay: [RecentMemory]
+        var day: String   // "På denne dag" gælder kun samme dato
+    }
+
     private func load() async {
         guard let familyId = state.familyId else { return }
+        let cacheKey = "home_\(familyId)"
+        let todayKey = Fmt.iso(Date())
+        if children.isEmpty, let cached = ScreenCache.load(Cached.self, key: cacheKey) {
+            children = cached.children
+            recent = cached.recent
+            onThisDay = cached.day == todayKey ? cached.onThisDay : []
+        }
+
         let store = state.store
-        let loadedKids = (try? await store.children(familyId: familyId)) ?? []
+        guard let loadedKids = try? await store.children(familyId: familyId) else { return }
         children = loadedKids
+        defer {
+            ScreenCache.save(Cached(children: children, recent: recent, onThisDay: onThisDay, day: todayKey), key: cacheKey)
+        }
 
         // Børnenes minder (højdepunkter + dagbog).
         var memories: [RecentMemory] = []
@@ -197,7 +215,7 @@ struct HomeView: View {
 
 // MARK: - Hjælpetyper
 
-struct RecentMemory: Identifiable {
+struct RecentMemory: Identifiable, Codable {
     let id: String
     let childName: String
     let kind: String

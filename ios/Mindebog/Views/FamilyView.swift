@@ -11,7 +11,6 @@ struct FamilyView: View {
     }
 
     @State private var tab: Tab = .events
-    @State private var family: Family?
     @State private var events: [FamilyEvent] = []
     @State private var vacations: [Vacation] = []
     @State private var children: [Child] = []
@@ -241,14 +240,30 @@ struct FamilyView: View {
         }
     }
 
+    private struct Cached: Codable {
+        var events: [FamilyEvent]
+        var vacations: [Vacation]
+        var children: [Child]
+        var birthdays: [CustomBirthday]
+    }
+
     private func load() async {
         guard let familyId = state.familyId else { return }
-        let userId = state.user?.id ?? ""
-        family = try? await state.store.families(for: userId).first { $0.id == familyId }
-        events = (try? await state.store.events(familyId: familyId)) ?? []
-        vacations = (try? await state.store.vacations(familyId: familyId)) ?? []
-        children = (try? await state.store.children(familyId: familyId)) ?? []
-        customBirthdays = (try? await state.store.birthdays(familyId: familyId)) ?? []
+        let cacheKey = "shared_\(familyId)"
+        if events.isEmpty && vacations.isEmpty && customBirthdays.isEmpty,
+           let cached = ScreenCache.load(Cached.self, key: cacheKey) {
+            events = cached.events
+            vacations = cached.vacations
+            children = cached.children
+            customBirthdays = cached.birthdays
+        }
+        // Behold det viste ved netværksfejl i stedet for at tømme listerne.
+        if let v = try? await state.store.events(familyId: familyId) { events = v }
+        if let v = try? await state.store.vacations(familyId: familyId) { vacations = v }
+        if let v = try? await state.store.children(familyId: familyId) { children = v }
+        if let v = try? await state.store.birthdays(familyId: familyId) { customBirthdays = v }
+        ScreenCache.save(Cached(events: events, vacations: vacations, children: children, birthdays: customBirthdays),
+                         key: cacheKey)
     }
 }
 

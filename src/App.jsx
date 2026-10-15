@@ -59,6 +59,32 @@ function Shell() {
     };
   }, [stack.length]);
 
+  // Vandret swipe på fanernes forsider skifter fane (som i iOS-appen).
+  useEffect(() => {
+    if (stack.length !== 0) return;
+    let sx = 0, sy = 0, tracking = false;
+    const start = (e) => {
+      if (document.querySelector(".modal-backdrop, .lightbox")) return;
+      const t = e.touches[0]; sx = t.clientX; sy = t.clientY; tracking = true;
+    };
+    const end = (e) => {
+      if (!tracking) return;
+      tracking = false;
+      const t = e.changedTouches[0];
+      const dx = t.clientX - sx, dy = t.clientY - sy;
+      if (Math.abs(dx) < 80 || Math.abs(dx) < Math.abs(dy) * 2) return;
+      const i = TABS.findIndex((x) => x.key === tab);
+      const next = TABS[dx < 0 ? i + 1 : i - 1];
+      if (next) setTab(next.key);
+    };
+    window.addEventListener("touchstart", start, { passive: true });
+    window.addEventListener("touchend", end, { passive: true });
+    return () => {
+      window.removeEventListener("touchstart", start);
+      window.removeEventListener("touchend", end);
+    };
+  }, [stack.length, tab]);
+
   const { data: families } = useLiveData(
     () => (user ? store.listFamilies(user.id) : Promise.resolve([])),
     [user?.id]

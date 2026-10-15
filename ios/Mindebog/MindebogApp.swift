@@ -36,23 +36,57 @@ final class AppState: ObservableObject {
 
     private let userIdKey = "mindebog.userId"
     private let familyKey = "mindebog.familyId"
+    private let usedCloudKey = "mindebog.usedCloud"
 
     func bootstrap() async {
         guard !ready else { return }
+        let defaults = UserDefaults.standard
+
+        // Hurtig vej: kendt bruger + familie fra sidst i iCloud → vis appen med det samme
+        // og tjek iCloud/familie i baggrunden (skærmene viser deres cache imens).
+        if defaults.bool(forKey: usedCloudKey),
+           let savedId = defaults.string(forKey: userIdKey),
+           let savedFamily = defaults.string(forKey: familyKey) {
+            store = CloudKitStore()
+            usingCloud = true
+            user = try? await store.user(id: savedId)   // lokal opslag, intet netværk
+            familyId = savedFamily
+            ready = true
+            Task { await verifyInBackground(userId: savedId, familyId: savedFamily) }
+            return
+        }
+
         let status = (try? await CKContainer(identifier: "iCloud.net.prehn.mindebog").accountStatus()) ?? .couldNotDetermine
         if status == .available {
             store = CloudKitStore()
             usingCloud = true
+            defaults.set(true, forKey: usedCloudKey)
         }
         // Genskab session.
-        if let savedId = UserDefaults.standard.string(forKey: userIdKey),
+        if let savedId = defaults.string(forKey: userIdKey),
            let restored = try? await store.user(id: savedId) {
             user = restored
             let fams = (try? await store.families(for: restored.id)) ?? []
-            let saved = UserDefaults.standard.string(forKey: familyKey)
+            let saved = defaults.string(forKey: familyKey)
             familyId = fams.first { $0.id == saved }?.id ?? fams.first?.id
         }
         ready = true
+    }
+
+    /// Efter hurtig opstart: hvis iCloud er logget ud eller familien er væk, ret op.
+    private func verifyInBackground(userId: String, familyId savedFamily: String) async {
+        let status = (try? await CKContainer(identifier: "iCloud.net.prehn.mindebog").accountStatus()) ?? .couldNotDetermine
+        if status == .noAccount {
+            UserDefaults.standard.set(false, forKey: usedCloudKey)
+            store = MemoryStore()
+            usingCloud = false
+            signOut()
+            return
+        }
+        guard status == .available, let fams = try? await store.families(for: userId) else { return }
+        if !fams.contains(where: { $0.id == savedFamily }) {
+            setFamily(fams.first?.id)
+        }
     }
 
     func signIn(name: String) async {
@@ -95,6 +129,7 @@ final class AppState: ObservableObject {
         familyId = nil
         UserDefaults.standard.removeObject(forKey: userIdKey)
         UserDefaults.standard.removeObject(forKey: familyKey)
+        ScreenCache.clear()
     }
 
     private func setFamily(_ id: String?) {
