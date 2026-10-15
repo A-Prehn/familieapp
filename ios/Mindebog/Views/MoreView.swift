@@ -7,6 +7,7 @@ struct MoreView: View {
     @State private var invite: String?
     @State private var busy = false
     @State private var showQR = false
+    @State private var shareIsPublic = false
     @State private var notificationsOn = NotificationManager.isEnabled
     @State private var notificationMessage: String?
     @State private var notificationBusy = false
@@ -21,15 +22,24 @@ struct MoreView: View {
             }
 
             Section("Del med den anden forælder") {
-                if let invite, let url = URL(string: invite), state.usingCloud {
-                    ShareLink(item: url) {
-                        Label("Send delelink", systemImage: "square.and.arrow.up")
+                if state.usingCloud {
+                    Button { Task { await openSharing() } } label: {
+                        Label(busy ? "Åbner…" : "Invitér og administrér deling", systemImage: "person.badge.plus")
                     }
-                    Button { showQR = true } label: {
-                        Label("Vis QR-kode", systemImage: "qrcode")
+                    .disabled(busy)
+                    if shareIsPublic, let invite, let url = URL(string: invite) {
+                        ShareLink(item: url) {
+                            Label("Send delelink", systemImage: "square.and.arrow.up")
+                        }
+                        Button { showQR = true } label: {
+                            Label("Vis QR-kode", systemImage: "qrcode")
+                        }
+                        Text("Alle med linket kan deltage. Lad partneren scanne QR-koden med iPhonens kamera.")
+                            .font(.footnote).foregroundStyle(Theme.muted)
+                    } else {
+                        Text("Invitér partneren via Beskeder eller mail — så kan kun de åbne linket. Vil du bruge QR-kode, så vælg \"Alle med linket\" under delingsindstillinger.")
+                            .font(.footnote).foregroundStyle(Theme.muted)
                     }
-                    Text("Send linket, eller lad partneren scanne QR-koden med iPhonens kamera. Så får de adgang til hele familien.")
-                        .font(.footnote).foregroundStyle(Theme.muted)
                 } else if let invite {
                     HStack {
                         Spacer()
@@ -100,6 +110,30 @@ struct MoreView: View {
         guard let familyId = state.familyId else { return }
         family = try? await state.store.families(for: state.user?.id ?? "").first { $0.id == familyId }
         members = (try? await state.store.members(familyId: familyId)) ?? []
+        await refreshShare()
+    }
+
+    /// Læser delingens nuværende indstilling: link + QR vises kun ved "alle med linket".
+    private func refreshShare() async {
+        guard let cloud = state.store as? CloudKitStore, let familyId = state.familyId,
+              let (share, _) = try? await cloud.shareForSharing(familyId: familyId) else { return }
+        shareIsPublic = share.publicPermission != .none
+        invite = share.url?.absoluteString
+    }
+
+    private func openSharing() async {
+        guard let cloud = state.store as? CloudKitStore, let familyId = state.familyId else { return }
+        busy = true
+        state.errorMessage = nil
+        do {
+            let (share, container) = try await cloud.shareForSharing(familyId: familyId)
+            CloudSharing.present(share: share, container: container) {
+                Task { await load() }
+            }
+        } catch {
+            state.errorMessage = error.localizedDescription
+        }
+        busy = false
     }
 
     private func setNotifications(_ on: Bool) async {

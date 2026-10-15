@@ -109,6 +109,21 @@ final class CloudKitStore: Store {
         return url.absoluteString
     }
 
+    /// Familiens zone-deling til Apples delingsark (UICloudSharingController), hvor ejeren
+    /// inviterer personer og vælger "kun inviterede" eller "alle med linket".
+    func shareForSharing(familyId: String) async throws -> (CKShare, CKContainer) {
+        let (db, zoneID) = try await locate(familyId)
+        if let existing = try? await fetchShare(db: db, zoneID: zoneID) {
+            return (existing, container)
+        }
+        let share = CKShare(recordZoneID: zoneID)
+        share[CKShare.SystemFieldKey.title] = "Mindebog" as CKRecordValue
+        share.publicPermission = .none
+        let (saveResults, _) = try await db.modifyRecords(saving: [share], deleting: [])
+        guard let saved = try saveResults[share.recordID]?.get() as? CKShare else { throw StoreError.notFound }
+        return (saved, container)
+    }
+
     /// Tager en share-URL og tilslutter brugeren til familien.
     func acceptInvite(userId: String, code: String) async throws -> Family {
         guard let url = URL(string: code.trimmingCharacters(in: .whitespacesAndNewlines)) else {
