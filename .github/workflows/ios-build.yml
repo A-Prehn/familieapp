@@ -1,0 +1,36 @@
+name: iOS build
+
+on:
+  push:
+    branches: [develop, main]
+    paths: ["ios/**", ".github/workflows/ios-build.yml"]
+  pull_request:
+    paths: ["ios/**", ".github/workflows/ios-build.yml"]
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Byg (simulator, uden signering)
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Vis Xcode-version
+        run: xcodebuild -version
+
+      - name: Installér XcodeGen
+        run: brew install xcodegen
+
+      - name: Generér Xcode-projekt
+        working-directory: ios
+        run: xcodegen generate
+
+      - name: Byg app til simulator
+        working-directory: ios
+        run: |
+          set -o pipefail
+          xcodebuild build \
+            -project Mindebog.xcodeproj \
+            -scheme Mindebog \
+            -destination 'platform=iOS Simulator,name=iPhone 15' \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO

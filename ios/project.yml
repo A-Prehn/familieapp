@@ -1,0 +1,38 @@
+# XcodeGen-konfiguration — genererer Mindebog.xcodeproj fra tekst.
+# Kør: xcodegen generate  (i ios/-mappen). Kræver ingen Mac at redigere.
+name: Mindebog
+options:
+  bundleIdPrefix: net.prehn
+  deploymentTarget:
+    iOS: "17.0"
+  createIntermediateGroups: true
+
+settings:
+  base:
+    MARKETING_VERSION: "0.1.0"
+    CURRENT_PROJECT_VERSION: "1"
+    SWIFT_VERSION: "5.9"
+    DEVELOPMENT_LANGUAGE: da
+    # CI bygger uden signering til simulator; rigtig signering tilføjes med Apple Developer-konto.
+    CODE_SIGN_STYLE: Manual
+    CODE_SIGNING_REQUIRED: "NO"
+    CODE_SIGNING_ALLOWED: "NO"
+
+targets:
+  Mindebog:
+    type: application
+    platform: iOS
+    sources:
+      - path: Mindebog
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: net.prehn.mindebog
+        GENERATE_INFOPLIST_FILE: "YES"
+        TARGETED_DEVICE_FAMILY: "1,2"
+        INFOPLIST_KEY_CFBundleDisplayName: Mindebog
+        INFOPLIST_KEY_UILaunchScreen_Generation: "YES"
+        INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents: "YES"
+        INFOPLIST_KEY_UISupportedInterfaceOrientations: "UIInterfaceOrientationPortrait"
+        # Entitlements (CloudKit/iCloud) ligger i filen nedenfor, men anvendes først når
+        # appen signeres med en rigtig Apple Developer-konto. CI bygger uden.
+        # CODE_SIGN_ENTITLEMENTS: Mindebog/Mindebog.entitlements

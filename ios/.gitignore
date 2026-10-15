@@ -1,0 +1,8 @@
+# Genereret af XcodeGen — skal ikke committes
+Mindebog.xcodeproj/
+
+# Xcode / build
+DerivedData/
+build/
+*.xcuserstate
+.DS_Store
