@@ -13,10 +13,10 @@ struct HighlightsView: View {
                 ContentUnavailableView("Ingen højdepunkter endnu", systemImage: "star")
                     .padding(.top, 60)
             } else {
-                VStack(alignment: .leading, spacing: 12) {
-                    ForEach(items) { highlight in
-                        card(highlight)
-                    }
+                // Tidslinje som på websitet; uden dato bruges oprettelsesåret.
+                TimelineView(items: items,
+                             year: { Calendar.current.component(.year, from: $0.date ?? $0.createdAt) }) { highlight in
+                    card(highlight)
                 }
                 .padding(16)
             }
