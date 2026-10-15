@@ -71,6 +71,10 @@ struct AddHighlightView: View {
     @EnvironmentObject var state: AppState
     @Environment(\.dismiss) private var dismiss
     let childId: String
+    /// Øvrige børn samme indlæg også gemmes for (hurtig-tilføj på Hjem med flere børn valgt).
+    var alsoFor: [Child] = []
+    /// Navne vist øverst i formularen, når der gemmes for flere børn.
+    var forNames: [String] = []
     @State private var date = Date()
     @State private var text = ""
     @State private var photos: [Data] = []
@@ -78,6 +82,7 @@ struct AddHighlightView: View {
     var body: some View {
         NavigationStack {
             Form {
+                ForChildrenNote(names: forNames)
                 DatePicker("Dato", selection: $date, displayedComponents: .date)
                 Section("Tekst") {
                     TextField("Hvad skete der?", text: $text, axis: .vertical)
@@ -94,7 +99,9 @@ struct AddHighlightView: View {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Gem") {
                         Task {
-                            _ = try? await state.store.addHighlight(childId: childId, date: date, text: text, photos: photos)
+                            for id in [childId] + alsoFor.map(\.id) {
+                                _ = try? await state.store.addHighlight(childId: id, date: date, text: text, photos: photos)
+                            }
                             dismiss()
                         }
                     }

@@ -9,6 +9,7 @@ struct HomeView: View {
     @State private var recent: [RecentMemory] = []
     @State private var quickAdd: QuickAdd?
     @State private var chooseChildFor: QuickAdd.Kind?
+    @State private var pendingAdd: QuickAdd?
     @State private var lightbox: LightboxState?
 
     var body: some View {
@@ -43,20 +44,25 @@ struct HomeView: View {
         .navigationBarTitleDisplayMode(.inline)
         .navigationDestination(for: Child.self) { ChildDetailView(child: $0) }
         .sheet(item: $quickAdd, onDismiss: { Task { await load() } }) { item in
+            let first = item.children[0]
+            let others = Array(item.children.dropFirst())
+            let names = item.children.map(\.name)
             switch item.kind {
-            case .highlight: AddHighlightView(childId: item.child.id)
-            case .diary: AddDiaryView(childId: item.child.id)
-            case .photo: AddGalleryItemView(childId: item.child.id, kind: item.child.onTheWay ? .belly : .monthly)
+            case .highlight: AddHighlightView(childId: first.id, alsoFor: others, forNames: names)
+            case .diary: AddDiaryView(childId: first.id, alsoFor: others, forNames: names)
+            case .photo: AddGalleryItemView(childId: first.id, alsoFor: others, forNames: names,
+                                            kind: first.onTheWay ? .belly : .monthly)
             }
         }
-        .confirmationDialog("Hvilket barn?", isPresented: Binding(
-            get: { chooseChildFor != nil }, set: { if !$0 { chooseChildFor = nil } }
-        ), titleVisibility: .visible) {
-            ForEach(children) { child in
-                Button(child.name) {
-                    if let kind = chooseChildFor { quickAdd = QuickAdd(kind: kind, child: child) }
-                }
+        // Flere børn: vælg ét eller flere — samme indlæg gemmes for hvert valgt barn.
+        .sheet(item: $chooseChildFor, onDismiss: {
+            if let pending = pendingAdd { quickAdd = pending; pendingAdd = nil }
+        }) { kind in
+            ChooseChildrenView(children: children) { selected in
+                pendingAdd = QuickAdd(kind: kind, children: selected)
+                chooseChildFor = nil
             }
+            .presentationDetents([.medium, .large])
         }
         .fullScreenCover(item: $lightbox) { LightboxView(state: $0) }
         .refreshable { await load() }
@@ -104,7 +110,7 @@ struct HomeView: View {
     private func quickButton(_ title: String, _ symbol: String, _ color: Color, _ kind: QuickAdd.Kind) -> some View {
         Button {
             if children.count == 1, let only = children.first {
-                quickAdd = QuickAdd(kind: kind, child: only)
+                quickAdd = QuickAdd(kind: kind, children: [only])
             } else {
                 chooseChildFor = kind
             }
@@ -247,8 +253,66 @@ struct RecentMemory: Identifiable, Codable {
 }
 
 struct QuickAdd: Identifiable {
-    enum Kind { case highlight, diary, photo }
+    enum Kind: String, Identifiable {
+        case highlight, diary, photo
+        var id: String { rawValue }
+        var title: String {
+            switch self {
+            case .highlight: return "Højdepunkt"
+            case .diary: return "Dagbog"
+            case .photo: return "Foto"
+            }
+        }
+    }
     let kind: Kind
-    let child: Child
-    var id: String { "\(kind)_\(child.id)" }
+    let children: [Child]   // mindst ét
+    var id: String { "\(kind)_" + children.map(\.id).joined(separator: "_") }
+}
+
+/// "Hvem gælder det?" — vælg ét eller flere børn til hurtig-tilføj.
+struct ChooseChildrenView: View {
+    let children: [Child]
+    let onContinue: ([Child]) -> Void
+    @Environment(\.dismiss) private var dismiss
+    @State private var selected: Set<String> = []
+
+    var body: some View {
+        NavigationStack {
+            List {
+                Section {
+                    ForEach(children) { child in
+                        Button {
+                            if selected.contains(child.id) { selected.remove(child.id) } else { selected.insert(child.id) }
+                        } label: {
+                            HStack {
+                                Text(child.name).foregroundStyle(Theme.text)
+                                Spacer()
+                                Image(systemName: selected.contains(child.id) ? "checkmark.circle.fill" : "circle")
+                                    .foregroundStyle(selected.contains(child.id) ? Theme.tint : Theme.muted)
+                                    .font(.title3)
+                            }
+                        }
+                    }
+                } footer: {
+                    Text("Vælger du flere, gemmes det samme for hvert barn.")
+                }
+                Section {
+                    Button(selected.count == children.count ? "Fravælg alle" : "Vælg alle") {
+                        selected = selected.count == children.count ? [] : Set(children.map(\.id))
+                    }
+                }
+            }
+            .navigationTitle("Hvem gælder det?")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) { Button("Annullér") { dismiss() } }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Fortsæt") {
+                        onContinue(children.filter { selected.contains($0.id) })   // samme rækkefølge som listen
+                    }
+                    .disabled(selected.isEmpty)
+                }
+            }
+        }
+    }
 }

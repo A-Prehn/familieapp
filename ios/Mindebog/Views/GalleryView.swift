@@ -85,6 +85,10 @@ struct AddGalleryItemView: View {
     @EnvironmentObject var state: AppState
     @Environment(\.dismiss) private var dismiss
     let childId: String
+    /// Øvrige børn samme indlæg også gemmes for (hurtig-tilføj på Hjem med flere børn valgt).
+    var alsoFor: [Child] = []
+    /// Navne vist øverst i formularen, når der gemmes for flere børn.
+    var forNames: [String] = []
     let kind: GalleryKind
     @State private var caption = ""
     @State private var photo: Data?
@@ -92,6 +96,7 @@ struct AddGalleryItemView: View {
     var body: some View {
         NavigationStack {
             Form {
+                ForChildrenNote(names: forNames)
                 Section(kind.captionLabel) {
                     TextField(kind.captionPlaceholder, text: $caption)
                 }
@@ -107,6 +112,11 @@ struct AddGalleryItemView: View {
                     Button("Gem") {
                         Task {
                             _ = try? await state.store.addGalleryItem(childId: childId, kind: kind, caption: caption, photo: photo)
+                            // Øvrige børn: "Maven måned for måned" hvis barnet er på vej, ellers "Måned for måned".
+                            for other in alsoFor {
+                                _ = try? await state.store.addGalleryItem(childId: other.id, kind: other.onTheWay ? .belly : .monthly,
+                                                                          caption: caption, photo: photo)
+                            }
                             dismiss()
                         }
                     }

@@ -69,6 +69,10 @@ struct AddDiaryView: View {
     @EnvironmentObject var state: AppState
     @Environment(\.dismiss) private var dismiss
     let childId: String
+    /// Øvrige børn samme indlæg også gemmes for (hurtig-tilføj på Hjem med flere børn valgt).
+    var alsoFor: [Child] = []
+    /// Navne vist øverst i formularen, når der gemmes for flere børn.
+    var forNames: [String] = []
     @State private var date = Date()
     @State private var text = ""
     @State private var photo: Data?
@@ -76,6 +80,7 @@ struct AddDiaryView: View {
     var body: some View {
         NavigationStack {
             Form {
+                ForChildrenNote(names: forNames)
                 DatePicker("Dato", selection: $date, displayedComponents: .date)
                 Section("Tekst") {
                     TextField("Skriv dit indlæg…", text: $text, axis: .vertical)
@@ -92,7 +97,9 @@ struct AddDiaryView: View {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Gem") {
                         Task {
-                            _ = try? await state.store.addDiary(childId: childId, date: date, text: text, photo: photo)
+                            for id in [childId] + alsoFor.map(\.id) {
+                                _ = try? await state.store.addDiary(childId: id, date: date, text: text, photo: photo)
+                            }
                             dismiss()
                         }
                     }

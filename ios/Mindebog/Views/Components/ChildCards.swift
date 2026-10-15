@@ -69,6 +69,25 @@ struct AddChildCard: View {
     }
 }
 
+/// Øverst i en formular: "Gemmes for Ida, Theo og Lillebror" (kun ved flere børn).
+struct ForChildrenNote: View {
+    let names: [String]
+    var body: some View {
+        if names.count > 1 {
+            Section {
+                Label("Gemmes for \(Self.list(names))", systemImage: "person.2")
+                    .font(.footnote)
+                    .foregroundStyle(Theme.neutralDark)
+            }
+        }
+    }
+
+    static func list(_ names: [String]) -> String {
+        guard names.count > 1, let last = names.last else { return names.first ?? "" }
+        return names.dropLast().joined(separator: ", ") + " og " + last
+    }
+}
+
 struct SectionLabel: View {
     let text: String
     init(_ text: String) { self.text = text }
