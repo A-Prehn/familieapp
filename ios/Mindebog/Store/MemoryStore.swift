@@ -189,6 +189,26 @@ actor MemoryStore: Store {
         return event
     }
 
+    func updateEvent(familyId: String, _ event: FamilyEvent) async throws -> FamilyEvent {
+        guard let index = eventsByFamily[familyId]?.firstIndex(where: { $0.id == event.id }) else { throw StoreError.notFound }
+        eventsByFamily[familyId]?[index] = event
+        return event
+    }
+
+    func deleteEvent(familyId: String, id: String) async throws {
+        eventsByFamily[familyId]?.removeAll { $0.id == id }
+    }
+
+    func updateVacation(familyId: String, _ vacation: Vacation) async throws -> Vacation {
+        guard let index = vacationsByFamily[familyId]?.firstIndex(where: { $0.id == vacation.id }) else { throw StoreError.notFound }
+        vacationsByFamily[familyId]?[index] = vacation
+        return vacation
+    }
+
+    func deleteVacation(familyId: String, id: String) async throws {
+        vacationsByFamily[familyId]?.removeAll { $0.id == id }
+    }
+
     func vacations(familyId: String) async throws -> [Vacation] {
         (vacationsByFamily[familyId] ?? []).sorted {
             ($0.startDate ?? .distantPast) > ($1.startDate ?? .distantPast)

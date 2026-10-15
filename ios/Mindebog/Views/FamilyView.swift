@@ -16,6 +16,8 @@ struct FamilyView: View {
     @State private var children: [Child] = []
     @State private var customBirthdays: [CustomBirthday] = []
     @State private var activeSheet: Tab?
+    @State private var editingEvent: FamilyEvent?
+    @State private var editingVacation: Vacation?
     @State private var lightbox: LightboxState?
 
     var body: some View {
@@ -48,6 +50,12 @@ struct FamilyView: View {
             case .vacations: AddVacationView(familyId: state.familyId ?? "")
             case .birthdays: AddBirthdayView(familyId: state.familyId ?? "")
             }
+        }
+        .sheet(item: $editingEvent, onDismiss: { Task { await load() } }) { event in
+            AddEventView(familyId: state.familyId ?? "", editing: event)
+        }
+        .sheet(item: $editingVacation, onDismiss: { Task { await load() } }) { vacation in
+            AddVacationView(familyId: state.familyId ?? "", editing: vacation)
         }
         .fullScreenCover(item: $lightbox) { LightboxView(state: $0) }
         .refreshable { await load() }
@@ -91,6 +99,8 @@ struct FamilyView: View {
                         Spacer(minLength: 0)
                     }
                     .padding(.vertical, 12)
+                    .contentShape(Rectangle())
+                    .onTapGesture { editingEvent = event }
                 }
             }
             .padding(.horizontal, 16)
@@ -130,6 +140,8 @@ struct FamilyView: View {
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(14)
+                    .contentShape(Rectangle())
+                    .onTapGesture { editingVacation = vacation }
                     .background(Theme.card)
                     .clipShape(RoundedRectangle(cornerRadius: 14))
                     .overlay(RoundedRectangle(cornerRadius: 14).stroke(Theme.sep))
@@ -279,11 +291,15 @@ struct AddEventView: View {
     @EnvironmentObject var state: AppState
     @Environment(\.dismiss) private var dismiss
     let familyId: String
+    /// Sat ved redigering; nil ved oprettelse.
+    var editing: FamilyEvent? = nil
     @State private var title = ""
     @State private var date = Date()
     @State private var details = ""
     @State private var photo: Data?
     @State private var place: Place?
+    @State private var loaded = false
+    @State private var confirmDelete = false
 
     var body: some View {
         NavigationStack {
@@ -299,21 +315,48 @@ struct AddEventView: View {
                 Section("Billede") {
                     PhotoField(data: $photo)
                 }
+                if editing != nil {
+                    Section {
+                        Button("Slet begivenhed", role: .destructive) { confirmDelete = true }
+                    }
+                }
             }
-            .navigationTitle("Ny begivenhed")
+            .navigationTitle(editing == nil ? "Ny begivenhed" : "Redigér begivenhed")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Annullér") { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Gem") {
                         Task {
-                            _ = try? await state.store.addEvent(familyId: familyId, title: title, date: date,
-                                                                details: details, photo: photo, place: place)
+                            if var event = editing {
+                                event.title = title; event.date = date; event.details = details
+                                event.photo = photo; event.place = place
+                                _ = try? await state.store.updateEvent(familyId: familyId, event)
+                            } else {
+                                _ = try? await state.store.addEvent(familyId: familyId, title: title, date: date,
+                                                                    details: details, photo: photo, place: place)
+                            }
                             dismiss()
                         }
                     }
                     .disabled(title.trimmingCharacters(in: .whitespaces).isEmpty)
                 }
+            }
+            .confirmationDialog("Slet \"\(title)\"?", isPresented: $confirmDelete, titleVisibility: .visible) {
+                Button("Slet", role: .destructive) {
+                    Task {
+                        if let id = editing?.id { try? await state.store.deleteEvent(familyId: familyId, id: id) }
+                        dismiss()
+                    }
+                }
+            } message: {
+                Text("Begivenheden og dens billede slettes for hele familien.")
+            }
+            .onAppear {
+                guard !loaded, let e = editing else { return }
+                loaded = true
+                title = e.title; date = e.date ?? Date(); details = e.details
+                photo = e.photo; place = e.place
             }
         }
     }
@@ -323,12 +366,16 @@ struct AddVacationView: View {
     @EnvironmentObject var state: AppState
     @Environment(\.dismiss) private var dismiss
     let familyId: String
+    /// Sat ved redigering; nil ved oprettelse.
+    var editing: Vacation? = nil
     @State private var title = ""
     @State private var start = Date()
     @State private var end = Date()
     @State private var details = ""
     @State private var photo: Data?
     @State private var place: Place?
+    @State private var loaded = false
+    @State private var confirmDelete = false
 
     var body: some View {
         NavigationStack {
@@ -345,22 +392,49 @@ struct AddVacationView: View {
                 Section("Billede") {
                     PhotoField(data: $photo)
                 }
+                if editing != nil {
+                    Section {
+                        Button("Slet ferie", role: .destructive) { confirmDelete = true }
+                    }
+                }
             }
-            .navigationTitle("Ny ferie")
+            .navigationTitle(editing == nil ? "Ny ferie" : "Redigér ferie")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Annullér") { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Gem") {
                         Task {
-                            _ = try? await state.store.addVacation(familyId: familyId, title: title,
-                                                                   start: start, end: end,
-                                                                   details: details, photo: photo, place: place)
+                            if var vacation = editing {
+                                vacation.title = title; vacation.startDate = start; vacation.endDate = end
+                                vacation.details = details; vacation.photo = photo; vacation.place = place
+                                _ = try? await state.store.updateVacation(familyId: familyId, vacation)
+                            } else {
+                                _ = try? await state.store.addVacation(familyId: familyId, title: title,
+                                                                       start: start, end: end,
+                                                                       details: details, photo: photo, place: place)
+                            }
                             dismiss()
                         }
                     }
                     .disabled(title.trimmingCharacters(in: .whitespaces).isEmpty)
                 }
+            }
+            .confirmationDialog("Slet \"\(title)\"?", isPresented: $confirmDelete, titleVisibility: .visible) {
+                Button("Slet", role: .destructive) {
+                    Task {
+                        if let id = editing?.id { try? await state.store.deleteVacation(familyId: familyId, id: id) }
+                        dismiss()
+                    }
+                }
+            } message: {
+                Text("Ferien og dens billede slettes for hele familien.")
+            }
+            .onAppear {
+                guard !loaded, let v = editing else { return }
+                loaded = true
+                title = v.title; start = v.startDate ?? Date(); end = v.endDate ?? start
+                details = v.details; photo = v.photo; place = v.place
             }
         }
     }

@@ -390,9 +390,49 @@ final class CloudKitStore: Store {
                         details: details, photo: photo, place: place)
     }
 
-    // Sted: navn + adresse som tekst, koordinat som CloudKit LOCATION.
+    func updateEvent(familyId: String, _ event: FamilyEvent) async throws -> FamilyEvent {
+        let (db, zoneID) = try await locate(familyId)
+        let record = try await db.record(for: CKRecord.ID(recordName: event.id, zoneID: zoneID))
+        record["title"] = event.title.trimmingCharacters(in: .whitespaces) as CKRecordValue
+        record["date"] = event.date as CKRecordValue?
+        record["details"] = event.details.trimmingCharacters(in: .whitespaces) as CKRecordValue
+        record["photo"] = event.photo.flatMap { Self.asset(from: $0) }
+        Self.setPlace(event.place, on: record)
+        _ = try await db.save(record)
+        return event
+    }
+
+    func deleteEvent(familyId: String, id: String) async throws {
+        let (db, zoneID) = try await locate(familyId)
+        _ = try await db.deleteRecord(withID: CKRecord.ID(recordName: id, zoneID: zoneID))
+    }
+
+    func updateVacation(familyId: String, _ vacation: Vacation) async throws -> Vacation {
+        let (db, zoneID) = try await locate(familyId)
+        let record = try await db.record(for: CKRecord.ID(recordName: vacation.id, zoneID: zoneID))
+        record["title"] = vacation.title.trimmingCharacters(in: .whitespaces) as CKRecordValue
+        record["startDate"] = vacation.startDate as CKRecordValue?
+        record["endDate"] = vacation.endDate as CKRecordValue?
+        record["details"] = vacation.details.trimmingCharacters(in: .whitespaces) as CKRecordValue
+        record["photo"] = vacation.photo.flatMap { Self.asset(from: $0) }
+        Self.setPlace(vacation.place, on: record)
+        _ = try await db.save(record)
+        return vacation
+    }
+
+    func deleteVacation(familyId: String, id: String) async throws {
+        let (db, zoneID) = try await locate(familyId)
+        _ = try await db.deleteRecord(withID: CKRecord.ID(recordName: id, zoneID: zoneID))
+    }
+
+    // Sted: navn + adresse som tekst, koordinat som CloudKit LOCATION. nil fjerner stedet.
     private static func setPlace(_ place: Place?, on record: CKRecord) {
-        guard let place else { return }
+        guard let place else {
+            record["placeName"] = nil
+            record["placeAddress"] = nil
+            record["location"] = nil
+            return
+        }
         record["placeName"] = place.name as CKRecordValue
         record["placeAddress"] = place.address as CKRecordValue
         record["location"] = CLLocation(latitude: place.latitude, longitude: place.longitude)

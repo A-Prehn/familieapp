@@ -41,7 +41,12 @@ protocol Store {
     func addEvent(familyId: String, title: String, date: Date?, details: String,
                   photo: Data?, place: Place?) async throws -> FamilyEvent
 
+    func updateEvent(familyId: String, _ event: FamilyEvent) async throws -> FamilyEvent
+    func deleteEvent(familyId: String, id: String) async throws
+
     func vacations(familyId: String) async throws -> [Vacation]
+    func updateVacation(familyId: String, _ vacation: Vacation) async throws -> Vacation
+    func deleteVacation(familyId: String, id: String) async throws
     func addVacation(familyId: String, title: String, start: Date?, end: Date?,
                      details: String, photo: Data?, place: Place?) async throws -> Vacation
 
