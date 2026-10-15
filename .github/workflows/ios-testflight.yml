@@ -24,7 +24,8 @@ jobs:
     name: Signér og upload til TestFlight
     runs-on: macos-15
     env:
-      KEY_PATH: ${{ github.workspace }}/AuthKey.p8
+      KEY_DIR: /Users/runner/.appstoreconnect/private_keys
+      KEY_PATH: /Users/runner/.appstoreconnect/private_keys/AuthKey_${{ secrets.ASC_KEY_ID }}.p8
     steps:
       - uses: actions/checkout@v4
 
@@ -43,16 +44,25 @@ jobs:
 
       - name: Skriv API-nøgle
         run: |
+          mkdir -p "$KEY_DIR"
           printf '%s\n' "${{ secrets.ASC_KEY_P8 }}" | tr -d '\r' > "$KEY_PATH"
           chmod 600 "$KEY_PATH"
           # Sanity-tjek uden at afsløre nøglen
-          head -c 27 "$KEY_PATH"; echo
           echo "Linjer: $(wc -l < "$KEY_PATH")"
           echo "Key ID-længde: ${#ASC_KEY_ID_CHECK} (skal være 10)"
           echo "Issuer ID-længde: ${#ASC_ISSUER_ID_CHECK} (skal være 36)"
+          echo "Nøglen kan parses som EC-nøgle:"
+          openssl pkey -in "$KEY_PATH" -noout -check && echo OK
         env:
           ASC_KEY_ID_CHECK: ${{ secrets.ASC_KEY_ID }}
           ASC_ISSUER_ID_CHECK: ${{ secrets.ASC_ISSUER_ID }}
+
+      - name: Test login mod App Store Connect (uafhængigt af Xcode)
+        run: |
+          xcrun altool --list-apps \
+            --apiKey "${{ secrets.ASC_KEY_ID }}" \
+            --apiIssuer "${{ secrets.ASC_ISSUER_ID }}" \
+            --output-format json | head -c 600; echo
 
       - name: Skriv ExportOptions.plist
         working-directory: ios
