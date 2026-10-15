@@ -1,5 +1,20 @@
 DEFINE SCHEMA
 
+    // System-type til CKShare (zone-deling). Oprettes normalt automatisk i
+    // Development ved første deling; skal findes eksplicit i Production.
+    RECORD TYPE cloudkit.share (
+        "___createTime" TIMESTAMP,
+        "___createdBy"  REFERENCE,
+        "___etag"       STRING,
+        "___modTime"    TIMESTAMP,
+        "___modifiedBy" REFERENCE,
+        "___recordID"   REFERENCE,
+        "cloudkit.title" STRING,
+        GRANT WRITE TO "_creator",
+        GRANT CREATE TO "_icloud",
+        GRANT READ TO "_world"
+    );
+
     RECORD TYPE Family (
         "___createTime" TIMESTAMP,
         "___createdBy"  REFERENCE,
