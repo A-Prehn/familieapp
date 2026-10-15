@@ -72,6 +72,9 @@ DEFINE SCHEMA
         key             STRING,
         value           STRING,
         photo           ASSET,
+        photos          LIST<ASSET>,
+        captions        LIST<STRING>,
+        coverIndex      INT64,
         GRANT WRITE TO "_creator",
         GRANT CREATE TO "_icloud",
         GRANT READ TO "_world"
@@ -139,6 +142,9 @@ DEFINE SCHEMA
         placeName       STRING,
         placeAddress    STRING,
         location        LOCATION,
+        photos          LIST<ASSET>,
+        captions        LIST<STRING>,
+        coverIndex      INT64,
         GRANT WRITE TO "_creator",
         GRANT CREATE TO "_icloud",
         GRANT READ TO "_world"
@@ -160,6 +166,9 @@ DEFINE SCHEMA
         placeName       STRING,
         placeAddress    STRING,
         location        LOCATION,
+        photos          LIST<ASSET>,
+        captions        LIST<STRING>,
+        coverIndex      INT64,
         GRANT WRITE TO "_creator",
         GRANT CREATE TO "_icloud",
         GRANT READ TO "_world"

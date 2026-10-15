@@ -33,29 +33,26 @@ struct MilestonesView: View {
         let entry = entries[def.key]
         let filled = entry?.value != nil || entry?.photo != nil
         return VStack(spacing: 0) {
-            Color.clear
-                .aspectRatio(4.0 / 3.0, contentMode: .fit)
-                .overlay {
-                    ZStack {
-                        Theme.bgDark
-                        if let photo = entry?.photo {
-                            DataImage(data: photo)
-                        } else {
-                            Text(def.icon)
-                                .font(.system(size: 28))
-                                .opacity(filled ? 0.85 : 0.4)
+            Group {
+                if let photos = entry?.photos, !photos.isEmpty {
+                    // Forsidebillede + billedtekst + "+N"; tryk viser alle billeder.
+                    CoverPhotoView(set: photos, cornerRadius: 0) { lightbox = $0 }
+                } else {
+                    Color.clear
+                        .aspectRatio(4.0 / 3.0, contentMode: .fit)
+                        .overlay {
+                            ZStack {
+                                Theme.bgDark
+                                Text(def.icon)
+                                    .font(.system(size: 28))
+                                    .opacity(filled ? 0.85 : 0.4)
+                            }
                         }
-                    }
+                        .clipped()
+                        .contentShape(Rectangle())
+                        .onTapGesture { editing = def }
                 }
-                .clipped()
-                .contentShape(Rectangle())
-                .onTapGesture {
-                    if let photo = entry?.photo {
-                        lightbox = LightboxState(photos: [photo])
-                    } else {
-                        editing = def
-                    }
-                }
+            }
 
             VStack(spacing: 2) {
                 Text(def.label)
@@ -101,7 +98,7 @@ struct MilestoneEditView: View {
     @State private var hasDate = false
     @State private var date = Date()
     @State private var text = ""
-    @State private var photo: Data?
+    @State private var photos = PhotoSet()
 
     var body: some View {
         NavigationStack {
@@ -118,8 +115,12 @@ struct MilestoneEditView: View {
                         TextField("Skriv her…", text: $text)
                     }
                 }
-                Section("Billede") {
-                    PhotoField(data: $photo)
+                Section {
+                    PhotoSetEditor(set: $photos)
+                } header: {
+                    Text("Billeder")
+                } footer: {
+                    Text("Vælg ★ for det billede, der vises på milepælen.")
                 }
             }
             .navigationTitle(def.label)
@@ -135,7 +136,7 @@ struct MilestoneEditView: View {
     }
 
     private func prefill() {
-        photo = entry?.photo
+        photos = entry?.photos ?? PhotoSet()
         if def.isDate {
             if let value = entry?.value, let parsed = Fmt.parseIso(value) {
                 date = parsed
@@ -153,7 +154,7 @@ struct MilestoneEditView: View {
         } else {
             value = text
         }
-        try? await state.store.setMilestone(childId: child.id, key: def.key, value: value, photo: photo)
+        try? await state.store.setMilestone(childId: child.id, key: def.key, value: value, photos: photos)
         dismiss()
     }
 }

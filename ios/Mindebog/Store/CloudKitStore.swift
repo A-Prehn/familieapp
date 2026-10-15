@@ -199,8 +199,8 @@ final class CloudKitStore: Store {
         let saved = try await db.save(record)
         let child = Self.child(from: saved, familyId: familyId)
         rememberChild(child.id, zoneName: familyId)
-        if let birthDate { try await setMilestone(childId: child.id, key: "birth_date", value: Fmt.iso(birthDate), photo: nil) }
-        if let dueDate { try await setMilestone(childId: child.id, key: "due_date", value: Fmt.iso(dueDate), photo: nil) }
+        if let birthDate { try await setMilestone(childId: child.id, key: "birth_date", value: Fmt.iso(birthDate), photos: PhotoSet()) }
+        if let dueDate { try await setMilestone(childId: child.id, key: "due_date", value: Fmt.iso(dueDate), photos: PhotoSet()) }
         return child
     }
 
@@ -265,16 +265,16 @@ final class CloudKitStore: Store {
         var result: [String: MilestoneEntry] = [:]
         for r in records {
             guard let key = r["key"] as? String else { continue }
-            result[key] = MilestoneEntry(value: r["value"] as? String, photo: Self.assetData(r["photo"]))
+            result[key] = MilestoneEntry(value: r["value"] as? String, photos: Self.photoSet(from: r))
         }
         return result
     }
 
-    func setMilestone(childId: String, key: String, value: String?, photo: Data?) async throws {
+    func setMilestone(childId: String, key: String, value: String?, photos: PhotoSet) async throws {
         let (db, zoneID) = try await locateChild(childId)
         let recordID = CKRecord.ID(recordName: "ms_\(childId)_\(key)", zoneID: zoneID)
         let cleanValue = value?.trimmingCharacters(in: .whitespaces)
-        if (cleanValue?.isEmpty ?? true) && photo == nil {
+        if (cleanValue?.isEmpty ?? true) && photos.isEmpty {
             _ = try? await db.deleteRecord(withID: recordID)
             return
         }
@@ -286,12 +286,34 @@ final class CloudKitStore: Store {
         } else {
             record["value"] = nil
         }
-        if let photo, let asset = Self.asset(from: photo) {
-            record["photo"] = asset
-        } else {
-            record["photo"] = nil
-        }
+        Self.setPhotos(photos, on: record)
         _ = try await db.save(record)
+    }
+
+    // MARK: Billedsæt (flere billeder + forside + billedtekster)
+    // "photos" LIST<ASSET>, "captions" LIST<STRING>, "coverIndex" INT64.
+    // Forsiden skrives også i det gamle "photo"-felt, så ældre builds stadig viser et billede.
+    private static func photoSet(from record: CKRecord) -> PhotoSet {
+        let list = assetsData(record["photos"])
+        if list.isEmpty { return PhotoSet(single: assetData(record["photo"])) }
+        let captions = record["captions"] as? [String] ?? []
+        let cover = (record["coverIndex"] as? Int64).map(Int.init) ?? 0
+        return PhotoSet(photos: list, captions: captions, cover: cover)
+    }
+
+    private static func setPhotos(_ set: PhotoSet, on record: CKRecord) {
+        guard !set.isEmpty else {
+            record["photos"] = nil
+            record["captions"] = nil
+            record["coverIndex"] = nil
+            record["photo"] = nil
+            return
+        }
+        let assets = set.photos.compactMap { asset(from: $0) }
+        record["photos"] = assets as CKRecordValue
+        record["captions"] = set.photos.indices.map { set.caption(at: $0) } as CKRecordValue
+        record["coverIndex"] = Int64(set.coverIndex) as CKRecordValue
+        record["photo"] = set.coverPhoto.flatMap { asset(from: $0) }
     }
 
     // MARK: - Om dig
@@ -380,24 +402,24 @@ final class CloudKitStore: Store {
                         title: r["title"] as? String ?? "",
                         date: r["date"] as? Date,
                         details: r["details"] as? String ?? "",
-                        photo: Self.assetData(r["photo"]),
+                        photos: Self.photoSet(from: r),
                         place: Self.place(from: r))
         }.sorted { ($0.date ?? .distantPast) > ($1.date ?? .distantPast) }
     }
 
     func addEvent(familyId: String, title: String, date: Date?, details: String,
-                  photo: Data?, place: Place?) async throws -> FamilyEvent {
+                  photos: PhotoSet, place: Place?) async throws -> FamilyEvent {
         let (db, zoneID) = try await locate(familyId)
         let record = CKRecord(recordType: "Event", recordID: CKRecord.ID(recordName: newId("ev"), zoneID: zoneID))
         record["familyRef"] = familyRef(zoneID)
         record["title"] = title.trimmingCharacters(in: .whitespaces) as CKRecordValue
         if let date { record["date"] = date as CKRecordValue }
         record["details"] = details.trimmingCharacters(in: .whitespaces) as CKRecordValue
-        record["photo"] = photo.flatMap { Self.asset(from: $0) }
+        Self.setPhotos(photos, on: record)
         Self.setPlace(place, on: record)
         let saved = try await db.save(record)
         return FamilyEvent(id: saved.recordID.recordName, title: title, date: date, details: details,
-                           photo: photo, place: place)
+                           photos: photos, place: place)
     }
 
     func vacations(familyId: String) async throws -> [Vacation] {
@@ -408,13 +430,13 @@ final class CloudKitStore: Store {
                      startDate: r["startDate"] as? Date,
                      endDate: r["endDate"] as? Date,
                      details: r["details"] as? String ?? "",
-                     photo: Self.assetData(r["photo"]),
+                     photos: Self.photoSet(from: r),
                      place: Self.place(from: r))
         }.sorted { ($0.startDate ?? .distantPast) > ($1.startDate ?? .distantPast) }
     }
 
     func addVacation(familyId: String, title: String, start: Date?, end: Date?,
-                     details: String, photo: Data?, place: Place?) async throws -> Vacation {
+                     details: String, photos: PhotoSet, place: Place?) async throws -> Vacation {
         let (db, zoneID) = try await locate(familyId)
         let record = CKRecord(recordType: "Vacation", recordID: CKRecord.ID(recordName: newId("vac"), zoneID: zoneID))
         record["familyRef"] = familyRef(zoneID)
@@ -422,11 +444,11 @@ final class CloudKitStore: Store {
         if let start { record["startDate"] = start as CKRecordValue }
         if let end { record["endDate"] = end as CKRecordValue }
         record["details"] = details.trimmingCharacters(in: .whitespaces) as CKRecordValue
-        record["photo"] = photo.flatMap { Self.asset(from: $0) }
+        Self.setPhotos(photos, on: record)
         Self.setPlace(place, on: record)
         let saved = try await db.save(record)
         return Vacation(id: saved.recordID.recordName, title: title, startDate: start, endDate: end,
-                        details: details, photo: photo, place: place)
+                        details: details, photos: photos, place: place)
     }
 
     func updateEvent(familyId: String, _ event: FamilyEvent) async throws -> FamilyEvent {
@@ -435,7 +457,7 @@ final class CloudKitStore: Store {
         record["title"] = event.title.trimmingCharacters(in: .whitespaces) as CKRecordValue
         record["date"] = event.date as CKRecordValue?
         record["details"] = event.details.trimmingCharacters(in: .whitespaces) as CKRecordValue
-        record["photo"] = event.photo.flatMap { Self.asset(from: $0) }
+        Self.setPhotos(event.photos, on: record)
         Self.setPlace(event.place, on: record)
         _ = try await db.save(record)
         return event
@@ -453,7 +475,7 @@ final class CloudKitStore: Store {
         record["startDate"] = vacation.startDate as CKRecordValue?
         record["endDate"] = vacation.endDate as CKRecordValue?
         record["details"] = vacation.details.trimmingCharacters(in: .whitespaces) as CKRecordValue
-        record["photo"] = vacation.photo.flatMap { Self.asset(from: $0) }
+        Self.setPhotos(vacation.photos, on: record)
         Self.setPlace(vacation.place, on: record)
         _ = try await db.save(record)
         return vacation

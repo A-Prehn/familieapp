@@ -82,10 +82,10 @@ actor MemoryStore: Store {
         childrenById[child.id] = child
         // Som på websitet: fødsels-/terminsdato ligger også i milepælene.
         if let birthDate {
-            milestonesByChild[child.id, default: [:]]["birth_date"] = MilestoneEntry(value: Fmt.iso(birthDate), photo: nil)
+            milestonesByChild[child.id, default: [:]]["birth_date"] = MilestoneEntry(value: Fmt.iso(birthDate))
         }
         if let dueDate {
-            milestonesByChild[child.id, default: [:]]["due_date"] = MilestoneEntry(value: Fmt.iso(dueDate), photo: nil)
+            milestonesByChild[child.id, default: [:]]["due_date"] = MilestoneEntry(value: Fmt.iso(dueDate))
         }
         return child
     }
@@ -98,8 +98,8 @@ actor MemoryStore: Store {
         // Bevar et evt. billede på milepælen.
         for (key, date) in [("birth_date", child.birthDate), ("due_date", child.dueDate)] {
             guard let date else { continue }
-            let photo = milestonesByChild[child.id]?[key]?.photo
-            milestonesByChild[child.id, default: [:]][key] = MilestoneEntry(value: Fmt.iso(date), photo: photo)
+            let photos = milestonesByChild[child.id]?[key]?.photos ?? PhotoSet()
+            milestonesByChild[child.id, default: [:]][key] = MilestoneEntry(value: Fmt.iso(date), photos: photos)
         }
         return updated
     }
@@ -124,13 +124,13 @@ actor MemoryStore: Store {
         milestonesByChild[childId] ?? [:]
     }
 
-    func setMilestone(childId: String, key: String, value: String?, photo: Data?) async throws {
+    func setMilestone(childId: String, key: String, value: String?, photos: PhotoSet) async throws {
         let trimmed = value?.trimmingCharacters(in: .whitespaces)
         let cleanValue = (trimmed?.isEmpty ?? true) ? nil : trimmed
-        if cleanValue == nil && photo == nil {
+        if cleanValue == nil && photos.isEmpty {
             milestonesByChild[childId]?[key] = nil
         } else {
-            milestonesByChild[childId, default: [:]][key] = MilestoneEntry(value: cleanValue, photo: photo)
+            milestonesByChild[childId, default: [:]][key] = MilestoneEntry(value: cleanValue, photos: photos)
         }
     }
 
@@ -184,11 +184,11 @@ actor MemoryStore: Store {
     }
 
     func addEvent(familyId: String, title: String, date: Date?, details: String,
-                  photo: Data?, place: Place?) async throws -> FamilyEvent {
+                  photos: PhotoSet, place: Place?) async throws -> FamilyEvent {
         let event = FamilyEvent(id: newId("ev"),
                                 title: title.trimmingCharacters(in: .whitespaces),
                                 date: date, details: details.trimmingCharacters(in: .whitespaces),
-                                photo: photo, place: place)
+                                photos: photos, place: place)
         eventsByFamily[familyId, default: []].append(event)
         return event
     }
@@ -220,12 +220,12 @@ actor MemoryStore: Store {
     }
 
     func addVacation(familyId: String, title: String, start: Date?, end: Date?,
-                     details: String, photo: Data?, place: Place?) async throws -> Vacation {
+                     details: String, photos: PhotoSet, place: Place?) async throws -> Vacation {
         let vacation = Vacation(id: newId("vac"),
                                 title: title.trimmingCharacters(in: .whitespaces),
                                 startDate: start, endDate: end,
                                 details: details.trimmingCharacters(in: .whitespaces),
-                                photo: photo, place: place)
+                                photos: photos, place: place)
         vacationsByFamily[familyId, default: []].append(vacation)
         return vacation
     }

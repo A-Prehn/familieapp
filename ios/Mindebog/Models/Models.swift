@@ -46,9 +46,54 @@ struct Highlight: Identifiable, Hashable, Codable {
     var createdAt: Date
 }
 
+/// Flere billeder med ét valgt forsidebillede og evt. billedtekst pr. billede
+/// (som på websitet: forsiden vises på kortet med "+N" for resten).
+struct PhotoSet: Hashable, Codable {
+    var photos: [Data] = []
+    var captions: [String] = []     // samme rækkefølge som photos; "" = ingen tekst
+    var cover: Int = 0
+
+    init(photos: [Data] = [], captions: [String] = [], cover: Int = 0) {
+        self.photos = photos
+        self.captions = captions
+        self.cover = cover
+    }
+
+    /// Bagudkompatibelt: ét enkelt billede (eller intet).
+    init(single: Data?) { self.init(photos: single.map { [$0] } ?? []) }
+
+    var isEmpty: Bool { photos.isEmpty }
+    var count: Int { photos.count }
+    private var safeCover: Int { photos.indices.contains(cover) ? cover : 0 }
+    var coverPhoto: Data? { photos.isEmpty ? nil : photos[safeCover] }
+    var coverCaption: String { caption(at: safeCover) }
+    var coverIndex: Int { safeCover }
+
+    func caption(at index: Int) -> String { captions.indices.contains(index) ? captions[index] : "" }
+
+    mutating func append(_ data: Data) {
+        photos.append(data)
+        captions.append("")
+    }
+
+    mutating func remove(at index: Int) {
+        guard photos.indices.contains(index) else { return }
+        photos.remove(at: index)
+        if captions.indices.contains(index) { captions.remove(at: index) }
+        if cover == index { cover = 0 } else if cover > index { cover -= 1 }
+    }
+
+    mutating func setCaption(_ text: String, at index: Int) {
+        while captions.count < photos.count { captions.append("") }
+        if captions.indices.contains(index) { captions[index] = text }
+    }
+}
+
 struct MilestoneEntry: Hashable, Codable {
     var value: String?
-    var photo: Data?
+    var photos: PhotoSet = PhotoSet()
+    /// Forsidebilledet (det der vises på flisen).
+    var photo: Data? { photos.coverPhoto }
 }
 
 struct DiaryEntry: Identifiable, Hashable, Codable {
@@ -103,8 +148,10 @@ struct FamilyEvent: Identifiable, Hashable, Codable {
     var title: String
     var date: Date?
     var details: String
-    var photo: Data?
+    var photos: PhotoSet = PhotoSet()
     var place: Place? = nil
+    /// Forsidebilledet.
+    var photo: Data? { photos.coverPhoto }
 }
 
 struct Vacation: Identifiable, Hashable, Codable {
@@ -113,8 +160,10 @@ struct Vacation: Identifiable, Hashable, Codable {
     var startDate: Date?
     var endDate: Date?
     var details: String
-    var photo: Data?
+    var photos: PhotoSet = PhotoSet()
     var place: Place? = nil
+    /// Forsidebilledet.
+    var photo: Data? { photos.coverPhoto }
 }
 
 struct CustomBirthday: Identifiable, Hashable, Codable {

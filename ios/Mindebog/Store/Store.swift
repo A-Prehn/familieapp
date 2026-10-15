@@ -27,7 +27,7 @@ protocol Store {
     func addHighlight(childId: String, date: Date?, text: String, photos: [Data]) async throws -> Highlight
 
     func milestones(childId: String) async throws -> [String: MilestoneEntry]
-    func setMilestone(childId: String, key: String, value: String?, photo: Data?) async throws
+    func setMilestone(childId: String, key: String, value: String?, photos: PhotoSet) async throws
 
     func answers(childId: String) async throws -> [String: String]
     func setAnswer(childId: String, question: String, answer: String) async throws
@@ -41,7 +41,7 @@ protocol Store {
     // Pr. familie
     func events(familyId: String) async throws -> [FamilyEvent]
     func addEvent(familyId: String, title: String, date: Date?, details: String,
-                  photo: Data?, place: Place?) async throws -> FamilyEvent
+                  photos: PhotoSet, place: Place?) async throws -> FamilyEvent
 
     func updateEvent(familyId: String, _ event: FamilyEvent) async throws -> FamilyEvent
     func deleteEvent(familyId: String, id: String) async throws
@@ -50,7 +50,7 @@ protocol Store {
     func updateVacation(familyId: String, _ vacation: Vacation) async throws -> Vacation
     func deleteVacation(familyId: String, id: String) async throws
     func addVacation(familyId: String, title: String, start: Date?, end: Date?,
-                     details: String, photo: Data?, place: Place?) async throws -> Vacation
+                     details: String, photos: PhotoSet, place: Place?) async throws -> Vacation
 
     func birthdays(familyId: String) async throws -> [CustomBirthday]
     func addBirthday(familyId: String, name: String, date: Date, emoji: String) async throws -> CustomBirthday

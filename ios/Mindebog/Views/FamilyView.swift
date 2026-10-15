@@ -80,13 +80,7 @@ struct FamilyView: View {
                     if !event.details.isEmpty {
                         Text(event.details).font(.footnote).foregroundStyle(Theme.muted)
                     }
-                    if let photo = event.photo {
-                        Color.clear
-                            .aspectRatio(4.0 / 3.0, contentMode: .fit)
-                            .overlay { DataImage(data: photo) }
-                            .clipShape(RoundedRectangle(cornerRadius: 8))
-                            .onTapGesture { lightbox = LightboxState(photos: [photo]) }
-                    }
+                    CoverPhotoView(set: event.photos) { lightbox = $0 }
                     if let place = event.place {
                         PlaceLabel(place: place)
                         PlaceMap(place: place)
@@ -121,13 +115,7 @@ struct FamilyView: View {
                         if !vacation.details.isEmpty {
                             Text(vacation.details).font(.footnote).foregroundStyle(Theme.muted)
                         }
-                        if let photo = vacation.photo {
-                            Color.clear
-                                .aspectRatio(4.0 / 3.0, contentMode: .fit)
-                                .overlay { DataImage(data: photo) }
-                                .clipShape(RoundedRectangle(cornerRadius: 8))
-                                .onTapGesture { lightbox = LightboxState(photos: [photo]) }
-                        }
+                        CoverPhotoView(set: vacation.photos) { lightbox = $0 }
                         if let place = vacation.place {
                             PlaceLabel(place: place)
                             PlaceMap(place: place)
@@ -277,7 +265,7 @@ struct AddEventView: View {
     @State private var title = ""
     @State private var date = Date()
     @State private var details = ""
-    @State private var photo: Data?
+    @State private var photos = PhotoSet()
     @State private var place: Place?
     @State private var loaded = false
     @State private var confirmDelete = false
@@ -293,8 +281,8 @@ struct AddEventView: View {
                 Section("Sted") {
                     PlaceField(place: $place)
                 }
-                Section("Billede") {
-                    PhotoField(data: $photo)
+                Section("Billeder") {
+                    PhotoSetEditor(set: $photos)
                 }
                 if editing != nil {
                     Section {
@@ -311,11 +299,11 @@ struct AddEventView: View {
                         Task {
                             if var event = editing {
                                 event.title = title; event.date = date; event.details = details
-                                event.photo = photo; event.place = place
+                                event.photos = photos; event.place = place
                                 _ = try? await state.store.updateEvent(familyId: familyId, event)
                             } else {
                                 _ = try? await state.store.addEvent(familyId: familyId, title: title, date: date,
-                                                                    details: details, photo: photo, place: place)
+                                                                    details: details, photos: photos, place: place)
                             }
                             dismiss()
                         }
@@ -337,7 +325,7 @@ struct AddEventView: View {
                 guard !loaded, let e = editing else { return }
                 loaded = true
                 title = e.title; date = e.date ?? Date(); details = e.details
-                photo = e.photo; place = e.place
+                photos = e.photos; place = e.place
             }
         }
     }
@@ -353,7 +341,7 @@ struct AddVacationView: View {
     @State private var start = Date()
     @State private var end = Date()
     @State private var details = ""
-    @State private var photo: Data?
+    @State private var photos = PhotoSet()
     @State private var place: Place?
     @State private var loaded = false
     @State private var confirmDelete = false
@@ -370,8 +358,8 @@ struct AddVacationView: View {
                 Section("Sted") {
                     PlaceField(place: $place)
                 }
-                Section("Billede") {
-                    PhotoField(data: $photo)
+                Section("Billeder") {
+                    PhotoSetEditor(set: $photos)
                 }
                 if editing != nil {
                     Section {
@@ -388,12 +376,12 @@ struct AddVacationView: View {
                         Task {
                             if var vacation = editing {
                                 vacation.title = title; vacation.startDate = start; vacation.endDate = end
-                                vacation.details = details; vacation.photo = photo; vacation.place = place
+                                vacation.details = details; vacation.photos = photos; vacation.place = place
                                 _ = try? await state.store.updateVacation(familyId: familyId, vacation)
                             } else {
                                 _ = try? await state.store.addVacation(familyId: familyId, title: title,
                                                                        start: start, end: end,
-                                                                       details: details, photo: photo, place: place)
+                                                                       details: details, photos: photos, place: place)
                             }
                             dismiss()
                         }
@@ -415,7 +403,7 @@ struct AddVacationView: View {
                 guard !loaded, let v = editing else { return }
                 loaded = true
                 title = v.title; start = v.startDate ?? Date(); end = v.endDate ?? start
-                details = v.details; photo = v.photo; place = v.place
+                details = v.details; photos = v.photos; place = v.place
             }
         }
     }
