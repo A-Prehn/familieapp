@@ -1,11 +1,8 @@
 name: iOS build
 
+# Kun manuel: macOS-minutter koster 10× på GitHub Free, så vi bygger
+# bevidst — ikke ved hvert push.
 on:
-  push:
-    branches: [develop, main]
-    paths: ["ios/**", ".github/workflows/ios-build.yml"]
-  pull_request:
-    paths: ["ios/**", ".github/workflows/ios-build.yml"]
   workflow_dispatch:
 
 jobs:

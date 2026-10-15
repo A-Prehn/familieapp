@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="da">
+<head>
+  <meta charset="UTF-8" />
+  <title>Mindebog app-ikon</title>
+  <style>
+    body { margin:0; background:#ddd; display:flex; gap:24px; align-items:center; justify-content:center; min-height:100vh; }
+    .wrap { display:flex; flex-direction:column; align-items:center; gap:8px; font:13px Inter, sans-serif; color:#555; }
+    svg { display:block; }
+    .round { border-radius: 22.5%; overflow:hidden; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="round" id="preview"></div>
+    <div>Som på hjemmeskærmen (180px)</div>
+  </div>
+
+  <!-- Master-ikon, 1024×1024, ingen gennemsigtighed (Apple-krav).
+       Samme hjerte som favicon/apple-touch-icon på familie.prehn.net, skaleret 32× .
+       Ingen afrundede hjørner — iOS lægger selv masken på. -->
+  <svg id="icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="1024" height="1024">
+    <rect width="32" height="32" fill="#f5ede8"/>
+    <path d="M16 23s-8-5.5-8-11a5 5 0 0 1 8-4 5 5 0 0 1 8 4c0 5.5-8 11-8 11z" fill="#c4896b"/>
+  </svg>
+
+  <script>
+    const src = document.getElementById('icon');
+    const clone = src.cloneNode(true);
+    clone.removeAttribute('id'); clone.setAttribute('width', 180); clone.setAttribute('height', 180);
+    document.getElementById('preview').appendChild(clone);
+
+    window.exportIcon = () => new Promise((resolve, reject) => {
+      const xml = new XMLSerializer().serializeToString(src);
+      const url = URL.createObjectURL(new Blob([xml], { type: 'image/svg+xml' }));
+      const img = new Image();
+      img.onload = () => {
+        const c = document.createElement('canvas');
+        c.width = 1024; c.height = 1024;
+        const ctx = c.getContext('2d');
+        ctx.fillStyle = '#f5ede8'; ctx.fillRect(0, 0, 1024, 1024);
+        ctx.drawImage(img, 0, 0, 1024, 1024);
+        URL.revokeObjectURL(url);
+        resolve(c.toDataURL('image/png'));
+      };
+      img.onerror = reject;
+      img.src = url;
+    });
+  </script>
+</body>
+</html>
