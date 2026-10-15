@@ -1,6 +1,15 @@
 # Forretningsmodel — Mindebog
 
-Udkast, oktober 2026. Et oplæg til beslutning, ikke en færdig plan.
+## Besluttet (15. oktober 2026)
+
+- **Model B: freemium + abonnement.** Lifetime kan tilføjes senere.
+- **Pris: 29 kr/md eller 199 kr/år.**
+- **Deling med partner er Premium.** Kun ejeren betaler; partneren får adgang til det delte.
+- Gratis: 1 barn, 50 fotos, alle sektioner. Premium: ubegrænset, deling, PDF-eksport, push-sync.
+
+---
+
+Oprindeligt oplæg nedenfor.
 
 ## Udgangspunkt
 

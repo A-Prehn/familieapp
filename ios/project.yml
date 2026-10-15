@@ -13,10 +13,10 @@ settings:
     CURRENT_PROJECT_VERSION: "1"
     SWIFT_VERSION: "5.9"
     DEVELOPMENT_LANGUAGE: da
-    # CI bygger uden signering til simulator; rigtig signering tilføjes med Apple Developer-konto.
-    CODE_SIGN_STYLE: Manual
-    CODE_SIGNING_REQUIRED: "NO"
-    CODE_SIGNING_ALLOWED: "NO"
+    DEVELOPMENT_TEAM: 9VMB4XZSKS
+    # Simulator-build (ios-build.yml) slår signering fra på kommandolinjen.
+    # TestFlight-build (ios-testflight.yml) slår automatisk signering til.
+    CODE_SIGN_STYLE: Automatic
 
 targets:
   Mindebog:

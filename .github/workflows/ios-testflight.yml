@@ -5,7 +5,6 @@ name: iOS TestFlight
 # skal vedligeholdes manuelt.
 #
 # Kræver disse GitHub Secrets (Settings → Secrets and variables → Actions):
-#   APPLE_TEAM_ID   – 10-tegns Team ID fra developer.apple.com
 #   ASC_KEY_ID      – Key ID for App Store Connect API-nøglen
 #   ASC_ISSUER_ID   – Issuer ID
 #   ASC_KEY_P8      – hele indholdet af .p8-filen
@@ -58,7 +57,7 @@ jobs:
             <key>method</key><string>app-store-connect</string>
             <key>destination</key><string>upload</string>
             <key>signingStyle</key><string>automatic</string>
-            <key>teamID</key><string>${{ secrets.APPLE_TEAM_ID }}</string>
+            <key>teamID</key><string>9VMB4XZSKS</string>
             <key>uploadSymbols</key><true/>
             <key>manageAppVersionAndBuildNumber</key><false/>
           </dict>
@@ -82,7 +81,7 @@ jobs:
             CODE_SIGN_STYLE=Automatic \
             CODE_SIGNING_ALLOWED=YES \
             CODE_SIGNING_REQUIRED=YES \
-            DEVELOPMENT_TEAM="${{ secrets.APPLE_TEAM_ID }}" \
+            DEVELOPMENT_TEAM="9VMB4XZSKS" \
             CURRENT_PROJECT_VERSION="${{ github.run_number }}"
 
       - name: Eksportér og upload til TestFlight
