@@ -4,7 +4,8 @@ struct MoreView: View {
     @EnvironmentObject var state: AppState
     @State private var family: Family?
     @State private var members: [AppUser] = []
-    @State private var code: String?
+    @State private var invite: String?
+    @State private var busy = false
 
     var body: some View {
         List {
@@ -14,26 +15,35 @@ struct MoreView: View {
                     Label(m.name + (m.id == state.user?.id ? " (dig)" : ""), systemImage: "person")
                 }
             }
+
             Section("Del med den anden forælder") {
-                if let code {
+                if let invite, let url = URL(string: invite), state.usingCloud {
+                    ShareLink(item: url) {
+                        Label("Send delelink", systemImage: "square.and.arrow.up")
+                    }
+                    Text("Partneren trykker på linket på sin iPhone og får adgang til hele familien.")
+                        .font(.footnote).foregroundStyle(Theme.muted)
+                } else if let invite {
                     HStack {
                         Spacer()
-                        Text(code).font(.system(.title, design: .monospaced)).tracking(4)
+                        Text(invite).font(.system(.title, design: .monospaced)).tracking(4)
                         Spacer()
                     }
                 } else {
-                    Button("Opret invitationskode") { Task { await makeInvite() } }
+                    Button(busy ? "Opretter…" : "Opret delelink") { Task { await makeInvite() } }
+                        .disabled(busy)
                 }
-                Text("Del koden, så I begge kan lægge op og se alt i realtid (CKShare i den rigtige app).")
-                    .font(.footnote).foregroundStyle(Theme.muted)
+                if let err = state.errorMessage {
+                    Text(err).font(.footnote).foregroundStyle(Theme.rose)
+                }
             }
+
             Section("Konto") {
                 if let user = state.user { Text("Logget ind som \(user.name)") }
-                Button("Log ud / skift bruger", role: .destructive) { state.signOut() }
-            }
-            Section {
-                Text("Prototype: data ligger lokalt. I den rigtige app gemmes alt i din egen iCloud via CloudKit.")
+                Label(state.usingCloud ? "Data gemmes i din iCloud" : "Data gemmes kun i hukommelsen (ingen iCloud)",
+                      systemImage: state.usingCloud ? "icloud" : "icloud.slash")
                     .font(.footnote).foregroundStyle(Theme.muted)
+                Button("Log ud / skift bruger", role: .destructive) { state.signOut() }
             }
         }
         .navigationTitle("Mere")
@@ -49,6 +59,13 @@ struct MoreView: View {
 
     private func makeInvite() async {
         guard let user = state.user, let familyId = state.familyId else { return }
-        code = try? await state.store.createInvite(userId: user.id, familyId: familyId)
+        busy = true
+        state.errorMessage = nil
+        do {
+            invite = try await state.store.createInvite(userId: user.id, familyId: familyId)
+        } catch {
+            state.errorMessage = error.localizedDescription
+        }
+        busy = false
     }
 }

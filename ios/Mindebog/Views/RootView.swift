@@ -5,7 +5,9 @@ struct RootView: View {
 
     var body: some View {
         Group {
-            if state.user == nil {
+            if !state.ready {
+                ProgressView()
+            } else if state.user == nil {
                 SignInView()
             } else if state.familyId == nil {
                 OnboardingView()

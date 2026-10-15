@@ -40,9 +40,15 @@ struct OnboardingView: View {
                 .padding(.horizontal, 24)
             } else {
                 VStack(spacing: 12) {
-                    TextField("Invitationskode", text: $code)
+                    TextField(state.usingCloud ? "Indsæt delelink" : "Invitationskode", text: $code)
                         .textFieldStyle(.roundedBorder)
-                        .textInputAutocapitalization(.characters)
+                        .textInputAutocapitalization(state.usingCloud ? .never : .characters)
+                        .autocorrectionDisabled()
+                    if state.usingCloud {
+                        Text("Har du fået et link fra din partner? Tryk på det, eller indsæt det her.")
+                            .font(.footnote).foregroundStyle(Theme.muted)
+                            .multilineTextAlignment(.center)
+                    }
                     Button("Deltag i familie") {
                         Task { await state.acceptInvite(code: code) }
                     }

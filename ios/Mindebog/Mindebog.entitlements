@@ -1,6 +1,4 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- Anvendes først når appen signeres med en Apple Developer-konto (fase 2b).
-     CloudKit-container + push til realtids-sync. CI bygger uden disse. -->
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
@@ -12,9 +10,5 @@
     <array>
         <string>CloudKit</string>
     </array>
-    <key>com.apple.developer.ubiquity-kvstore-identifier</key>
-    <string>$(TeamIdentifierPrefix)net.prehn.mindebog</string>
-    <key>aps-environment</key>
-    <string>production</string>
 </dict>
 </plist>

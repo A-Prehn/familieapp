@@ -33,6 +33,6 @@ targets:
         INFOPLIST_KEY_UILaunchScreen_Generation: "YES"
         INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents: "YES"
         INFOPLIST_KEY_UISupportedInterfaceOrientations: "UIInterfaceOrientationPortrait"
-        # Entitlements (CloudKit/iCloud) ligger i filen nedenfor, men anvendes først når
-        # appen signeres med en rigtig Apple Developer-konto. CI bygger uden.
-        # CODE_SIGN_ENTITLEMENTS: Mindebog/Mindebog.entitlements
+        # iCloud/CloudKit-entitlements. Ignoreres i usigneret simulator-build (CI),
+        # anvendes når appen signeres med Apple Developer-kontoen.
+        CODE_SIGN_ENTITLEMENTS: Mindebog/Mindebog.entitlements
