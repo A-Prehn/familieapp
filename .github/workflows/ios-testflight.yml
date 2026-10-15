@@ -78,10 +78,8 @@ jobs:
             -authenticationKeyPath "$KEY_PATH" \
             -authenticationKeyID "${{ secrets.ASC_KEY_ID }}" \
             -authenticationKeyIssuerID "${{ secrets.ASC_ISSUER_ID }}" \
-            CODE_SIGN_STYLE=Automatic \
-            CODE_SIGNING_ALLOWED=YES \
-            CODE_SIGNING_REQUIRED=YES \
-            CODE_SIGN_IDENTITY="Apple Distribution" \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
             DEVELOPMENT_TEAM="9VMB4XZSKS" \
             CURRENT_PROJECT_VERSION="${{ github.run_number }}"
 
