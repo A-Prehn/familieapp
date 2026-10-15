@@ -77,14 +77,24 @@ final class CloudKitStore: Store {
         let (db, zoneID) = try await locate(familyId)
         var members: [AppUser] = []
         if let share = try? await fetchShare(db: db, zoneID: zoneID) {
-            // Ejeren er selv en "deltager" i en CKShare. Vis rolle, "(dig)" og evt. mail/telefon,
-            // da iCloud ofte ikke udleverer navne.
+            // Ejeren er selv en "deltager" i en CKShare. Navne: først det medlemmet selv har
+            // gemt under "Dit navn" (Member-records), så iCloud-navn, så mail/telefon.
             let me = share.currentUserParticipant
+            let myId = UserDefaults.standard.string(forKey: "mindebog.userId")
             let myName = UserDefaults.standard.string(forKey: nameKey)
+            var savedNames: [String: String] = [:]
+            for r in (try? await all(db: db, zoneID: zoneID, type: "Member")) ?? [] {
+                if let uid = r["userId"] as? String, let n = r["name"] as? String, !n.isEmpty { savedNames[uid] = n }
+            }
             for p in share.participants.sorted(by: { $0.role == .owner && $1.role != .owner }) {
                 let identity = p.userIdentity
-                var name = identity.nameComponents
-                    .map { PersonNameComponentsFormatter.localizedString(from: $0, style: .default) } ?? ""
+                // For en selv er recordName ofte "__defaultOwner__" — brug det rigtige bruger-id.
+                let uid = (p == me ? myId : nil) ?? identity.userRecordID?.recordName
+                var name = uid.flatMap { savedNames[$0] } ?? ""
+                if name.isEmpty {
+                    name = identity.nameComponents
+                        .map { PersonNameComponentsFormatter.localizedString(from: $0, style: .default) } ?? ""
+                }
                 if p == me, name.isEmpty, let myName, myName != "Forælder" { name = myName }
                 if name.isEmpty {
                     name = identity.lookupInfo?.emailAddress ?? identity.lookupInfo?.phoneNumber ?? ""
@@ -107,6 +117,19 @@ final class CloudKitStore: Store {
                                    name: family["ownerName"] as? String ?? "Forælder"))
         }
         return members
+    }
+
+    func setMemberName(familyId: String, userId: String, name: String) async throws {
+        let trimmed = name.trimmingCharacters(in: .whitespaces)
+        guard !trimmed.isEmpty, trimmed != "Forælder" else { return }
+        let (db, zoneID) = try await locate(familyId)
+        let recordID = CKRecord.ID(recordName: "member_\(userId)", zoneID: zoneID)
+        let record = (try? await db.record(for: recordID)) ?? CKRecord(recordType: "Member", recordID: recordID)
+        guard (record["name"] as? String) != trimmed else { return }   // uændret → intet at gemme
+        record["familyRef"] = familyRef(zoneID)
+        record["userId"] = userId as CKRecordValue
+        record["name"] = trimmed as CKRecordValue
+        _ = try await db.save(record)
     }
 
     /// Returnerer share-URL (som tekst). Partneren åbner linket, eller indsætter det.

@@ -71,6 +71,7 @@ final class AppState: ObservableObject {
             familyId = fams.first { $0.id == saved }?.id ?? fams.first?.id
         }
         ready = true
+        Task { await publishDisplayName() }
     }
 
     /// Efter hurtig opstart: hvis iCloud er logget ud eller familien er væk, ret op.
@@ -87,6 +88,7 @@ final class AppState: ObservableObject {
         if !fams.contains(where: { $0.id == savedFamily }) {
             setFamily(fams.first?.id)
         }
+        await publishDisplayName()   // også for navne sat før denne version
     }
 
     func signIn(name: String) async {
@@ -131,6 +133,13 @@ final class AppState: ObservableObject {
         UserDefaults.standard.set(trimmed, forKey: "mindebog.displayName")
         current.name = trimmed
         user = current
+        Task { await publishDisplayName() }
+    }
+
+    /// Gemmer navnet i familien, så de andre medlemmer ser det i stedet for "Deltager".
+    func publishDisplayName() async {
+        guard let user, let familyId, user.name != "Forælder" else { return }
+        try? await store.setMemberName(familyId: familyId, userId: user.id, name: user.name)
     }
 
     func signOut() {
@@ -145,5 +154,6 @@ final class AppState: ObservableObject {
         familyId = id
         if let id { UserDefaults.standard.set(id, forKey: familyKey) }
         else { UserDefaults.standard.removeObject(forKey: familyKey) }
+        if id != nil { Task { await publishDisplayName() } }   // fx lige efter man har accepteret en deling
     }
 }

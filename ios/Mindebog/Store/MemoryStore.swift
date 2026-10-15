@@ -47,6 +47,10 @@ actor MemoryStore: Store {
         return family.memberIds.compactMap { users[$0] }
     }
 
+    func setMemberName(familyId: String, userId: String, name: String) async throws {
+        users[userId]?.name = name.trimmingCharacters(in: .whitespaces)
+    }
+
     func createInvite(userId: String, familyId: String) async throws -> String {
         let code = String(UUID().uuidString.prefix(6)).uppercased()
         invites[code] = familyId
