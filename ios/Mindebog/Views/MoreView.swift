@@ -14,6 +14,9 @@ struct MoreView: View {
     @State private var notificationBusy = false
     @State private var remindersOn = Reminders.isEnabled
     @State private var bellyInterval = Reminders.bellyInterval
+    @State private var myBirthday: CustomBirthday?
+    @State private var birthdayDraft = Calendar.current.date(byAdding: .year, value: -30, to: Date()) ?? Date()
+    @State private var birthdayBusy = false
 
     var body: some View {
         List {
@@ -103,10 +106,20 @@ struct MoreView: View {
                     Button("Gem navn") { state.setDisplayName(displayName) }
                         .disabled(displayName.trimmingCharacters(in: .whitespaces).isEmpty)
                 }
+                if state.familyId != nil && state.canEdit {
+                    DatePicker("Din fødselsdag", selection: $birthdayDraft, in: ...Date(), displayedComponents: .date)
+                        .environment(\.locale, Locale(identifier: "da_DK"))
+                    if birthdayChanged {
+                        Button(birthdayBusy ? "Gemmer…" : (myBirthday == nil ? "Tilføj fødselsdag" : "Gem fødselsdag")) {
+                            Task { await saveMyBirthday() }
+                        }
+                        .disabled(birthdayBusy)
+                    }
+                }
             } header: {
-                Text("Dit navn")
+                Text("Dig")
             } footer: {
-                Text("Bruges i hilsenen på forsiden.")
+                Text("Navnet bruges i hilsenen på forsiden. Din fødselsdag kommer med i familiens fødselsdage og i widgettens nedtælling.")
             }
 
             Section("Konto") {
@@ -153,7 +166,44 @@ struct MoreView: View {
         guard let familyId = state.familyId else { return }
         family = try? await state.store.families(for: state.user?.id ?? "").first { $0.id == familyId }
         members = (try? await state.store.members(familyId: familyId)) ?? []
+        if let id = UserDefaults.standard.string(forKey: myBirthdayKey(familyId)),
+           let found = (try? await state.store.birthdays(familyId: familyId))?.first(where: { $0.id == id }) {
+            myBirthday = found
+            birthdayDraft = found.date
+        }
         await refreshShare()
+    }
+
+    private func myBirthdayKey(_ familyId: String) -> String { "mindebog.myBirthday.\(familyId)" }
+
+    private var birthdayChanged: Bool {
+        guard let myBirthday else { return true }
+        return !Calendar.current.isDate(myBirthday.date, inSameDayAs: birthdayDraft)
+    }
+
+    /// Forælderens egen fødselsdag gemmes som en almindelig familie-fødselsdag (navn = ens navn),
+    /// så den anden forælder også ser den, og den kommer med i widgettens nedtælling.
+    private func saveMyBirthday() async {
+        guard let familyId = state.familyId else { return }
+        birthdayBusy = true
+        defer { birthdayBusy = false }
+        let current = state.user?.name ?? ""
+        let name = (current.isEmpty || current == "Forælder") ? "Mor/far" : current
+        do {
+            if var existing = myBirthday {
+                existing.date = birthdayDraft
+                existing.name = name
+                try await state.store.updateBirthday(familyId: familyId, existing)
+                myBirthday = existing
+            } else {
+                let created = try await state.store.addBirthday(familyId: familyId, name: name, date: birthdayDraft, emoji: "🎉")
+                UserDefaults.standard.set(created.id, forKey: myBirthdayKey(familyId))
+                myBirthday = created
+            }
+            await WidgetSync.refresh(store: state.store, familyId: familyId, familyName: family?.name ?? "")
+        } catch {
+            state.errorMessage = error.localizedDescription
+        }
     }
 
     /// Læser delingens nuværende indstilling: link + QR vises kun ved "alle med linket".
