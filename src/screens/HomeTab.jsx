@@ -1,5 +1,6 @@
 import { useApp, useLiveData } from "../lib/AppContext";
 import { daysUntil, ageFromBirth } from "../lib/constants";
+import Hero from "../components/Hero";
 
 const AVATAR = {
   boy: { cls: "blue", emoji: "👦" },
@@ -29,7 +30,8 @@ export default function HomeTab({ nav }) {
       </div>
 
       <div className="content">
-        <h1 className="large-title">Vores børn</h1>
+        <Hero />
+        <div className="section-label">Vores børn</div>
 
         {children == null ? null : (
           <div className="home-grid">
