@@ -282,6 +282,29 @@ actor MemoryStore: Store {
         return birthday
     }
 
+    // MARK: Video/lyd på højdepunkter
+    private var mediaByHighlight: [String: (video: URL?, audio: URL?)] = [:]
+
+    func setHighlightMedia(childId: String, id: String, video: MediaChange, audio: MediaChange) async throws {
+        guard let i = highlightsByChild[childId]?.firstIndex(where: { $0.id == id }) else { throw StoreError.notFound }
+        var media = mediaByHighlight[id] ?? (nil, nil)
+        switch video {
+        case .keep: break
+        case .remove: media.video = nil; highlightsByChild[childId]?[i].videoDuration = nil
+        case .set(let url, let d): media.video = url; highlightsByChild[childId]?[i].videoDuration = d
+        }
+        switch audio {
+        case .keep: break
+        case .remove: media.audio = nil; highlightsByChild[childId]?[i].audioDuration = nil
+        case .set(let url, let d): media.audio = url; highlightsByChild[childId]?[i].audioDuration = d
+        }
+        mediaByHighlight[id] = media
+    }
+
+    func highlightMedia(childId: String, id: String) async throws -> (video: URL?, audio: URL?) {
+        mediaByHighlight[id] ?? (nil, nil)
+    }
+
     // MARK: Vækst
     private var measurementsByChild: [String: [Measurement]] = [:]
 

@@ -29,6 +29,10 @@ protocol Store {
     func addHighlight(childId: String, date: Date?, text: String, photos: [Data]) async throws -> Highlight
     func updateHighlight(childId: String, _ highlight: Highlight) async throws
     func deleteHighlight(childId: String, id: String) async throws
+    /// Video og lydnote på et højdepunkt (gemmes separat, så listen ikke henter store filer).
+    func setHighlightMedia(childId: String, id: String, video: MediaChange, audio: MediaChange) async throws
+    /// Henter video/lyd lokalt til afspilning.
+    func highlightMedia(childId: String, id: String) async throws -> (video: URL?, audio: URL?)
 
     func milestones(childId: String) async throws -> [String: MilestoneEntry]
     func setMilestone(childId: String, key: String, value: String?, photos: PhotoSet) async throws

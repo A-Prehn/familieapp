@@ -39,6 +39,8 @@ targets:
         INFOPLIST_KEY_ITSAppUsesNonExemptEncryption: "NO"
         # Kræves for "Gem i Fotos" (kun tilføje — appen kan ikke læse brugerens billeder).
         INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription: "Så du kan gemme billeder fra jeres mindebog i Fotos."
+        # Kræves for lydnoter på højdepunkter.
+        INFOPLIST_KEY_NSMicrophoneUsageDescription: "Så du kan optage lydnoter, fx barnets første ord."
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         # iCloud/CloudKit-entitlements. Ignoreres i usigneret simulator-build (CI),
         # anvendes når appen signeres med Apple Developer-kontoen.

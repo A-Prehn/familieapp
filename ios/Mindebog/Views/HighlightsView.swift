@@ -7,6 +7,10 @@ struct HighlightsView: View {
     @State private var showAdd = false
     @State private var editing: Highlight?
     @State private var lightbox: LightboxState?
+    @State private var playingVideo: VideoPlayerScreen?
+    @State private var loadingMedia: String?          // highlight-id der henter medie
+    @StateObject private var audioPlayback = AudioPlayback()
+    @State private var playingAudioId: String?
 
     var body: some View {
         ScrollView {
@@ -37,8 +41,56 @@ struct HighlightsView: View {
             AddHighlightView(childId: child.id, editing: highlight)
         }
         .fullScreenCover(item: $lightbox) { LightboxView(state: $0) }
+        .fullScreenCover(item: $playingVideo) { $0 }
         .refreshable { await load() }
         .task { await load() }
+    }
+
+    // Video/lyd hentes først, når man trykker afspil.
+    @ViewBuilder
+    private func mediaButtons(_ h: Highlight) -> some View {
+        if h.videoDuration != nil || h.audioDuration != nil {
+            HStack(spacing: 10) {
+                if let d = h.videoDuration {
+                    Button { Task { await playVideo(h) } } label: {
+                        Label(loadingMedia == h.id + "v" ? "Henter…" : "Video \(MediaFiles.format(d))",
+                              systemImage: "play.rectangle.fill")
+                    }
+                }
+                if let d = h.audioDuration {
+                    Button { Task { await toggleAudio(h) } } label: {
+                        Label(loadingMedia == h.id + "a" ? "Henter…"
+                              : (playingAudioId == h.id && audioPlayback.isPlaying ? "Stop" : "Lydnote \(MediaFiles.format(d))"),
+                              systemImage: playingAudioId == h.id && audioPlayback.isPlaying ? "stop.fill" : "waveform")
+                    }
+                }
+            }
+            .font(.footnote.weight(.medium))
+            .buttonStyle(.bordered)
+            .tint(Theme.tint)
+        }
+    }
+
+    private func playVideo(_ h: Highlight) async {
+        loadingMedia = h.id + "v"
+        defer { loadingMedia = nil }
+        if let url = try? await state.store.highlightMedia(childId: child.id, id: h.id).video {
+            playingVideo = VideoPlayerScreen(url: url)
+        }
+    }
+
+    private func toggleAudio(_ h: Highlight) async {
+        if playingAudioId == h.id && audioPlayback.isPlaying {
+            audioPlayback.stop()
+            return
+        }
+        audioPlayback.stop()   // stop en anden lydnote, der evt. spiller
+        loadingMedia = h.id + "a"
+        defer { loadingMedia = nil }
+        if let url = try? await state.store.highlightMedia(childId: child.id, id: h.id).audio {
+            playingAudioId = h.id
+            audioPlayback.toggle(url: url)
+        }
     }
 
     // Tryk på kortet = redigér; tryk på et billede = fuld skærm.
@@ -59,6 +111,7 @@ struct HighlightsView: View {
                         lightbox = LightboxState(photos: highlight.photos, index: index)
                     }
             }
+            mediaButtons(highlight)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(14)
@@ -95,6 +148,20 @@ struct AddHighlightView: View {
     @State private var savedFor: Set<String> = []   // ved fejl midt i flere børn: undgå dubletter ved nyt forsøg
     @State private var loaded = false
     @State private var confirmDelete = false
+    @State private var video: MediaChange = .keep
+    @State private var audio: MediaChange = .keep
+
+    /// Er der (eller kommer der) en video eller lydnote?
+    private var hasMedia: Bool {
+        func has(_ change: MediaChange, existing: Double?) -> Bool {
+            switch change {
+            case .keep: return existing != nil
+            case .remove: return false
+            case .set: return true
+            }
+        }
+        return has(video, existing: editing?.videoDuration) || has(audio, existing: editing?.audioDuration)
+    }
 
     var body: some View {
         NavigationStack {
@@ -107,6 +174,14 @@ struct AddHighlightView: View {
                 }
                 Section("Billeder") {
                     MultiPhotoField(photos: $photos)
+                }
+                Section {
+                    MediaField(video: $video, audio: $audio,
+                               existingVideo: editing?.videoDuration, existingAudio: editing?.audioDuration)
+                } header: {
+                    Text("Video og lyd")
+                } footer: {
+                    Text("Fx det første grin eller de første ord. Video maks 3 min, lydnote maks 5 min.")
                 }
                 if editing != nil {
                     Section {
@@ -125,16 +200,20 @@ struct AddHighlightView: View {
                                 if var highlight = editing {
                                     highlight.date = date; highlight.text = text; highlight.photos = photos
                                     try await state.store.updateHighlight(childId: childId, highlight)
+                                    try await state.store.setHighlightMedia(childId: childId, id: highlight.id,
+                                                                            video: video, audio: audio)
                                 } else {
                                     for id in [childId] + alsoFor.map(\.id) where !savedFor.contains(id) {
-                                        _ = try await state.store.addHighlight(childId: id, date: date, text: text, photos: photos)
+                                        let created = try await state.store.addHighlight(childId: id, date: date, text: text, photos: photos)
+                                        try await state.store.setHighlightMedia(childId: id, id: created.id,
+                                                                                video: video, audio: audio)
                                         savedFor.insert(id)
                                     }
                                 }
                             }
                         }
                     }
-                    .disabled(saving || (text.trimmingCharacters(in: .whitespaces).isEmpty && photos.isEmpty))
+                    .disabled(saving || (text.trimmingCharacters(in: .whitespaces).isEmpty && photos.isEmpty && !hasMedia))
                 }
             }
             .saveErrorAlert($saveError)

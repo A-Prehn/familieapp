@@ -46,6 +46,9 @@ struct Highlight: Identifiable, Hashable, Codable {
     var text: String
     var photos: [Data]
     var createdAt: Date
+    /// Varighed i sekunder, hvis der er en video/lydnote. Selve filen hentes først ved afspilning.
+    var videoDuration: Double? = nil
+    var audioDuration: Double? = nil
 }
 
 /// Flere billeder med ét valgt forsidebillede og evt. billedtekst pr. billede

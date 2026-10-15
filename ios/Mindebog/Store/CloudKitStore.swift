@@ -249,14 +249,57 @@ actor CloudKitStore: Store {
     // MARK: - Højdepunkter
 
     func highlights(childId: String) async throws -> [Highlight] {
-        let records = try await childRecords(childId, type: "Highlight")
+        // Bevidst uden "video"/"audio" — de hentes først ved afspilning (highlightMedia).
+        let records = try await childRecords(childId, type: "Highlight",
+                                              keys: ["childRef", "date", "text", "photos",
+                                                     "videoDuration", "audioDuration"])
         return records.map { r in
             Highlight(id: r.recordID.recordName,
                       date: r["date"] as? Date,
                       text: r["text"] as? String ?? "",
                       photos: Self.assetsData(r["photos"]),
-                      createdAt: r.creationDate ?? Date())
+                      createdAt: r.creationDate ?? Date(),
+                      videoDuration: r["videoDuration"] as? Double,
+                      audioDuration: r["audioDuration"] as? Double)
         }.sorted { ($0.date ?? $0.createdAt) > ($1.date ?? $1.createdAt) }
+    }
+
+    func setHighlightMedia(childId: String, id: String, video: MediaChange, audio: MediaChange) async throws {
+        if case .keep = video, case .keep = audio { return }
+        let (db, zoneID) = try await locateChild(childId)
+        let recordID = CKRecord.ID(recordName: id, zoneID: zoneID)
+        // Hent kun varighederne — gem sender kun de ændrede felter.
+        let results = try await db.records(for: [recordID], desiredKeys: ["videoDuration", "audioDuration"])
+        guard let record = try results[recordID]?.get() else { throw StoreError.notFound }
+        func apply(_ change: MediaChange, asset key: String, duration durationKey: String) {
+            switch change {
+            case .keep: break
+            case .remove:
+                record[key] = nil
+                record[durationKey] = nil
+            case .set(let url, let seconds):
+                record[key] = Self.uploadAsset(copying: url)
+                record[durationKey] = seconds as CKRecordValue
+            }
+        }
+        apply(video, asset: "video", duration: "videoDuration")
+        apply(audio, asset: "audio", duration: "audioDuration")
+        _ = try await persist(record, in: db)
+    }
+
+    func highlightMedia(childId: String, id: String) async throws -> (video: URL?, audio: URL?) {
+        let (db, zoneID) = try await locateChild(childId)
+        let recordID = CKRecord.ID(recordName: id, zoneID: zoneID)
+        let results = try await db.records(for: [recordID], desiredKeys: ["video", "audio"])
+        guard let record = try results[recordID]?.get() else { return (nil, nil) }
+        // Kopiér ud af CloudKits cache, så afspilleren har en stabil fil.
+        func local(_ key: String, ext: String) -> URL? {
+            guard let source = (record[key] as? CKAsset)?.fileURL else { return nil }
+            let target = MediaFiles.dir.appendingPathComponent("\(id)-\(key).\(ext)")
+            try? FileManager.default.removeItem(at: target)
+            return (try? FileManager.default.copyItem(at: source, to: target)) != nil ? target : nil
+        }
+        return (local("video", ext: "mp4"), local("audio", ext: "m4a"))
     }
 
     func addHighlight(childId: String, date: Date?, text: String, photos: [Data]) async throws -> Highlight {
@@ -806,15 +849,18 @@ actor CloudKitStore: Store {
         return results
     }
 
-    private func childRecords(_ childId: String, type: String) async throws -> [CKRecord] {
+    /// Et barns records af en type. `keys` begrænser felterne (fx uden video), nil = alle.
+    private func childRecords(_ childId: String, type: String,
+                              keys: [CKRecord.FieldKey]? = nil) async throws -> [CKRecord] {
         let (db, zoneID) = try await locateChild(childId)
         let ref = childRef(childId, zoneID)
         let query = CKQuery(recordType: type, predicate: NSPredicate(format: "childRef == %@", ref))
         var results: [CKRecord] = []
-        var (matches, cursor) = try await db.records(matching: query, inZoneWith: zoneID, resultsLimit: 200)
+        var (matches, cursor) = try await db.records(matching: query, inZoneWith: zoneID,
+                                                     desiredKeys: keys, resultsLimit: 200)
         results.append(contentsOf: matches.compactMap { try? $0.1.get() })
         while let c = cursor {
-            (matches, cursor) = try await db.records(continuingMatchFrom: c, resultsLimit: 200)
+            (matches, cursor) = try await db.records(continuingMatchFrom: c, desiredKeys: keys, resultsLimit: 200)
             results.append(contentsOf: matches.compactMap { try? $0.1.get() })
         }
         return results
@@ -859,6 +905,17 @@ actor CloudKitStore: Store {
         do {
             try data.write(to: url)
             return CKAsset(fileURL: url)
+        } catch {
+            return nil
+        }
+    }
+
+    /// Kopiér en fil (video/lyd) til upload-mappen, så den ryddes op efter gem.
+    private static func uploadAsset(copying source: URL) -> CKAsset? {
+        let target = uploadDir.appendingPathComponent(UUID().uuidString + "." + source.pathExtension)
+        do {
+            try FileManager.default.copyItem(at: source, to: target)
+            return CKAsset(fileURL: target)
         } catch {
             return nil
         }

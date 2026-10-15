@@ -57,6 +57,10 @@ DEFINE SCHEMA
         date            TIMESTAMP,
         text            STRING,
         photos          LIST<ASSET>,
+        video           ASSET,
+        audio           ASSET,
+        videoDuration   DOUBLE,
+        audioDuration   DOUBLE,
         GRANT WRITE TO "_creator",
         GRANT CREATE TO "_icloud",
         GRANT READ TO "_world"
