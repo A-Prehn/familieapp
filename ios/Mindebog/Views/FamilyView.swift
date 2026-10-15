@@ -117,9 +117,10 @@ struct FamilyView: View {
             ContentUnavailableView("Ingen ferier endnu", systemImage: "beach.umbrella")
                 .padding(.top, 40)
         } else {
-            VStack(spacing: 12) {
-                ForEach(vacations) { vacation in
-                    VStack(alignment: .leading, spacing: 6) {
+            // Tidslinje som på websitet: nyeste øverst, årstal hver gang året skifter.
+            TimelineView(items: vacations,
+                         year: { $0.startDate.map { Calendar.current.component(.year, from: $0) } }) { vacation in
+                    VStack(alignment: .leading, spacing: 8) {
                         Text(vacation.title).font(.serifTitle(16))
                         if let range = dateRange(vacation) {
                             Text(range).font(.caption).foregroundStyle(Theme.muted)
@@ -127,14 +128,15 @@ struct FamilyView: View {
                         if !vacation.details.isEmpty {
                             Text(vacation.details).font(.footnote).foregroundStyle(Theme.muted)
                         }
-                        if let place = vacation.place { PlaceLabel(place: place) }
                         if let photo = vacation.photo {
                             Color.clear
                                 .aspectRatio(4.0 / 3.0, contentMode: .fit)
                                 .overlay { DataImage(data: photo) }
                                 .clipShape(RoundedRectangle(cornerRadius: 8))
                                 .onTapGesture { lightbox = LightboxState(photos: [photo]) }
-                        } else if let place = vacation.place {
+                        }
+                        if let place = vacation.place {
+                            PlaceLabel(place: place)
                             PlaceMap(place: place)
                         }
                     }
@@ -145,7 +147,6 @@ struct FamilyView: View {
                     .background(Theme.card)
                     .clipShape(RoundedRectangle(cornerRadius: 14))
                     .overlay(RoundedRectangle(cornerRadius: 14).stroke(Theme.sep))
-                }
             }
         }
     }
