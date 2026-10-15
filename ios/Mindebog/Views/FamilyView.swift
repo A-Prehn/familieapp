@@ -77,12 +77,15 @@ struct FamilyView: View {
                             if !event.details.isEmpty {
                                 Text(event.details).font(.footnote).foregroundStyle(Theme.muted)
                             }
+                            if let place = event.place { PlaceLabel(place: place) }
                             if let photo = event.photo {
                                 Color.clear
                                     .aspectRatio(4.0 / 3.0, contentMode: .fit)
                                     .overlay { DataImage(data: photo) }
                                     .clipShape(RoundedRectangle(cornerRadius: 8))
                                     .onTapGesture { lightbox = LightboxState(photos: [photo]) }
+                            } else if let place = event.place {
+                                PlaceMap(place: place)
                             }
                         }
                         Spacer(minLength: 0)
@@ -114,12 +117,15 @@ struct FamilyView: View {
                         if !vacation.details.isEmpty {
                             Text(vacation.details).font(.footnote).foregroundStyle(Theme.muted)
                         }
+                        if let place = vacation.place { PlaceLabel(place: place) }
                         if let photo = vacation.photo {
                             Color.clear
                                 .aspectRatio(4.0 / 3.0, contentMode: .fit)
                                 .overlay { DataImage(data: photo) }
                                 .clipShape(RoundedRectangle(cornerRadius: 8))
                                 .onTapGesture { lightbox = LightboxState(photos: [photo]) }
+                        } else if let place = vacation.place {
+                            PlaceMap(place: place)
                         }
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -277,6 +283,7 @@ struct AddEventView: View {
     @State private var date = Date()
     @State private var details = ""
     @State private var photo: Data?
+    @State private var place: Place?
 
     var body: some View {
         NavigationStack {
@@ -285,6 +292,9 @@ struct AddEventView: View {
                 DatePicker("Dato", selection: $date, displayedComponents: .date)
                 Section("Beskrivelse") {
                     TextField("Beskrivelse", text: $details, axis: .vertical).lineLimit(2...5)
+                }
+                Section("Sted") {
+                    PlaceField(place: $place)
                 }
                 Section("Billede") {
                     PhotoField(data: $photo)
@@ -298,7 +308,7 @@ struct AddEventView: View {
                     Button("Gem") {
                         Task {
                             _ = try? await state.store.addEvent(familyId: familyId, title: title, date: date,
-                                                                details: details, photo: photo)
+                                                                details: details, photo: photo, place: place)
                             dismiss()
                         }
                     }
@@ -318,6 +328,7 @@ struct AddVacationView: View {
     @State private var end = Date()
     @State private var details = ""
     @State private var photo: Data?
+    @State private var place: Place?
 
     var body: some View {
         NavigationStack {
@@ -327,6 +338,9 @@ struct AddVacationView: View {
                 DatePicker("Til", selection: $end, in: start..., displayedComponents: .date)
                 Section("Beskrivelse") {
                     TextField("Beskrivelse", text: $details, axis: .vertical).lineLimit(2...5)
+                }
+                Section("Sted") {
+                    PlaceField(place: $place)
                 }
                 Section("Billede") {
                     PhotoField(data: $photo)
@@ -341,7 +355,7 @@ struct AddVacationView: View {
                         Task {
                             _ = try? await state.store.addVacation(familyId: familyId, title: title,
                                                                    start: start, end: end,
-                                                                   details: details, photo: photo)
+                                                                   details: details, photo: photo, place: place)
                             dismiss()
                         }
                     }

@@ -90,12 +90,21 @@ struct GalleryItem: Identifiable, Hashable, Codable {
     var createdAt: Date
 }
 
+/// Et sted valgt i Apple Maps (fx kirken til brylluppet, sommerhuset).
+struct Place: Hashable, Codable {
+    var name: String
+    var address: String
+    var latitude: Double
+    var longitude: Double
+}
+
 struct FamilyEvent: Identifiable, Hashable, Codable {
     let id: String
     var title: String
     var date: Date?
     var details: String
     var photo: Data?
+    var place: Place? = nil
 }
 
 struct Vacation: Identifiable, Hashable, Codable {
@@ -105,6 +114,7 @@ struct Vacation: Identifiable, Hashable, Codable {
     var endDate: Date?
     var details: String
     var photo: Data?
+    var place: Place? = nil
 }
 
 struct CustomBirthday: Identifiable, Hashable, Codable {

@@ -1,5 +1,6 @@
 import Foundation
 import CloudKit
+import CoreLocation
 
 // CloudKit-implementering af Store — ægte lagring i brugerens egen iCloud.
 //
@@ -296,11 +297,13 @@ final class CloudKitStore: Store {
                         title: r["title"] as? String ?? "",
                         date: r["date"] as? Date,
                         details: r["details"] as? String ?? "",
-                        photo: Self.assetData(r["photo"]))
+                        photo: Self.assetData(r["photo"]),
+                        place: Self.place(from: r))
         }.sorted { ($0.date ?? .distantPast) > ($1.date ?? .distantPast) }
     }
 
-    func addEvent(familyId: String, title: String, date: Date?, details: String, photo: Data?) async throws -> FamilyEvent {
+    func addEvent(familyId: String, title: String, date: Date?, details: String,
+                  photo: Data?, place: Place?) async throws -> FamilyEvent {
         let (db, zoneID) = try await locate(familyId)
         let record = CKRecord(recordType: "Event", recordID: CKRecord.ID(recordName: newId("ev"), zoneID: zoneID))
         record["familyRef"] = familyRef(zoneID)
@@ -308,8 +311,10 @@ final class CloudKitStore: Store {
         if let date { record["date"] = date as CKRecordValue }
         record["details"] = details.trimmingCharacters(in: .whitespaces) as CKRecordValue
         record["photo"] = photo.flatMap { Self.asset(from: $0) }
+        Self.setPlace(place, on: record)
         let saved = try await db.save(record)
-        return FamilyEvent(id: saved.recordID.recordName, title: title, date: date, details: details, photo: photo)
+        return FamilyEvent(id: saved.recordID.recordName, title: title, date: date, details: details,
+                           photo: photo, place: place)
     }
 
     func vacations(familyId: String) async throws -> [Vacation] {
@@ -320,12 +325,13 @@ final class CloudKitStore: Store {
                      startDate: r["startDate"] as? Date,
                      endDate: r["endDate"] as? Date,
                      details: r["details"] as? String ?? "",
-                     photo: Self.assetData(r["photo"]))
+                     photo: Self.assetData(r["photo"]),
+                     place: Self.place(from: r))
         }.sorted { ($0.startDate ?? .distantPast) > ($1.startDate ?? .distantPast) }
     }
 
     func addVacation(familyId: String, title: String, start: Date?, end: Date?,
-                     details: String, photo: Data?) async throws -> Vacation {
+                     details: String, photo: Data?, place: Place?) async throws -> Vacation {
         let (db, zoneID) = try await locate(familyId)
         let record = CKRecord(recordType: "Vacation", recordID: CKRecord.ID(recordName: newId("vac"), zoneID: zoneID))
         record["familyRef"] = familyRef(zoneID)
@@ -334,8 +340,26 @@ final class CloudKitStore: Store {
         if let end { record["endDate"] = end as CKRecordValue }
         record["details"] = details.trimmingCharacters(in: .whitespaces) as CKRecordValue
         record["photo"] = photo.flatMap { Self.asset(from: $0) }
+        Self.setPlace(place, on: record)
         let saved = try await db.save(record)
-        return Vacation(id: saved.recordID.recordName, title: title, startDate: start, endDate: end, details: details, photo: photo)
+        return Vacation(id: saved.recordID.recordName, title: title, startDate: start, endDate: end,
+                        details: details, photo: photo, place: place)
+    }
+
+    // Sted: navn + adresse som tekst, koordinat som CloudKit LOCATION.
+    private static func setPlace(_ place: Place?, on record: CKRecord) {
+        guard let place else { return }
+        record["placeName"] = place.name as CKRecordValue
+        record["placeAddress"] = place.address as CKRecordValue
+        record["location"] = CLLocation(latitude: place.latitude, longitude: place.longitude)
+    }
+
+    private static func place(from record: CKRecord) -> Place? {
+        guard let location = record["location"] as? CLLocation else { return nil }
+        return Place(name: record["placeName"] as? String ?? "",
+                     address: record["placeAddress"] as? String ?? "",
+                     latitude: location.coordinate.latitude,
+                     longitude: location.coordinate.longitude)
     }
 
     func birthdays(familyId: String) async throws -> [CustomBirthday] {

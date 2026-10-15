@@ -136,6 +136,9 @@ DEFINE SCHEMA
         date            TIMESTAMP,
         details         STRING,
         photo           ASSET,
+        placeName       STRING,
+        placeAddress    STRING,
+        location        LOCATION,
         GRANT WRITE TO "_creator",
         GRANT CREATE TO "_icloud",
         GRANT READ TO "_world"
@@ -154,6 +157,9 @@ DEFINE SCHEMA
         endDate         TIMESTAMP,
         details         STRING,
         photo           ASSET,
+        placeName       STRING,
+        placeAddress    STRING,
+        location        LOCATION,
         GRANT WRITE TO "_creator",
         GRANT CREATE TO "_icloud",
         GRANT READ TO "_world"

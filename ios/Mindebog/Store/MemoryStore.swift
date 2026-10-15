@@ -165,11 +165,12 @@ actor MemoryStore: Store {
         }
     }
 
-    func addEvent(familyId: String, title: String, date: Date?, details: String, photo: Data?) async throws -> FamilyEvent {
+    func addEvent(familyId: String, title: String, date: Date?, details: String,
+                  photo: Data?, place: Place?) async throws -> FamilyEvent {
         let event = FamilyEvent(id: newId("ev"),
                                 title: title.trimmingCharacters(in: .whitespaces),
                                 date: date, details: details.trimmingCharacters(in: .whitespaces),
-                                photo: photo)
+                                photo: photo, place: place)
         eventsByFamily[familyId, default: []].append(event)
         return event
     }
@@ -181,12 +182,12 @@ actor MemoryStore: Store {
     }
 
     func addVacation(familyId: String, title: String, start: Date?, end: Date?,
-                     details: String, photo: Data?) async throws -> Vacation {
+                     details: String, photo: Data?, place: Place?) async throws -> Vacation {
         let vacation = Vacation(id: newId("vac"),
                                 title: title.trimmingCharacters(in: .whitespaces),
                                 startDate: start, endDate: end,
                                 details: details.trimmingCharacters(in: .whitespaces),
-                                photo: photo)
+                                photo: photo, place: place)
         vacationsByFamily[familyId, default: []].append(vacation)
         return vacation
     }
