@@ -2,7 +2,12 @@ import SwiftUI
 
 struct ChildDetailView: View {
     @EnvironmentObject var state: AppState
-    let child: Child
+    @State private var child: Child
+    @State private var editing = false
+
+    init(child: Child) {
+        _child = State(initialValue: child)
+    }
 
     private let columns = [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)]
 
@@ -41,6 +46,14 @@ struct ChildDetailView: View {
         .background(Theme.bg.ignoresSafeArea())
         .navigationTitle(child.name)
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button("Redigér") { editing = true }
+            }
+        }
+        .sheet(isPresented: $editing) {
+            NewChildView(editing: child) { updated in child = updated }
+        }
     }
 
     private var header: some View {

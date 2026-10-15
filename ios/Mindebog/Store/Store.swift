@@ -18,6 +18,7 @@ protocol Store {
     func children(familyId: String) async throws -> [Child]
     func createChild(familyId: String, name: String, gender: Gender,
                      birthDate: Date?, dueDate: Date?) async throws -> Child
+    func updateChild(_ child: Child) async throws -> Child
 
     // Pr. barn
     func highlights(childId: String) async throws -> [Highlight]

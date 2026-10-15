@@ -165,6 +165,35 @@ final class CloudKitStore: Store {
         return child
     }
 
+    func updateChild(_ child: Child) async throws -> Child {
+        let (db, zoneID) = try await locateChild(child.id)
+        let record = try await db.record(for: CKRecord.ID(recordName: child.id, zoneID: zoneID))
+        record["name"] = child.name.trimmingCharacters(in: .whitespaces) as CKRecordValue
+        record["gender"] = child.gender.rawValue as CKRecordValue
+        record["birthDate"] = child.birthDate as CKRecordValue?
+        record["dueDate"] = child.dueDate as CKRecordValue?
+        let saved = try await db.save(record)
+        // Fødsels-/terminsdato ligger også i milepælene (som på websitet).
+        if let birth = child.birthDate {
+            try await setMilestoneValue(childId: child.id, key: "birth_date", value: Fmt.iso(birth), db: db, zoneID: zoneID)
+        }
+        if let due = child.dueDate {
+            try await setMilestoneValue(childId: child.id, key: "due_date", value: Fmt.iso(due), db: db, zoneID: zoneID)
+        }
+        return Self.child(from: saved, familyId: child.familyId)
+    }
+
+    /// Opdaterer kun milepælens værdi — et evt. billede på milepælen bevares.
+    private func setMilestoneValue(childId: String, key: String, value: String,
+                                   db: CKDatabase, zoneID: CKRecordZone.ID) async throws {
+        let recordID = CKRecord.ID(recordName: "ms_\(childId)_\(key)", zoneID: zoneID)
+        let record = (try? await db.record(for: recordID)) ?? CKRecord(recordType: "Milestone", recordID: recordID)
+        record["childRef"] = childRef(childId, zoneID)
+        record["key"] = key as CKRecordValue
+        record["value"] = value as CKRecordValue
+        _ = try await db.save(record)
+    }
+
     // MARK: - Højdepunkter
 
     func highlights(childId: String) async throws -> [Highlight] {

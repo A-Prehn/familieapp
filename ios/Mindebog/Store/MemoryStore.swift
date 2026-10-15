@@ -86,6 +86,20 @@ actor MemoryStore: Store {
         return child
     }
 
+    func updateChild(_ child: Child) async throws -> Child {
+        guard childrenById[child.id] != nil else { throw StoreError.notFound }
+        var updated = child
+        updated.name = child.name.trimmingCharacters(in: .whitespaces)
+        childrenById[child.id] = updated
+        // Bevar et evt. billede på milepælen.
+        for (key, date) in [("birth_date", child.birthDate), ("due_date", child.dueDate)] {
+            guard let date else { continue }
+            let photo = milestonesByChild[child.id]?[key]?.photo
+            milestonesByChild[child.id, default: [:]][key] = MilestoneEntry(value: Fmt.iso(date), photo: photo)
+        }
+        return updated
+    }
+
     // MARK: Højdepunkter
     func highlights(childId: String) async throws -> [Highlight] {
         (highlightsByChild[childId] ?? []).sorted {
