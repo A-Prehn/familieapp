@@ -72,8 +72,70 @@
             transform="translate(575 500) scale(0.40) translate(-512 -540)"/>
     </svg>
 
-    <!-- C: Creme hjerte på varm terracotta (mere kontrast på hjemmeskærmen) -->
+    <!-- C: Creme hjerte på varm terracotta — med dybde (lys, skygge, glans), så det ikke virker fladt -->
     <svg id="icon-c" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+      <defs>
+        <path id="h3d" d="M512 868C512 868 150 648 150 398C150 290 236 206 344 206C416 206 474 246 512 302C550 246 608 206 680 206C788 206 874 290 874 398C874 648 512 868 512 868Z"/>
+        <clipPath id="h3d-clip"><use href="#h3d"/></clipPath>
+        <!-- Baggrund: varm terracotta, lysere øverst til venstre -->
+        <radialGradient id="c3-bg" cx="0.25" cy="0.15" r="1.1">
+          <stop offset="0" stop-color="#dfa98c"/><stop offset="0.55" stop-color="#c07d61"/><stop offset="1" stop-color="#94533d"/>
+        </radialGradient>
+        <!-- Creme hjerte: lyst øverst til venstre, varmere og mørkere nederst til højre -->
+        <radialGradient id="c3-heart" cx="0.32" cy="0.22" r="0.95">
+          <stop offset="0" stop-color="#fffdf9"/><stop offset="0.55" stop-color="#faf1e7"/><stop offset="1" stop-color="#ead8c6"/>
+        </radialGradient>
+        <!-- Rosa hjerte: lysere top, dybere bund -->
+        <radialGradient id="c3-rose" cx="0.35" cy="0.25" r="0.9">
+          <stop offset="0" stop-color="#f590ab"/><stop offset="0.55" stop-color="#d9557d"/><stop offset="1" stop-color="#b23a60"/>
+        </radialGradient>
+        <!-- Glans på øverste bue -->
+        <radialGradient id="c3-gloss" cx="0.5" cy="0.5" r="0.5">
+          <stop offset="0" stop-color="#fff" stop-opacity="0.95"/><stop offset="1" stop-color="#fff" stop-opacity="0"/>
+        </radialGradient>
+        <filter id="c3-drop" x="-25%" y="-25%" width="150%" height="160%">
+          <feDropShadow dx="0" dy="34" stdDeviation="34" flood-color="#4a2014" flood-opacity="0.42"/>
+          <feDropShadow dx="0" dy="6" stdDeviation="6" flood-color="#4a2014" flood-opacity="0.18"/>
+        </filter>
+        <!-- Mørk kant indvendigt nederst → hjertet buler -->
+        <filter id="c3-edge" x="-10%" y="-10%" width="120%" height="120%">
+          <feGaussianBlur stdDeviation="22"/>
+        </filter>
+        <filter id="c3-soft" x="-50%" y="-50%" width="200%" height="200%">
+          <feGaussianBlur stdDeviation="14"/>
+        </filter>
+        <filter id="c3-rose-shadow" x="-30%" y="-30%" width="160%" height="170%">
+          <feDropShadow dx="0" dy="10" stdDeviation="12" flood-color="#8a2a48" flood-opacity="0.35"/>
+        </filter>
+      </defs>
+
+      <rect width="1024" height="1024" fill="url(#c3-bg)"/>
+
+      <g transform="translate(512 537) scale(1.18) translate(-512 -537)">
+        <!-- Stort creme hjerte med dyb skygge -->
+        <use href="#h3d" fill="url(#c3-heart)" filter="url(#c3-drop)"/>
+        <g clip-path="url(#h3d-clip)">
+          <!-- Skygge-kant nederst/højre indeni (tynd, så hjertet ikke ser mindre ud) -->
+          <use href="#h3d" fill="none" stroke="#b98a6c" stroke-width="36" opacity="0.4" filter="url(#c3-edge)" transform="translate(-10 -14)"/>
+          <!-- Lys kant øverst/venstre indeni -->
+          <use href="#h3d" fill="none" stroke="#ffffff" stroke-width="40" opacity="0.7" filter="url(#c3-soft)" transform="translate(16 20)"/>
+          <!-- Glans på venstre bue -->
+          <ellipse cx="330" cy="330" rx="130" ry="85" fill="url(#c3-gloss)" transform="rotate(-30 330 330)" opacity="0.85"/>
+        </g>
+
+        <!-- Lille rosa hjerte, også rundet med skygge og glans -->
+        <g transform="translate(512 515) scale(0.40) translate(-512 -540)">
+          <use href="#h3d" fill="url(#c3-rose)" filter="url(#c3-rose-shadow)"/>
+          <g clip-path="url(#h3d-clip)">
+            <use href="#h3d" fill="none" stroke="#7a1f3c" stroke-width="80" opacity="0.35" filter="url(#c3-edge)" transform="translate(-16 -20)"/>
+            <ellipse cx="335" cy="330" rx="140" ry="90" fill="url(#c3-gloss)" transform="rotate(-30 335 330)" opacity="0.75"/>
+          </g>
+        </g>
+      </g>
+    </svg>
+
+    <!-- C (flad, forrige version) — kun til sammenligning -->
+    <svg id="icon-c-flat" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
       <defs>
         <linearGradient id="c-bg" x1="0" y1="0" x2="1" y2="1">
           <stop offset="0" stop-color="#d49a7d"/><stop offset="1" stop-color="#a9654c"/>
@@ -102,9 +164,9 @@
 
   <script>
     const variants = [
-      { id: 'icon-a', label: 'A · Varmt hjerte', sub: 'rosa→terracotta, lys creme' },
-      { id: 'icon-b', label: 'B · Hjerte i hjerte', sub: 'familie: stort + lille' },
-      { id: 'icon-c', label: 'C · Creme på terracotta', sub: 'større hjerte (valgt)' },
+      { id: 'icon-c-flat', label: 'C · flad (nu)', sub: 'forrige version' },
+      { id: 'icon-c', label: 'C · med dybde', sub: 'lys, skygge og glans' },
+      { id: 'icon-a', label: 'A', sub: 'til sammenligning' },
     ];
     const row = document.getElementById('previews');
     for (const v of variants) {
