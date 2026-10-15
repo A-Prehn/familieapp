@@ -1,5 +1,6 @@
-import { Star, BookOpen, Camera, CalendarHeart, Palmtree } from "lucide-react";
+import { Star, BookOpen, Camera, CalendarHeart, Palmtree, Quote } from "lucide-react";
 import { useApp, useLiveData } from "../lib/AppContext";
+import { quoteOfTheDay } from "../lib/quotes";
 import { formatDate } from "../lib/constants";
 import { Modal, Lightbox } from "../components/ui";
 import Hero from "../components/Hero";
@@ -83,6 +84,10 @@ export default function HomeTab({ nav }) {
       <div className="content">
         <Hero />
         <div className="greeting">{greeting(user)}</div>
+        <div className="quote-card">
+          <Quote size={16} strokeWidth={1.6} className="quote-icon" />
+          <div>{quoteOfTheDay()}</div>
+        </div>
 
         {children == null ? null : kids.length === 0 ? (
           <div className="card" style={{ textAlign: "center", color: "var(--muted)", fontSize: 14 }}>

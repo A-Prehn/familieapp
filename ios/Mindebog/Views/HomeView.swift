@@ -20,6 +20,8 @@ struct HomeView: View {
                     .font(.serifTitle(22))
                     .foregroundStyle(Theme.text)
 
+                quoteCard
+
                 if children.isEmpty {
                     emptyState
                 } else {
@@ -62,6 +64,24 @@ struct HomeView: View {
     }
 
     // MARK: Sektioner
+    private var quoteCard: some View {
+        HStack(alignment: .top, spacing: 12) {
+            Image(systemName: "quote.opening")
+                .font(.system(size: 16))
+                .foregroundStyle(Theme.rose.opacity(0.7))
+                .padding(.top, 2)
+            Text(DailyQuotes.today())
+                .font(.system(size: 16, design: .serif).italic())
+                .foregroundStyle(Theme.neutralDark)
+                .fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: 0)
+        }
+        .padding(16)
+        .background(Theme.bgDark)
+        .clipShape(RoundedRectangle(cornerRadius: 14))
+        .accessibilityLabel("Dagens citat: \(DailyQuotes.today())")
+    }
+
     private var emptyState: some View {
         VStack(spacing: 12) {
             Text("Tilføj jeres første barn under Familie, så fylder vi forsiden med minder.")

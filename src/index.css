@@ -259,6 +259,8 @@ textarea { resize: vertical; min-height: 90px; }
 
 /* --- Hjem-feed ------------------------------------------------------------ */
 .greeting { font-family: "Lora", serif; font-size: 22px; font-weight: 500; margin: 4px 4px 0; }
+.quote-card { display: flex; gap: 12px; align-items: flex-start; background: var(--bg-dark); border-radius: 14px; padding: 16px; margin-top: 16px; font-family: "Lora", serif; font-style: italic; font-size: 16px; line-height: 1.45; color: var(--neutral-dark); }
+.quote-icon { color: var(--rose); opacity: 0.7; flex-shrink: 0; margin-top: 3px; }
 .today-row { display: flex; align-items: center; gap: 14px; padding: 14px; cursor: pointer; border: 1px solid var(--sep); box-shadow: none; }
 .today-row:active { transform: scale(0.98); }
 .row-title.serif { font-family: "Lora", serif; font-weight: 500; }
