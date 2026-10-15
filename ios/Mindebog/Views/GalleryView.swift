@@ -17,6 +17,13 @@ struct GalleryView: View {
             if items.isEmpty {
                 ContentUnavailableView("Ingen fotos endnu", systemImage: "photo.on.rectangle")
                     .padding(.top, 60)
+            } else if kind == .belly {
+                // Maven: tidslinje i rækkefølge (første uge øverst), så man kan se maven vokse.
+                TimelineView(items: items,
+                             year: { Calendar.current.component(.year, from: $0.createdAt) }) { item in
+                    timelineCard(item)
+                }
+                .padding(16)
             } else {
                 LazyVGrid(columns: columns, spacing: 10) {
                     ForEach(items) { item in
@@ -43,6 +50,35 @@ struct GalleryView: View {
         .fullScreenCover(item: $lightbox) { LightboxView(state: $0) }
         .refreshable { await load() }
         .task { await load() }
+    }
+
+    // Kort i tidslinjen: uge/måned som overskrift, billedet i portræt (maven fylder i højden).
+    private func timelineCard(_ item: GalleryItem) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(item.caption.isEmpty ? Fmt.long(item.createdAt) : item.caption)
+                .font(.serifTitle(16))
+                .foregroundStyle(Theme.text)
+            if !item.caption.isEmpty {
+                Text(Fmt.long(item.createdAt)).font(.caption).foregroundStyle(Theme.muted)
+            }
+            if let photo = item.photo {
+                Color.clear
+                    .aspectRatio(4.0 / 5.0, contentMode: .fit)
+                    .overlay { DataImage(data: photo) }
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                    .onTapGesture { openLightbox(at: item) }
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(14)
+        .background(Theme.card)
+        .clipShape(RoundedRectangle(cornerRadius: 14))
+        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Theme.sep))
+        .contentShape(RoundedRectangle(cornerRadius: 14))
+        .onTapGesture { editing = item }
+        .contextMenu {
+            Button { editing = item } label: { Label("Redigér", systemImage: "pencil") }
+        }
     }
 
     private func cell(_ item: GalleryItem) -> some View {

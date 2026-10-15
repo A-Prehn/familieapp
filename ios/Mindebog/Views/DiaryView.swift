@@ -14,10 +14,10 @@ struct DiaryView: View {
                 ContentUnavailableView("Ingen indlæg endnu", systemImage: "book")
                     .padding(.top, 60)
             } else {
-                VStack(spacing: 12) {
-                    ForEach(entries) { entry in
-                        card(entry)
-                    }
+                // Tidslinje som ferier og højdepunkter; uden dato bruges oprettelsesåret.
+                TimelineView(items: entries,
+                             year: { Calendar.current.component(.year, from: $0.date ?? $0.createdAt) }) { entry in
+                    card(entry)
                 }
                 .padding(16)
             }
@@ -42,24 +42,23 @@ struct DiaryView: View {
     }
 
     // Tryk på opslaget = redigér; tryk på billedet = fuld skærm.
+    // Samme kortstil som tidslinjen for ferier og højdepunkter.
     private func card(_ entry: DiaryEntry) -> some View {
-        VStack(alignment: .leading, spacing: 0) {
+        VStack(alignment: .leading, spacing: 8) {
+            if let date = entry.date {
+                Text(Fmt.long(date)).font(.caption).foregroundStyle(Theme.muted)
+            }
+            Text(entry.text).font(.body).foregroundStyle(Theme.text)
             if let photo = entry.photo {
                 Color.clear
                     .aspectRatio(4.0 / 3.0, contentMode: .fit)
                     .overlay { DataImage(data: photo) }
-                    .clipped()
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
                     .onTapGesture { lightbox = LightboxState(photos: [photo]) }
             }
-            VStack(alignment: .leading, spacing: 4) {
-                if let date = entry.date {
-                    Text(Fmt.long(date)).font(.caption).foregroundStyle(Theme.muted)
-                }
-                Text(entry.text).font(.body).foregroundStyle(Theme.text)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(14)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(14)
         .background(Theme.card)
         .clipShape(RoundedRectangle(cornerRadius: 14))
         .overlay(RoundedRectangle(cornerRadius: 14).stroke(Theme.sep))
