@@ -17,11 +17,26 @@ struct FamilyView: View {
     @State private var children: [Child] = []
     @State private var customBirthdays: [CustomBirthday] = []
     @State private var activeSheet: Tab?
+    @State private var showNewChild = false
     @State private var lightbox: LightboxState?
+
+    private let columns = [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)]
 
     var body: some View {
         ScrollView {
             VStack(spacing: 16) {
+                SectionLabel("Vores børn")
+                LazyVGrid(columns: columns, spacing: 12) {
+                    ForEach(children) { child in
+                        NavigationLink(value: child) { ChildCard(child: child) }
+                            .buttonStyle(.plain)
+                    }
+                    Button { showNewChild = true } label: { AddChildCard() }
+                        .buttonStyle(.plain)
+                }
+
+                SectionLabel("Fælles")
+                    .padding(.top, 8)
                 Picker("", selection: $tab) {
                     ForEach(Tab.allCases) { Text($0.rawValue).tag($0) }
                 }
@@ -36,11 +51,18 @@ struct FamilyView: View {
             .padding(16)
         }
         .background(Theme.bg.ignoresSafeArea())
-        .navigationTitle("Fælles")
+        .navigationTitle(family?.name ?? "Familie")
         .navigationBarTitleDisplayMode(.inline)
+        .navigationDestination(for: Child.self) { ChildDetailView(child: $0) }
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
-                Button { activeSheet = tab } label: { Image(systemName: "plus") }
+                Menu {
+                    Button { showNewChild = true } label: { Label("Nyt barn", systemImage: "figure.child") }
+                    Divider()
+                    Button { activeSheet = .events } label: { Label("Ny begivenhed", systemImage: "calendar") }
+                    Button { activeSheet = .vacations } label: { Label("Ny ferie", systemImage: "beach.umbrella") }
+                    Button { activeSheet = .birthdays } label: { Label("Ny fødselsdag", systemImage: "gift") }
+                } label: { Image(systemName: "plus") }
             }
         }
         .sheet(item: $activeSheet, onDismiss: { Task { await load() } }) { which in
@@ -49,6 +71,9 @@ struct FamilyView: View {
             case .vacations: AddVacationView(familyId: state.familyId ?? "")
             case .birthdays: AddBirthdayView(familyId: state.familyId ?? "")
             }
+        }
+        .sheet(isPresented: $showNewChild, onDismiss: { Task { await load() } }) {
+            NewChildView()
         }
         .fullScreenCover(item: $lightbox) { LightboxView(state: $0) }
         .refreshable { await load() }
