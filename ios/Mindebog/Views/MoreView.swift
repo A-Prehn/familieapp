@@ -6,6 +6,7 @@ struct MoreView: View {
     @State private var members: [AppUser] = []
     @State private var invite: String?
     @State private var busy = false
+    @State private var showQR = false
     @State private var notificationsOn = NotificationManager.isEnabled
     @State private var notificationMessage: String?
     @State private var notificationBusy = false
@@ -24,7 +25,10 @@ struct MoreView: View {
                     ShareLink(item: url) {
                         Label("Send delelink", systemImage: "square.and.arrow.up")
                     }
-                    Text("Partneren trykker på linket på sin iPhone og får adgang til hele familien.")
+                    Button { showQR = true } label: {
+                        Label("Vis QR-kode", systemImage: "qrcode")
+                    }
+                    Text("Send linket, eller lad partneren scanne QR-koden med iPhonens kamera. Så får de adgang til hele familien.")
                         .font(.footnote).foregroundStyle(Theme.muted)
                 } else if let invite {
                     HStack {
@@ -65,6 +69,30 @@ struct MoreView: View {
         }
         .navigationTitle("Mere")
         .navigationBarTitleDisplayMode(.inline)
+        .sheet(isPresented: $showQR) {
+            if let invite {
+                NavigationStack {
+                    VStack(spacing: 20) {
+                        Text("Scan med kameraet")
+                            .font(.serifTitle(22))
+                        QRCodeView(text: invite)
+                            .frame(maxWidth: 280)
+                        Text("Partneren åbner kameraet på sin iPhone, peger på koden og trykker på linket, der dukker op.")
+                            .font(.footnote).foregroundStyle(Theme.muted)
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal, 24)
+                        Spacer()
+                    }
+                    .padding(.top, 32)
+                    .frame(maxWidth: .infinity)
+                    .background(Theme.bg.ignoresSafeArea())
+                    .toolbar {
+                        ToolbarItem(placement: .confirmationAction) { Button("Færdig") { showQR = false } }
+                    }
+                }
+                .presentationDetents([.large])
+            }
+        }
         .task { await load() }
     }
 
