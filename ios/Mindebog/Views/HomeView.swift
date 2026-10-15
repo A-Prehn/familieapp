@@ -204,39 +204,62 @@ struct HomeView: View {
             ScreenCache.save(Cached(children: children, recent: recent, onThisDay: onThisDay, day: todayKey), key: cacheKey)
         }
 
-        // Børnenes minder (højdepunkter + dagbog).
-        var memories: [RecentMemory] = []
-        for child in loadedKids {
-            for h in (try? await store.highlights(childId: child.id)) ?? [] {
-                memories.append(RecentMemory(id: "hl_\(h.id)", childName: child.name, kind: "Højdepunkt", symbol: "star",
-                                             date: h.date, sortDate: h.date ?? h.createdAt, text: h.text, photo: h.photos.first))
-            }
-            for d in (try? await store.diary(childId: child.id)) ?? [] {
-                memories.append(RecentMemory(id: "dy_\(d.id)", childName: child.name, kind: child.onTheWay ? "Svangerskabsdagbog" : "Dagbog",
-                                             symbol: "book", date: d.date, sortDate: d.date ?? d.createdAt, text: d.text, photo: d.photo))
-            }
-        }
-        recent = Array(memories.sorted { $0.sortDate > $1.sortDate }.prefix(5))
+        // 1) Let oversigt over alle minder — kun tekst og datoer, ingen billeder.
+        guard let summaries = try? await store.memorySummaries(familyId: familyId) else { return }
+        let names = Dictionary(uniqueKeysWithValues: loadedKids.map { ($0.id, $0) })
 
-        // Fælles minder tæller også med i "På denne dag".
-        var all = memories
-        for e in (try? await store.events(familyId: familyId)) ?? [] {
-            all.append(RecentMemory(id: "ev_\(e.id)", childName: "Fælles", kind: "Begivenhed", symbol: "calendar",
-                                    date: e.date, sortDate: e.date ?? .distantPast, text: e.title, photo: e.photo))
+        func memory(_ s: MemorySummary) -> RecentMemory? {
+            switch s.kind {
+            case .highlight, .diary:
+                guard let id = s.childId, let child = names[id] else { return nil }   // barn slettet
+                let isHighlight = s.kind == .highlight
+                return RecentMemory(id: (isHighlight ? "hl_" : "dy_") + s.id, summary: s, childName: child.name,
+                                    kind: isHighlight ? "Højdepunkt" : (child.onTheWay ? "Svangerskabsdagbog" : "Dagbog"),
+                                    symbol: isHighlight ? "star" : "book",
+                                    date: s.date, sortDate: s.date ?? s.createdAt, text: s.text, photo: nil)
+            case .event:
+                return RecentMemory(id: "ev_" + s.id, summary: s, childName: "Fælles", kind: "Begivenhed", symbol: "calendar",
+                                    date: s.date, sortDate: s.date ?? .distantPast, text: s.text, photo: nil)
+            case .vacation:
+                return RecentMemory(id: "va_" + s.id, summary: s, childName: "Fælles", kind: "Ferie", symbol: "beach.umbrella",
+                                    date: s.date, sortDate: s.date ?? .distantPast, text: s.text, photo: nil)
+            }
         }
-        for v in (try? await store.vacations(familyId: familyId)) ?? [] {
-            all.append(RecentMemory(id: "va_\(v.id)", childName: "Fælles", kind: "Ferie", symbol: "beach.umbrella",
-                                    date: v.startDate, sortDate: v.startDate ?? .distantPast, text: v.title, photo: v.photo))
-        }
+        let all = summaries.compactMap(memory)
+
+        // Seneste minder: kun børnenes (højdepunkter + dagbog), de 5 nyeste.
+        var newRecent = Array(all.filter { $0.summary?.childId != nil }
+            .sorted { $0.sortDate > $1.sortDate }.prefix(5))
+
+        // På denne dag: samme dag og måned i et tidligere år — også fælles minder.
         let cal = Calendar.current
-        let now = Date()
-        let today = cal.dateComponents([.year, .month, .day], from: now)
-        onThisDay = all.filter { m in
+        let today = cal.dateComponents([.year, .month, .day], from: Date())
+        var newOnThisDay = all.filter { m in
             guard let date = m.date else { return false }
             let c = cal.dateComponents([.year, .month, .day], from: date)
             return c.month == today.month && c.day == today.day && (c.year ?? 0) < (today.year ?? 0)
         }
         .sorted { $0.sortDate > $1.sortDate }
+
+        // 2) Billeder kun til de viste minder; genbrug dem vi allerede har fra sidst.
+        var known: [String: Data] = [:]
+        for m in recent + onThisDay { if let p = m.photo { known[m.id] = p } }
+        func withPhotos(_ list: [RecentMemory]) async -> [RecentMemory] {
+            var out = list
+            for i in out.indices {
+                if let cached = known[out[i].id] {
+                    out[i].photo = cached
+                } else if let s = out[i].summary {
+                    out[i].photo = try? await store.coverPhoto(familyId: familyId, memory: s)
+                    if let p = out[i].photo { known[out[i].id] = p }
+                }
+            }
+            return out
+        }
+        newRecent = await withPhotos(newRecent)
+        newOnThisDay = await withPhotos(newOnThisDay)
+        recent = newRecent
+        onThisDay = newOnThisDay
     }
 
     private func yearsAgo(_ date: Date?) -> String {
@@ -250,13 +273,15 @@ struct HomeView: View {
 
 struct RecentMemory: Identifiable, Codable {
     let id: String
+    /// Oversigten bag mindet — bruges til at hente billedet, når det skal vises.
+    var summary: MemorySummary? = nil
     let childName: String
     let kind: String
     let symbol: String
     let date: Date?
     let sortDate: Date
     let text: String
-    let photo: Data?
+    var photo: Data?
 }
 
 struct QuickAdd: Identifiable {

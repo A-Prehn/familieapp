@@ -168,6 +168,18 @@ struct Vacation: Identifiable, Hashable, Codable {
     var photo: Data? { photos.coverPhoto }
 }
 
+/// Let oversigt over et minde (uden billeder) — til Hjem, så forsiden ikke skal
+/// hente alle familiens billeder for at finde de få, der vises.
+struct MemorySummary: Identifiable, Hashable, Codable {
+    enum Kind: String, Codable { case highlight, diary, event, vacation }
+    let id: String          // record-id
+    let kind: Kind
+    let childId: String?    // nil for fælles (begivenhed/ferie)
+    let date: Date?
+    let createdAt: Date
+    let text: String        // tekst / titel
+}
+
 struct CustomBirthday: Identifiable, Hashable, Codable {
     let id: String
     var name: String

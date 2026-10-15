@@ -52,6 +52,10 @@ protocol Store {
     func addVacation(familyId: String, title: String, start: Date?, end: Date?,
                      details: String, photos: PhotoSet, place: Place?) async throws -> Vacation
 
+    // Hjem: lette oversigter uden billeder, og billede kun til de minder der vises.
+    func memorySummaries(familyId: String) async throws -> [MemorySummary]
+    func coverPhoto(familyId: String, memory: MemorySummary) async throws -> Data?
+
     func birthdays(familyId: String) async throws -> [CustomBirthday]
     func addBirthday(familyId: String, name: String, date: Date, emoji: String) async throws -> CustomBirthday
 }

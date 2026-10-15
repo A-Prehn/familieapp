@@ -25,6 +25,7 @@ actor CloudKitStore: Store {
 
     init(containerIdentifier: String = "iCloud.net.prehn.mindebog") {
         self.container = CKContainer(identifier: containerIdentifier)
+        Self.clearUploadDir()   // ingen uploads kører endnu ved oprettelse
     }
 
     // MARK: - Auth
@@ -71,7 +72,7 @@ actor CloudKitStore: Store {
         record["name"] = (trimmed.isEmpty ? "Vores familie" : trimmed) as CKRecordValue
         record["ownerId"] = userId as CKRecordValue
         record["ownerName"] = (UserDefaults.standard.string(forKey: nameKey) ?? "Forælder") as CKRecordValue
-        let saved = try await privateDB.save(record)
+        let saved = try await persist(record, in: privateDB)
         return Self.family(from: saved, zoneName: zoneName)
     }
 
@@ -131,7 +132,7 @@ actor CloudKitStore: Store {
         record["familyRef"] = familyRef(zoneID)
         record["userId"] = userId as CKRecordValue
         record["name"] = trimmed as CKRecordValue
-        _ = try await db.save(record)
+        _ = try await persist(record, in: db)
     }
 
     /// Returnerer share-URL (som tekst). Partneren åbner linket, eller indsætter det.
@@ -198,7 +199,7 @@ actor CloudKitStore: Store {
         record["gender"] = gender.rawValue as CKRecordValue
         if let birthDate { record["birthDate"] = birthDate as CKRecordValue }
         if let dueDate { record["dueDate"] = dueDate as CKRecordValue }
-        let saved = try await db.save(record)
+        let saved = try await persist(record, in: db)
         let child = Self.child(from: saved, familyId: familyId)
         rememberChild(child.id, zoneName: familyId)
         if let birthDate { try await setMilestone(childId: child.id, key: "birth_date", value: Fmt.iso(birthDate), photos: PhotoSet()) }
@@ -214,7 +215,7 @@ actor CloudKitStore: Store {
         record["birthDate"] = child.birthDate as CKRecordValue?
         record["dueDate"] = child.dueDate as CKRecordValue?
         record["photo"] = child.photo.flatMap { Self.asset(from: $0) }
-        let saved = try await db.save(record)
+        let saved = try await persist(record, in: db)
         // Fødsels-/terminsdato ligger også i milepælene (som på websitet).
         if let birth = child.birthDate {
             try await setMilestoneValue(childId: child.id, key: "birth_date", value: Fmt.iso(birth), db: db, zoneID: zoneID)
@@ -233,7 +234,7 @@ actor CloudKitStore: Store {
         record["childRef"] = childRef(childId, zoneID)
         record["key"] = key as CKRecordValue
         record["value"] = value as CKRecordValue
-        _ = try await db.save(record)
+        _ = try await persist(record, in: db)
     }
 
     // MARK: - Højdepunkter
@@ -257,7 +258,7 @@ actor CloudKitStore: Store {
         record["text"] = text.trimmingCharacters(in: .whitespaces) as CKRecordValue
         let assets = photos.compactMap { Self.asset(from: $0) }
         if !assets.isEmpty { record["photos"] = assets as CKRecordValue }
-        let saved = try await db.save(record)
+        let saved = try await persist(record, in: db)
         return Highlight(id: saved.recordID.recordName, date: date, text: text, photos: photos, createdAt: Date())
     }
 
@@ -290,7 +291,7 @@ actor CloudKitStore: Store {
             record["value"] = nil
         }
         Self.setPhotos(photos, on: record)
-        _ = try await db.save(record)
+        _ = try await persist(record, in: db)
     }
 
     // MARK: Billedsæt (flere billeder + forside + billedtekster)
@@ -343,7 +344,7 @@ actor CloudKitStore: Store {
         record["childRef"] = childRef(childId, zoneID)
         record["question"] = question as CKRecordValue
         record["answer"] = trimmed as CKRecordValue
-        _ = try await db.save(record)
+        _ = try await persist(record, in: db)
     }
 
     // MARK: - Dagbog
@@ -366,7 +367,7 @@ actor CloudKitStore: Store {
         if let date { record["date"] = date as CKRecordValue }
         record["text"] = text.trimmingCharacters(in: .whitespaces) as CKRecordValue
         record["photo"] = photo.flatMap { Self.asset(from: $0) }
-        let saved = try await db.save(record)
+        let saved = try await persist(record, in: db)
         return DiaryEntry(id: saved.recordID.recordName, date: date, text: text, photo: photo, createdAt: Date())
     }
 
@@ -392,7 +393,7 @@ actor CloudKitStore: Store {
         record["kind"] = kind.rawValue as CKRecordValue
         record["caption"] = caption.trimmingCharacters(in: .whitespaces) as CKRecordValue
         record["photo"] = photo.flatMap { Self.asset(from: $0) }
-        let saved = try await db.save(record)
+        let saved = try await persist(record, in: db)
         return GalleryItem(id: saved.recordID.recordName, caption: caption, photo: photo, createdAt: Date())
     }
 
@@ -420,7 +421,7 @@ actor CloudKitStore: Store {
         record["details"] = details.trimmingCharacters(in: .whitespaces) as CKRecordValue
         Self.setPhotos(photos, on: record)
         Self.setPlace(place, on: record)
-        let saved = try await db.save(record)
+        let saved = try await persist(record, in: db)
         return FamilyEvent(id: saved.recordID.recordName, title: title, date: date, details: details,
                            photos: photos, place: place)
     }
@@ -449,7 +450,7 @@ actor CloudKitStore: Store {
         record["details"] = details.trimmingCharacters(in: .whitespaces) as CKRecordValue
         Self.setPhotos(photos, on: record)
         Self.setPlace(place, on: record)
-        let saved = try await db.save(record)
+        let saved = try await persist(record, in: db)
         return Vacation(id: saved.recordID.recordName, title: title, startDate: start, endDate: end,
                         details: details, photos: photos, place: place)
     }
@@ -462,7 +463,7 @@ actor CloudKitStore: Store {
         record["details"] = event.details.trimmingCharacters(in: .whitespaces) as CKRecordValue
         Self.setPhotos(event.photos, on: record)
         Self.setPlace(event.place, on: record)
-        _ = try await db.save(record)
+        _ = try await persist(record, in: db)
         return event
     }
 
@@ -480,7 +481,7 @@ actor CloudKitStore: Store {
         record["details"] = vacation.details.trimmingCharacters(in: .whitespaces) as CKRecordValue
         Self.setPhotos(vacation.photos, on: record)
         Self.setPlace(vacation.place, on: record)
-        _ = try await db.save(record)
+        _ = try await persist(record, in: db)
         return vacation
     }
 
@@ -510,6 +511,57 @@ actor CloudKitStore: Store {
                      longitude: location.coordinate.longitude)
     }
 
+    // MARK: - Hjem: lette oversigter
+    // Fire forespørgsler for hele familien (i stedet for to pr. barn), og kun tekst/dato —
+    // billederne hentes bagefter med coverPhoto, kun for de minder der faktisk vises.
+
+    func memorySummaries(familyId: String) async throws -> [MemorySummary] {
+        let (db, zoneID) = try await locate(familyId)
+        var out: [MemorySummary] = []
+        func childId(_ r: CKRecord) -> String? { (r["childRef"] as? CKRecord.Reference)?.recordID.recordName }
+
+        for r in try await all(db: db, zoneID: zoneID, type: "Highlight", keys: ["childRef", "date", "text"]) {
+            out.append(MemorySummary(id: r.recordID.recordName, kind: .highlight, childId: childId(r),
+                                     date: r["date"] as? Date, createdAt: r.creationDate ?? Date(),
+                                     text: r["text"] as? String ?? ""))
+        }
+        for r in try await all(db: db, zoneID: zoneID, type: "Diary", keys: ["childRef", "date", "text"]) {
+            out.append(MemorySummary(id: r.recordID.recordName, kind: .diary, childId: childId(r),
+                                     date: r["date"] as? Date, createdAt: r.creationDate ?? Date(),
+                                     text: r["text"] as? String ?? ""))
+        }
+        for r in try await all(db: db, zoneID: zoneID, type: "Event", keys: ["title", "date"]) {
+            out.append(MemorySummary(id: r.recordID.recordName, kind: .event, childId: nil,
+                                     date: r["date"] as? Date, createdAt: r.creationDate ?? Date(),
+                                     text: r["title"] as? String ?? ""))
+        }
+        for r in try await all(db: db, zoneID: zoneID, type: "Vacation", keys: ["title", "startDate"]) {
+            out.append(MemorySummary(id: r.recordID.recordName, kind: .vacation, childId: nil,
+                                     date: r["startDate"] as? Date, createdAt: r.creationDate ?? Date(),
+                                     text: r["title"] as? String ?? ""))
+        }
+        return out
+    }
+
+    /// Henter kun billedfelterne for ét minde og returnerer forsidebilledet.
+    func coverPhoto(familyId: String, memory: MemorySummary) async throws -> Data? {
+        let (db, zoneID) = try await locate(familyId)
+        let id = CKRecord.ID(recordName: memory.id, zoneID: zoneID)
+        let keys: [CKRecord.FieldKey]
+        switch memory.kind {
+        case .highlight: keys = ["photos"]
+        case .diary: keys = ["photo"]
+        case .event, .vacation: keys = ["photos", "photo", "coverIndex"]
+        }
+        let results = try await db.records(for: [id], desiredKeys: keys)
+        guard let record = try results[id]?.get() else { return nil }
+        switch memory.kind {
+        case .highlight: return Self.assetsData(record["photos"]).first
+        case .diary: return Self.assetData(record["photo"])
+        case .event, .vacation: return Self.photoSet(from: record).coverPhoto
+        }
+    }
+
     func birthdays(familyId: String) async throws -> [CustomBirthday] {
         let (db, zoneID) = try await locate(familyId)
         return try await all(db: db, zoneID: zoneID, type: "Birthday").compactMap { r in
@@ -529,7 +581,7 @@ actor CloudKitStore: Store {
         record["date"] = date as CKRecordValue
         let trimmedEmoji = emoji.trimmingCharacters(in: .whitespaces)
         record["emoji"] = (trimmedEmoji.isEmpty ? "🎂" : trimmedEmoji) as CKRecordValue
-        let saved = try await db.save(record)
+        let saved = try await persist(record, in: db)
         return CustomBirthday(id: saved.recordID.recordName, name: name, date: date, emoji: trimmedEmoji.isEmpty ? "🎂" : trimmedEmoji)
     }
 
@@ -599,13 +651,16 @@ actor CloudKitStore: Store {
         return share
     }
 
-    private func all(db: CKDatabase, zoneID: CKRecordZone.ID, type: String) async throws -> [CKRecord] {
+    /// Alle records af en type i zonen. `keys` begrænser felterne (fx uden billeder), nil = alle.
+    private func all(db: CKDatabase, zoneID: CKRecordZone.ID, type: String,
+                     keys: [CKRecord.FieldKey]? = nil) async throws -> [CKRecord] {
         let query = CKQuery(recordType: type, predicate: NSPredicate(value: true))
         var results: [CKRecord] = []
-        var (matches, cursor) = try await db.records(matching: query, inZoneWith: zoneID, resultsLimit: 200)
+        var (matches, cursor) = try await db.records(matching: query, inZoneWith: zoneID,
+                                                     desiredKeys: keys, resultsLimit: 200)
         results.append(contentsOf: matches.compactMap { try? $0.1.get() })
         while let c = cursor {
-            (matches, cursor) = try await db.records(continuingMatchFrom: c, resultsLimit: 200)
+            (matches, cursor) = try await db.records(continuingMatchFrom: c, desiredKeys: keys, resultsLimit: 200)
             results.append(contentsOf: matches.compactMap { try? $0.1.get() })
         }
         return results
@@ -651,13 +706,50 @@ actor CloudKitStore: Store {
     }
 
     // CKAsset <-> Data
+    // Billeder til upload skrives i en egen mappe og slettes, så snart recorden er gemt
+    // (persist). Rester fra et afbrudt forsøg ryddes ved opstart.
+    private static let uploadDir: URL = {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("CKUploads", isDirectory: true)
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        return dir
+    }()
+
     private static func asset(from data: Data) -> CKAsset? {
-        let url = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".jpg")
+        let url = uploadDir.appendingPathComponent(UUID().uuidString + ".jpg")
         do {
             try data.write(to: url)
             return CKAsset(fileURL: url)
         } catch {
             return nil
+        }
+    }
+
+    /// Gem en record og slet bagefter de midlertidige billedfiler, den blev uploadet fra.
+    private func persist(_ record: CKRecord, in db: CKDatabase) async throws -> CKRecord {
+        defer { Self.removeUploadFiles(of: record) }
+        return try await db.save(record)
+    }
+
+    private static func removeUploadFiles(of record: CKRecord) {
+        let prefix = uploadDir.standardizedFileURL.path
+        for key in record.allKeys() {
+            let assets: [CKAsset]
+            switch record[key] {
+            case let one as CKAsset: assets = [one]
+            case let many as [CKAsset]: assets = many
+            default: continue
+            }
+            for url in assets.compactMap(\.fileURL) where url.standardizedFileURL.path.hasPrefix(prefix) {
+                try? FileManager.default.removeItem(at: url)
+            }
+        }
+    }
+
+    /// Ryd rester fra tidligere (fx hvis appen blev lukket midt i en upload).
+    private static func clearUploadDir() {
+        let fm = FileManager.default
+        for url in (try? fm.contentsOfDirectory(at: uploadDir, includingPropertiesForKeys: nil)) ?? [] {
+            try? fm.removeItem(at: url)
         }
     }
 

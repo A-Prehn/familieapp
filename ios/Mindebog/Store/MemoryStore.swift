@@ -230,6 +230,42 @@ actor MemoryStore: Store {
         return vacation
     }
 
+    func memorySummaries(familyId: String) async throws -> [MemorySummary] {
+        var out: [MemorySummary] = []
+        for child in childrenById.values where child.familyId == familyId {
+            for h in highlightsByChild[child.id] ?? [] {
+                out.append(MemorySummary(id: h.id, kind: .highlight, childId: child.id,
+                                         date: h.date, createdAt: h.createdAt, text: h.text))
+            }
+            for d in diaryByChild[child.id] ?? [] {
+                out.append(MemorySummary(id: d.id, kind: .diary, childId: child.id,
+                                         date: d.date, createdAt: d.createdAt, text: d.text))
+            }
+        }
+        for e in eventsByFamily[familyId] ?? [] {
+            out.append(MemorySummary(id: e.id, kind: .event, childId: nil,
+                                     date: e.date, createdAt: e.date ?? .distantPast, text: e.title))
+        }
+        for v in vacationsByFamily[familyId] ?? [] {
+            out.append(MemorySummary(id: v.id, kind: .vacation, childId: nil,
+                                     date: v.startDate, createdAt: v.startDate ?? .distantPast, text: v.title))
+        }
+        return out
+    }
+
+    func coverPhoto(familyId: String, memory: MemorySummary) async throws -> Data? {
+        switch memory.kind {
+        case .highlight:
+            return highlightsByChild.values.joined().first { $0.id == memory.id }?.photos.first
+        case .diary:
+            return diaryByChild.values.joined().first { $0.id == memory.id }?.photo
+        case .event:
+            return eventsByFamily[familyId]?.first { $0.id == memory.id }?.photo
+        case .vacation:
+            return vacationsByFamily[familyId]?.first { $0.id == memory.id }?.photo
+        }
+    }
+
     func birthdays(familyId: String) async throws -> [CustomBirthday] {
         birthdaysByFamily[familyId] ?? []
     }
