@@ -11,6 +11,8 @@ struct MindebogApp: App {
             RootView()
                 .environmentObject(state)
                 .tint(Theme.tint)
+                // Temaet er designet lyst (cream); et rigtigt mørkt tema kommer senere.
+                .preferredColorScheme(.light)
                 .task { await state.bootstrap() }
                 .onReceive(NotificationCenter.default.publisher(for: .cloudKitShareAccepted)) { note in
                     if let zoneName = note.object as? String {
