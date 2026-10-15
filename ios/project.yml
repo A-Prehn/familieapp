@@ -24,9 +24,16 @@ targets:
     platform: iOS
     sources:
       - path: Mindebog
+      - path: Shared
+    dependencies:
+      # Udvidelserne indlejres automatisk i appen (PlugIns/).
+      - target: VoresFamilieWidget
+      - target: VoresFamilieNotifications
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: net.prehn.mindebog
+        # TestFlight-workflowet sætter APP_PROFILE (navnet på App Store-profilen).
+        PROVISIONING_PROFILE_SPECIFIER: "$(APP_PROFILE)"
         GENERATE_INFOPLIST_FILE: "YES"
         TARGETED_DEVICE_FAMILY: "1,2"
         INFOPLIST_KEY_CFBundleDisplayName: "Vores familie"
@@ -45,3 +52,45 @@ targets:
         # iCloud/CloudKit-entitlements. Ignoreres i usigneret simulator-build (CI),
         # anvendes når appen signeres med Apple Developer-kontoen.
         CODE_SIGN_ENTITLEMENTS: Mindebog/Mindebog.entitlements
+
+  # Widgets til hjemmeskærmen (fødselsdage, termin, på denne dag, dagens citat).
+  VoresFamilieWidget:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: Widget
+      - path: Shared
+      - path: Mindebog/Models/DailyQuotes.swift
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: net.prehn.mindebog.widget
+        PRODUCT_NAME: VoresFamilieWidget
+        INFOPLIST_FILE: Widget/Info.plist
+        CODE_SIGN_ENTITLEMENTS: Widget/Widget.entitlements
+        PROVISIONING_PROFILE_SPECIFIER: "$(WIDGET_PROFILE)"
+        TARGETED_DEVICE_FAMILY: "1,2"
+        SKIP_INSTALL: "YES"
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: ""
+    dependencies:
+      - sdk: WidgetKit.framework
+      - sdk: SwiftUI.framework
+
+  # Omskriver CloudKit-notifikationer til "Sheila har tilføjet …".
+  VoresFamilieNotifications:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: NotificationService
+      - path: Shared
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: net.prehn.mindebog.notifications
+        PRODUCT_NAME: VoresFamilieNotifications
+        INFOPLIST_FILE: NotificationService/Info.plist
+        CODE_SIGN_ENTITLEMENTS: NotificationService/NotificationService.entitlements
+        PROVISIONING_PROFILE_SPECIFIER: "$(NSE_PROFILE)"
+        TARGETED_DEVICE_FAMILY: "1,2"
+        SKIP_INSTALL: "YES"
+    dependencies:
+      - sdk: UserNotifications.framework
+      - sdk: CloudKit.framework

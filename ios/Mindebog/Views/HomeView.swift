@@ -261,6 +261,11 @@ struct HomeView: View {
         newOnThisDay = await withPhotos(newOnThisDay)
         recent = newRecent
         onThisDay = newOnThisDay
+
+        // Widget og notifikationer: skriv det nyeste til App Group'en (i baggrunden).
+        let familyName = (try? await store.families(for: state.user?.id ?? ""))?
+            .first { $0.id == familyId }?.name ?? "Vores familie"
+        Task { await WidgetSync.refresh(store: store, familyId: familyId, familyName: familyName) }
     }
 
     private func yearsAgo(_ date: Date?) -> String {

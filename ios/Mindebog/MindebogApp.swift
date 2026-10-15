@@ -101,6 +101,8 @@ final class AppState: ObservableObject {
         }
         await publishDisplayName()   // også for navne sat før denne version
         await refreshPermissions()
+        // Første gang: hent iCloud-"change tokens", så notifikations-udvidelsen kun ser nyt.
+        if NotificationManager.isEnabled { await ChangeFeed.seedIfNeeded() }
     }
 
     func signIn(name: String) async {

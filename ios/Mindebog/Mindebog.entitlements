@@ -4,6 +4,10 @@
 <dict>
     <key>aps-environment</key>
     <string>production</string>
+    <key>com.apple.security.application-groups</key>
+    <array>
+        <string>group.net.prehn.mindebog</string>
+    </array>
     <key>com.apple.developer.icloud-container-identifiers</key>
     <array>
         <string>iCloud.net.prehn.mindebog</string>

@@ -31,6 +31,7 @@ enum NotificationManager {
             try await save(subscription(id: privateSubID), in: container.privateCloudDatabase)
             try await save(subscription(id: sharedSubID), in: container.sharedCloudDatabase)
             UserDefaults.standard.set(true, forKey: enabledKey)
+            await ChangeFeed.seedIfNeeded()
             return .enabled
         } catch {
             return .failed(error.localizedDescription)
@@ -61,6 +62,8 @@ enum NotificationManager {
         info.title = "Vores familie"
         info.alertBody = "Der er kommet noget nyt i familien 💛"
         info.soundName = "default"
+        // Lader notifikations-udvidelsen omskrive teksten til "Sheila har tilføjet …".
+        info.shouldSendMutableContent = true
         sub.notificationInfo = info
         return sub
     }

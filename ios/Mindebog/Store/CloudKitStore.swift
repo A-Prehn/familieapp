@@ -89,6 +89,8 @@ actor CloudKitStore: Store {
             for r in (try? await all(db: db, zoneID: zoneID, type: "Member")) ?? [] {
                 if let uid = r["userId"] as? String, let n = r["name"] as? String, !n.isEmpty { savedNames[uid] = n }
             }
+            // Til notifikations-udvidelsen: "Sheila har tilføjet …".
+            SharedNames.members = SharedNames.members.merging(savedNames) { _, new in new }
             for p in share.participants.sorted(by: { $0.role == .owner && $1.role != .owner }) {
                 let identity = p.userIdentity
                 // For en selv er recordName ofte "__defaultOwner__" — brug det rigtige bruger-id.
