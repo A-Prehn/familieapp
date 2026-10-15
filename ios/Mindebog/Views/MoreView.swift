@@ -75,6 +75,13 @@ struct MoreView: View {
                 if let notificationMessage {
                     Text(notificationMessage).font(.footnote).foregroundStyle(Theme.rose)
                 }
+            } header: {
+                Text("Notifikationer")
+            } footer: {
+                Text("Du får besked, når en anden i familien lægger noget nyt op, fx \"Sheila har tilføjet et højdepunkt for Theo\".")
+            }
+
+            Section {
                 Toggle(isOn: Binding(get: { remindersOn }, set: { on in Task { await setReminders(on) } })) {
                     Label("Påmindelse om billeder", systemImage: "calendar.badge.clock")
                 }
@@ -92,9 +99,9 @@ struct MoreView: View {
                     }
                 }
             } header: {
-                Text("Notifikationer")
+                Text("Påmindelser")
             } footer: {
-                Text("Få besked når den anden forælder lægger noget nyt op. Påmindelsen kommer på hver månedsdag for børn, der er født — og for et barn på vej så ofte som du vælger, så I husker mavebilledet.")
+                Text("En påmindelse om at tage billeder: for et født barn hver måned på månedsdagen, og for et barn på vej så ofte, som du vælger ovenfor, så I husker mavebilledet.")
             }
 
             Section {
