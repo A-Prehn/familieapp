@@ -1,5 +1,6 @@
 import SwiftUI
 import PhotosUI
+import Photos
 import UIKit
 
 // Skalerer et valgt billede ned (≈ CKAsset-venligt) og gemmer som JPEG.
@@ -259,6 +260,8 @@ struct LightboxView: View {
         _index = State(initialValue: state.index)
     }
 
+    @State private var toast: String?
+
     var body: some View {
         ZStack(alignment: .topTrailing) {
             Color.black.ignoresSafeArea()
@@ -275,19 +278,99 @@ struct LightboxView: View {
                                     .padding(.bottom, 56)
                             }
                         }
+                        // Hold fingeren på billedet: Del, Gem i Fotos, Kopiér — som i Safari.
+                        .contextMenu { photoActions(for: state.photos[i]) }
                         .tag(i)
                 }
             }
             .tabViewStyle(.page(indexDisplayMode: state.photos.count > 1 ? .automatic : .never))
             .ignoresSafeArea()
 
-            Button { dismiss() } label: {
-                Image(systemName: "xmark.circle.fill")
-                    .font(.system(size: 30))
-                    .symbolRenderingMode(.palette)
-                    .foregroundStyle(.white, .black.opacity(0.5))
-                    .padding(16)
+            HStack {
+                // Del-knap øverst til venstre, så funktionen kan findes uden at kende hold-menuen.
+                if let image = currentImage {
+                    ShareLink(item: Image(uiImage: image),
+                              preview: SharePreview("Billede", image: Image(uiImage: image))) {
+                        Image(systemName: "square.and.arrow.up.circle.fill")
+                            .font(.system(size: 30))
+                            .symbolRenderingMode(.palette)
+                            .foregroundStyle(.white, .black.opacity(0.5))
+                            .padding(16)
+                    }
+                    .accessibilityLabel("Del billede")
+                }
+                Spacer()
+                Button { dismiss() } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.system(size: 30))
+                        .symbolRenderingMode(.palette)
+                        .foregroundStyle(.white, .black.opacity(0.5))
+                        .padding(16)
+                }
+                .accessibilityLabel("Luk")
             }
+
+            if let toast {
+                Text(toast)
+                    .font(.subheadline.weight(.medium))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 16).padding(.vertical, 10)
+                    .background(Capsule().fill(.black.opacity(0.7)))
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+                    .padding(.bottom, 90)
+                    .transition(.opacity)
+            }
+        }
+    }
+
+    private var currentImage: UIImage? {
+        guard state.photos.indices.contains(index) else { return nil }
+        return UIImage(data: state.photos[index])
+    }
+
+    @ViewBuilder
+    private func photoActions(for data: Data) -> some View {
+        if let image = UIImage(data: data) {
+            ShareLink(item: Image(uiImage: image),
+                      preview: SharePreview("Billede", image: Image(uiImage: image))) {
+                Label("Del…", systemImage: "square.and.arrow.up")
+            }
+            Button {
+                Task { await saveToPhotos(image) }
+            } label: {
+                Label("Gem i Fotos", systemImage: "square.and.arrow.down")
+            }
+            Button {
+                UIPasteboard.general.image = image
+                show("Kopieret")
+            } label: {
+                Label("Kopiér", systemImage: "doc.on.doc")
+            }
+        }
+    }
+
+    /// Gemmer i Fotos med "kun tilføj"-adgang (appen kan ikke se brugerens øvrige billeder).
+    private func saveToPhotos(_ image: UIImage) async {
+        let status = await PHPhotoLibrary.requestAuthorization(for: .addOnly)
+        guard status == .authorized || status == .limited else {
+            show("Giv adgang i Indstillinger → Vores familie → Fotos")
+            return
+        }
+        do {
+            try await PHPhotoLibrary.shared().performChanges {
+                PHAssetChangeRequest.creationRequestForAsset(from: image)
+            }
+            show("Gemt i Fotos")
+        } catch {
+            show("Kunne ikke gemme billedet")
+        }
+    }
+
+    private func show(_ message: String) {
+        withAnimation { toast = message }
+        Task {
+            try? await Task.sleep(for: .seconds(2))
+            withAnimation { if toast == message { toast = nil } }
         }
     }
 }
