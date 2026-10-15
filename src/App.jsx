@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { AppProvider, useApp, useLiveData } from "./lib/AppContext";
 import SignIn from "./screens/SignIn";
 import Onboarding from "./screens/Onboarding";
@@ -30,6 +30,32 @@ function Shell() {
     reset: () => setStack([]),
   };
   const switchTab = (t) => { setTab(t); setStack([]); };
+
+  // Edge-swipe-tilbage (iOS-stil): swipe fra venstre kant mod højre → ét niveau tilbage.
+  // I SwiftUI-appen (fase 2) kommer dette gratis via NavigationStack.
+  useEffect(() => {
+    if (stack.length === 0) return;
+    let sx = 0, sy = 0, t = 0, tracking = false;
+    const start = (e) => {
+      const touch = e.touches[0];
+      if (touch.clientX > 32) return; // kun fra venstre kant
+      if (document.querySelector(".modal-backdrop, .lightbox")) return;
+      sx = touch.clientX; sy = touch.clientY; t = Date.now(); tracking = true;
+    };
+    const end = (e) => {
+      if (!tracking) return;
+      tracking = false;
+      const touch = e.changedTouches[0];
+      const dx = touch.clientX - sx, dy = touch.clientY - sy, dt = Date.now() - t;
+      if (dx > 70 && Math.abs(dy) < 60 && dt < 800) setStack((s) => s.slice(0, -1));
+    };
+    window.addEventListener("touchstart", start, { passive: true });
+    window.addEventListener("touchend", end, { passive: true });
+    return () => {
+      window.removeEventListener("touchstart", start);
+      window.removeEventListener("touchend", end);
+    };
+  }, [stack.length]);
 
   const { data: families } = useLiveData(
     () => (user ? store.listFamilies(user.id) : Promise.resolve([])),
