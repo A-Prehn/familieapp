@@ -1,5 +1,6 @@
 import UIKit
 import CloudKit
+import UserNotifications
 
 extension Notification.Name {
     static let cloudKitShareAccepted = Notification.Name("mindebog.cloudKitShareAccepted")
@@ -7,6 +8,15 @@ extension Notification.Name {
 
 // Nødvendig for at modtage CloudKit-delelinks (iOS kalder scene-delegaten).
 final class AppDelegate: NSObject, UIApplicationDelegate {
+    private let notificationDelegate = NotificationDelegate()
+
+    func application(_ application: UIApplication,
+                     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
+        UNUserNotificationCenter.current().delegate = notificationDelegate
+        Task { @MainActor in NotificationManager.refreshOnLaunch() }
+        return true
+    }
+
     func application(_ application: UIApplication,
                      configurationForConnecting connectingSceneSession: UISceneSession,
                      options: UIScene.ConnectionOptions) -> UISceneConfiguration {

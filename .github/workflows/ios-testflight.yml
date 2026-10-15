@@ -88,8 +88,14 @@ jobs:
             --team_id "$TEAM_ID" \
             --output_path ios/profiles \
             --filename Mindebog_AppStore.mobileprovision \
-            --skip_install false
+            --skip_install false \
+            --force
           rm -f /tmp/asc_key.json
+          # Push (CloudKit-notifikationer) kræver aps-environment i profilen.
+          if ! security cms -D -i ios/profiles/Mindebog_AppStore.mobileprovision | grep -q "aps-environment"; then
+            echo "::error::Profilen mangler Push Notifications. Slå 'Push Notifications' til på App ID'et net.prehn.mindebog i developer.apple.com."
+            exit 1
+          fi
           echo "PROFILE_UUID=$(/usr/libexec/PlistBuddy -c 'Print :UUID' /dev/stdin <<< "$(security cms -D -i ios/profiles/Mindebog_AppStore.mobileprovision)")" >> "$GITHUB_ENV"
           echo "PROFILE_NAME=$(/usr/libexec/PlistBuddy -c 'Print :Name' /dev/stdin <<< "$(security cms -D -i ios/profiles/Mindebog_AppStore.mobileprovision)")" >> "$GITHUB_ENV"
 

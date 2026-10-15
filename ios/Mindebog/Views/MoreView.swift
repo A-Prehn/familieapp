@@ -6,6 +6,9 @@ struct MoreView: View {
     @State private var members: [AppUser] = []
     @State private var invite: String?
     @State private var busy = false
+    @State private var notificationsOn = NotificationManager.isEnabled
+    @State private var notificationMessage: String?
+    @State private var notificationBusy = false
 
     var body: some View {
         List {
@@ -38,6 +41,20 @@ struct MoreView: View {
                 }
             }
 
+            Section {
+                Toggle(isOn: Binding(get: { notificationsOn }, set: { on in Task { await setNotifications(on) } })) {
+                    Label("Nyt i familien", systemImage: "bell")
+                }
+                .disabled(notificationBusy || !state.usingCloud)
+                if let notificationMessage {
+                    Text(notificationMessage).font(.footnote).foregroundStyle(Theme.rose)
+                }
+            } header: {
+                Text("Notifikationer")
+            } footer: {
+                Text("Få besked når den anden forælder lægger noget nyt op.")
+            }
+
             Section("Konto") {
                 if let user = state.user { Text("Logget ind som \(user.name)") }
                 Label(state.usingCloud ? "Data gemmes i din iCloud" : "Data gemmes kun i hukommelsen (ingen iCloud)",
@@ -55,6 +72,27 @@ struct MoreView: View {
         guard let familyId = state.familyId else { return }
         family = try? await state.store.families(for: state.user?.id ?? "").first { $0.id == familyId }
         members = (try? await state.store.members(familyId: familyId)) ?? []
+    }
+
+    private func setNotifications(_ on: Bool) async {
+        notificationBusy = true
+        notificationMessage = nil
+        if on {
+            switch await NotificationManager.enable() {
+            case .enabled:
+                notificationsOn = true
+            case .denied:
+                notificationsOn = false
+                notificationMessage = "Notifikationer er slået fra for Mindebog. Slå dem til i iPhonens Indstillinger → Mindebog → Notifikationer."
+            case .failed(let message):
+                notificationsOn = false
+                notificationMessage = "Kunne ikke slå notifikationer til: \(message)"
+            }
+        } else {
+            await NotificationManager.disable()
+            notificationsOn = false
+        }
+        notificationBusy = false
     }
 
     private func makeInvite() async {
