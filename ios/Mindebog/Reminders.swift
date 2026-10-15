@@ -10,6 +10,25 @@ enum Reminders {
     private static let prefix = "reminder_"
     private static let hour = 10
 
+    /// Hvor ofte man mindes om mavebilledet, mens barnet er på vej.
+    enum BellyInterval: Int, CaseIterable, Identifiable {
+        case weekly = 1, biweekly = 2, monthly = 4   // antal uger
+        var id: Int { rawValue }
+        var label: String {
+            switch self {
+            case .weekly: return "Hver uge"
+            case .biweekly: return "Hver 14. dag"
+            case .monthly: return "Hver måned"
+            }
+        }
+    }
+    private static let bellyIntervalKey = "mindebog.bellyReminderWeeks"
+
+    static var bellyInterval: BellyInterval {
+        get { BellyInterval(rawValue: UserDefaults.standard.integer(forKey: bellyIntervalKey)) ?? .biweekly }
+        set { UserDefaults.standard.set(newValue.rawValue, forKey: bellyIntervalKey) }
+    }
+
     static var isEnabled: Bool { UserDefaults.standard.bool(forKey: enabledKey) }
 
     /// Slår til (spørger om tilladelse) og planlægger. Returnerer false hvis brugeren afviste.
@@ -66,15 +85,23 @@ enum Reminders {
                                    body: "Tag månedens billede til Måned for måned."))
             }
         } else if let due = child.dueDate, due > now {
-            // Graviditetsuger: uge 1 starter 40 uger før termin.
+            // Graviditetsuger: uge 1 starter 40 uger før termin. Påmind hver uge, hver 14. dag
+            // eller hver måned (4 uger) — fra uge 4, så rækken af mavebilleder bliver jævn.
             guard let start = cal.date(byAdding: .day, value: -280, to: due) else { return out }
-            for week in 4...41 where out.count < limit {
+            let step = bellyInterval.rawValue
+            let what: String
+            switch bellyInterval {
+            case .weekly: what = "ugens mavebillede"
+            case .biweekly: what = "et nyt mavebillede"
+            case .monthly: what = "månedens mavebillede"
+            }
+            for week in stride(from: 4, through: 41, by: step) where out.count < limit {
                 guard let day = cal.date(byAdding: .day, value: (week - 1) * 7, to: start),
                       let fire = cal.date(bySettingHour: hour, minute: 0, second: 0, of: day),
                       fire > now, fire < due else { continue }
                 out.append(request(id: "\(prefix)\(child.id)_w\(week)", fire: fire,
                                    title: "Uge \(week) i dag 🤰",
-                                   body: "Tag ugens mavebillede til Maven måned for måned."))
+                                   body: "Tid til \(what) af \(child.name) til Maven måned for måned."))
             }
         }
         return out

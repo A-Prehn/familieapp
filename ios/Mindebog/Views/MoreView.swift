@@ -13,6 +13,7 @@ struct MoreView: View {
     @State private var notificationMessage: String?
     @State private var notificationBusy = false
     @State private var remindersOn = Reminders.isEnabled
+    @State private var bellyInterval = Reminders.bellyInterval
 
     var body: some View {
         List {
@@ -72,12 +73,25 @@ struct MoreView: View {
                     Text(notificationMessage).font(.footnote).foregroundStyle(Theme.rose)
                 }
                 Toggle(isOn: Binding(get: { remindersOn }, set: { on in Task { await setReminders(on) } })) {
-                    Label("Månedlig påmindelse", systemImage: "calendar.badge.clock")
+                    Label("Påmindelse om billeder", systemImage: "calendar.badge.clock")
+                }
+                if remindersOn {
+                    Picker(selection: Binding(
+                        get: { bellyInterval },
+                        set: { value in
+                            bellyInterval = value
+                            Reminders.bellyInterval = value
+                            Task { await rescheduleReminders() }
+                        })) {
+                        ForEach(Reminders.BellyInterval.allCases) { Text($0.label).tag($0) }
+                    } label: {
+                        Label("Mavebillede (barn på vej)", systemImage: "leaf")
+                    }
                 }
             } header: {
                 Text("Notifikationer")
             } footer: {
-                Text("Få besked når den anden forælder lægger noget nyt op — og en påmindelse på hver månedsdag (eller ny graviditetsuge), så I husker månedens billede.")
+                Text("Få besked når den anden forælder lægger noget nyt op. Påmindelsen kommer på hver månedsdag for børn, der er født — og for et barn på vej så ofte som du vælger, så I husker mavebilledet.")
             }
 
             Section {
@@ -184,6 +198,11 @@ struct MoreView: View {
             notificationsOn = false
         }
         notificationBusy = false
+    }
+
+    private func rescheduleReminders() async {
+        let kids = (try? await state.store.children(familyId: state.familyId ?? "")) ?? []
+        await Reminders.schedule(children: kids)
     }
 
     private func setReminders(_ on: Bool) async {
