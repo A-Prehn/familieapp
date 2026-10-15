@@ -51,7 +51,7 @@ struct DiaryView: View {
             Text(entry.text).font(.body).foregroundStyle(Theme.text)
             if let photo = entry.photo {
                 Color.clear
-                    .aspectRatio(4.0 / 3.0, contentMode: .fit)
+                    .aspectRatio(ImageTools.displayAspect(photo), contentMode: .fit)   // billedets egen form
                     .overlay { DataImage(data: photo) }
                     .clipShape(RoundedRectangle(cornerRadius: 8))
                     .onTapGesture { lightbox = LightboxState(photos: [photo]) }

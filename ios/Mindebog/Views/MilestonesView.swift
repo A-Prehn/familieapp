@@ -36,7 +36,7 @@ struct MilestonesView: View {
             Group {
                 if let photos = entry?.photos, !photos.isEmpty {
                     // Forsidebillede + billedtekst + "+N"; tryk viser alle billeder.
-                    CoverPhotoView(set: photos, cornerRadius: 0) { lightbox = $0 }
+                    CoverPhotoView(set: photos, aspect: 4.0 / 3.0, cornerRadius: 0) { lightbox = $0 }
                 } else {
                     Color.clear
                         .aspectRatio(4.0 / 3.0, contentMode: .fit)

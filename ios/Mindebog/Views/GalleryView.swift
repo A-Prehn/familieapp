@@ -63,7 +63,7 @@ struct GalleryView: View {
             }
             if let photo = item.photo {
                 Color.clear
-                    .aspectRatio(4.0 / 5.0, contentMode: .fit)
+                    .aspectRatio(ImageTools.displayAspect(photo), contentMode: .fit)
                     .overlay { DataImage(data: photo) }
                     .clipShape(RoundedRectangle(cornerRadius: 8))
                     .onTapGesture { openLightbox(at: item) }

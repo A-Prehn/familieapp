@@ -52,7 +52,7 @@ struct HighlightsView: View {
                 .foregroundStyle(Theme.text)
             ForEach(highlight.photos.indices, id: \.self) { index in
                 Color.clear
-                    .aspectRatio(4.0 / 3.0, contentMode: .fit)
+                    .aspectRatio(ImageTools.displayAspect(highlight.photos[index]), contentMode: .fit)
                     .overlay { DataImage(data: highlight.photos[index]) }
                     .clipShape(RoundedRectangle(cornerRadius: 8))
                     .onTapGesture {

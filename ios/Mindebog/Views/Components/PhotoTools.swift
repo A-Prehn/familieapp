@@ -18,6 +18,15 @@ enum ImageTools {
         }
         return output.jpegData(compressionQuality: 0.8)
     }
+
+    /// Billedets egen form til visning på kort — så intet beskæres væk.
+    /// Begrænset til mellem 3:4 (portræt) og 16:9 (landskab), så et meget højt
+    /// billede ikke fylder hele skærmen.
+    static func displayAspect(_ data: Data) -> CGFloat {
+        guard let image = UIImage(data: data), image.size.height > 0 else { return 4.0 / 3.0 }
+        let ratio = image.size.width / image.size.height
+        return min(max(ratio, 3.0 / 4.0), 16.0 / 9.0)
+    }
 }
 
 // Viser billeddata; fylder sin ramme.
@@ -36,11 +45,19 @@ struct DataImage: View {
     }
 }
 
-// Foto-felt til formularer (vælg / skift / fjern).
+/// Billede der skal beskæres (index bruges når det er ét af flere).
+struct CropTarget: Identifiable {
+    let id = UUID()
+    let image: UIImage
+    var index: Int = 0
+}
+
+// Foto-felt til formularer (vælg / beskær / skift / fjern).
 struct PhotoField: View {
     @Binding var data: Data?
     var title: String = "Vælg billede"
     @State private var pickerItem: PhotosPickerItem?
+    @State private var cropping: CropTarget?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -49,17 +66,24 @@ struct PhotoField: View {
                     .frame(maxHeight: 220)
                     .clipShape(RoundedRectangle(cornerRadius: 10))
             }
-            HStack {
+            HStack(spacing: 16) {
                 PhotosPicker(selection: $pickerItem, matching: .images) {
                     Label(data == nil ? title : "Vælg et andet", systemImage: "photo")
                 }
                 .buttonStyle(.borderless)
-                if data != nil {
+                if let data, let image = UIImage(data: data) {
+                    Button { cropping = CropTarget(image: image) } label: {
+                        Label("Beskær", systemImage: "crop")
+                    }
+                    .buttonStyle(.borderless)
                     Spacer()
-                    Button("Fjern", role: .destructive) { data = nil }
+                    Button("Fjern", role: .destructive) { self.data = nil }
                         .buttonStyle(.borderless)
                 }
             }
+        }
+        .fullScreenCover(item: $cropping) { target in
+            CropView(image: target.image) { data = $0 }
         }
         .onChange(of: pickerItem) { _, newItem in
             guard let newItem else { return }
@@ -77,6 +101,7 @@ struct PhotoField: View {
 struct MultiPhotoField: View {
     @Binding var photos: [Data]
     @State private var pickerItem: PhotosPickerItem?
+    @State private var cropping: CropTarget?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -87,17 +112,33 @@ struct MultiPhotoField: View {
                         .frame(maxHeight: 180)
                         .clipShape(RoundedRectangle(cornerRadius: 10))
                         .overlay(alignment: .topTrailing) {
-                            Button {
-                                if photos.indices.contains(index) { photos.remove(at: index) }
-                            } label: {
-                                Image(systemName: "xmark.circle.fill")
-                                    .font(.title3)
-                                    .symbolRenderingMode(.palette)
-                                    .foregroundStyle(.white, .black.opacity(0.55))
-                                    .padding(6)
+                            HStack(spacing: 0) {
+                                Button {
+                                    if let image = UIImage(data: photo) {
+                                        cropping = CropTarget(image: image, index: index)
+                                    }
+                                } label: {
+                                    Image(systemName: "crop")
+                                        .font(.system(size: 13, weight: .semibold))
+                                        .foregroundStyle(.white)
+                                        .frame(width: 28, height: 28)
+                                        .background(Circle().fill(.black.opacity(0.55)))
+                                        .padding(6)
+                                }
+                                .buttonStyle(.borderless)
+                                .accessibilityLabel("Beskær billede")
+                                Button {
+                                    if photos.indices.contains(index) { photos.remove(at: index) }
+                                } label: {
+                                    Image(systemName: "xmark.circle.fill")
+                                        .font(.title3)
+                                        .symbolRenderingMode(.palette)
+                                        .foregroundStyle(.white, .black.opacity(0.55))
+                                        .padding(6)
+                                }
+                                .buttonStyle(.borderless)
+                                .accessibilityLabel("Fjern billede")
                             }
-                            .buttonStyle(.borderless)
-                            .accessibilityLabel("Fjern billede")
                         }
                 }
             }
@@ -105,6 +146,11 @@ struct MultiPhotoField: View {
                 Label("Tilføj billede", systemImage: "photo.badge.plus")
             }
             .buttonStyle(.borderless)
+        }
+        .fullScreenCover(item: $cropping) { target in
+            CropView(image: target.image) { cropped in
+                if photos.indices.contains(target.index) { photos[target.index] = cropped }
+            }
         }
         .onChange(of: pickerItem) { _, newItem in
             guard let newItem else { return }
@@ -125,6 +171,7 @@ struct MultiPhotoField: View {
 struct PhotoSetEditor: View {
     @Binding var set: PhotoSet
     @State private var pickerItems: [PhotosPickerItem] = []
+    @State private var cropping: CropTarget?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -162,6 +209,14 @@ struct PhotoSetEditor: View {
                             .tint(Theme.rose)
                             .disabled(index == set.coverIndex)
                             Spacer()
+                            Button {
+                                if let image = UIImage(data: photo) {
+                                    cropping = CropTarget(image: image, index: index)
+                                }
+                            } label: {
+                                Image(systemName: "crop")
+                            }
+                            .accessibilityLabel("Beskær billede")
                             Button(role: .destructive) {
                                 set.remove(at: index)
                             } label: {
@@ -177,6 +232,11 @@ struct PhotoSetEditor: View {
                 Label(set.isEmpty ? "Vælg billeder" : "Tilføj flere billeder", systemImage: "photo.badge.plus")
             }
             .buttonStyle(.borderless)
+        }
+        .fullScreenCover(item: $cropping) { target in
+            CropView(image: target.image) { cropped in
+                if set.photos.indices.contains(target.index) { set.photos[target.index] = cropped }
+            }
         }
         .onChange(of: pickerItems) { _, items in
             guard !items.isEmpty else { return }
@@ -197,7 +257,8 @@ struct PhotoSetEditor: View {
 /// Tryk åbner alle billeder i fuld skærm, startende ved forsiden.
 struct CoverPhotoView: View {
     let set: PhotoSet
-    var aspect: CGFloat = 4.0 / 3.0
+    /// nil = billedets egen form (kort i tidslinjer); fast tal = ens felter (fx milepæls-gitteret).
+    var aspect: CGFloat? = nil
     var cornerRadius: CGFloat = 8
     var showCaption = true
     let onOpen: (LightboxState) -> Void
@@ -205,7 +266,7 @@ struct CoverPhotoView: View {
     var body: some View {
         if let cover = set.coverPhoto {
             Color.clear
-                .aspectRatio(aspect, contentMode: .fit)
+                .aspectRatio(aspect ?? ImageTools.displayAspect(cover), contentMode: .fit)
                 .overlay { DataImage(data: cover) }
                 .overlay(alignment: .bottom) {
                     if showCaption && !set.coverCaption.isEmpty || set.count > 1 {
