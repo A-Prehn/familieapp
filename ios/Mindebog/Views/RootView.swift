@@ -26,6 +26,21 @@ enum MainTab: Int, CaseIterable, Hashable {
 struct MainTabView: View {
     @State private var selection: MainTab = .home
 
+    init() {
+        // Ikke-valgte faner i appens dæmpede grå i stedet for sort (valgt fane = Theme.tint).
+        let muted = UIColor(Theme.muted)
+        UITabBar.appearance().unselectedItemTintColor = muted
+        let appearance = UITabBarAppearance()
+        appearance.configureWithDefaultBackground()
+        for layout in [appearance.stackedLayoutAppearance, appearance.inlineLayoutAppearance,
+                       appearance.compactInlineLayoutAppearance] {
+            layout.normal.iconColor = muted
+            layout.normal.titleTextAttributes = [.foregroundColor: muted]
+        }
+        UITabBar.appearance().standardAppearance = appearance
+        UITabBar.appearance().scrollEdgeAppearance = appearance
+    }
+
     var body: some View {
         TabView(selection: $selection) {
             NavigationStack { HomeView().tabSwipe(.home, selection: $selection) }
