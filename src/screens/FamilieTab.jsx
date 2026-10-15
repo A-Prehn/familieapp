@@ -23,7 +23,8 @@ function childSub(c) {
   return ageFromBirth(c.birthDate) || "Ingen fødselsdato";
 }
 
-export default function FamilieTab({ nav }) {
+// mode "children" = Familie-fanen (børnene), mode "shared" = Fælles-fanen.
+export default function FamilieTab({ nav, mode = "children" }) {
   const { familyId, store } = useApp();
   const [sub, setSub] = useState("events");
   const { data: family } = useLiveData(() => store.getFamily(familyId), [familyId]);
@@ -46,12 +47,12 @@ export default function FamilieTab({ nav }) {
     <>
       <div className="nav">
         <span style={{ width: 52 }} />
-        <div className="title">{family?.name || "Familie"}</div>
-        <button className="action" onClick={openAdd} aria-label="Tilføj"><Plus size={22} strokeWidth={1.8} /></button>
+        <div className="title">{mode === "shared" ? "Fælles" : family?.name || "Familie"}</div>
+        <button className="action" onClick={mode === "shared" ? openAdd : () => nav.push("newChild")} aria-label="Tilføj"><Plus size={22} strokeWidth={1.8} /></button>
       </div>
       <div className="content">
-        <div className="section-label" style={{ marginTop: 4 }}>Vores børn</div>
-        {children == null ? null : (
+        {mode === "children" && <div className="section-label" style={{ marginTop: 4 }}>Vores børn</div>}
+        {mode !== "children" || children == null ? null : (
           <div className="home-grid">
             {children.map((c) => {
               const a = AVATAR[c.gender] || AVATAR.unspecified;
@@ -70,16 +71,18 @@ export default function FamilieTab({ nav }) {
           </div>
         )}
 
-        <div className="section-label">Fælles</div>
-        <div className="subnav">
-          {SUBS.map(([k, l]) => (
-            <button key={k} className={sub === k ? "active" : ""} onClick={() => setSub(k)}>{l}</button>
-          ))}
-        </div>
-
-        {sub === "events" && <Events events={family?.events || []} onPhoto={setLb} />}
-        {sub === "vacations" && <Vacations vacations={family?.vacations || []} onPhoto={setLb} />}
-        {sub === "birthdays" && <Birthdays family={family} children={children || []} />}
+        {mode === "shared" && (
+          <>
+            <div className="subnav">
+              {SUBS.map(([k, l]) => (
+                <button key={k} className={sub === k ? "active" : ""} onClick={() => setSub(k)}>{l}</button>
+              ))}
+            </div>
+            {sub === "events" && <Events events={family?.events || []} onPhoto={setLb} />}
+            {sub === "vacations" && <Vacations vacations={family?.vacations || []} onPhoto={setLb} />}
+            {sub === "birthdays" && <Birthdays family={family} children={children || []} />}
+          </>
+        )}
       </div>
 
       {adding && (

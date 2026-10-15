@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { House, Users, Settings } from "lucide-react";
+import { House, Users, CalendarHeart, Settings } from "lucide-react";
 import { AppProvider, useApp, useLiveData } from "./lib/AppContext";
 import SignIn from "./screens/SignIn";
 import Onboarding from "./screens/Onboarding";
@@ -17,6 +17,7 @@ import Milestones from "./screens/Milestones";
 const TABS = [
   { key: "home", label: "Hjem", Icon: House },
   { key: "familie", label: "Familie", Icon: Users },
+  { key: "faelles", label: "Fælles", Icon: CalendarHeart },
   { key: "settings", label: "Mere", Icon: Settings },
 ];
 
@@ -90,7 +91,8 @@ function Shell() {
 
   // Root-faner (med tabbar).
   let root;
-  if (tab === "familie") root = <FamilieTab nav={nav} />;
+  if (tab === "familie") root = <FamilieTab key="children" nav={nav} mode="children" />;
+  else if (tab === "faelles") root = <FamilieTab key="shared" nav={nav} mode="shared" />;
   else if (tab === "settings") root = <SettingsTab nav={nav} />;
   else root = <HomeTab nav={nav} />;
 
