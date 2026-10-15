@@ -144,11 +144,19 @@ jobs:
       - name: Upload til TestFlight (altool via API-nøgle)
         working-directory: ios
         run: |
+          # altool kan afslutte med kode 0 selv om upload fejlede (set i kørsel #9),
+          # så vi tjekker outputtet eksplicit.
+          set -o pipefail
           xcrun altool --upload-app \
             --type ios \
             --file "build/export/Mindebog.ipa" \
             --apiKey "${{ secrets.ASC_KEY_ID }}" \
-            --apiIssuer "${{ secrets.ASC_ISSUER_ID }}"
+            --apiIssuer "${{ secrets.ASC_ISSUER_ID }}" 2>&1 | tee altool.log
+          if grep -q "UPLOAD FAILED\|ERROR:" altool.log; then
+            echo "::error::altool rapporterede fejl — se loggen ovenfor"
+            exit 1
+          fi
+          grep -q "UPLOAD SUCCEEDED\|No errors uploading" altool.log || { echo "::error::Ingen succes-bekræftelse fra altool"; exit 1; }
 
       - name: Ryd op
         if: always()
