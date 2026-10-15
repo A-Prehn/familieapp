@@ -27,18 +27,8 @@ struct MainTabView: View {
     @State private var selection: MainTab = .home
 
     init() {
-        // Ikke-valgte faner i appens dæmpede grå i stedet for sort (valgt fane = Theme.tint).
-        let muted = UIColor(Theme.muted)
-        UITabBar.appearance().unselectedItemTintColor = muted
-        let appearance = UITabBarAppearance()
-        appearance.configureWithDefaultBackground()
-        for layout in [appearance.stackedLayoutAppearance, appearance.inlineLayoutAppearance,
-                       appearance.compactInlineLayoutAppearance] {
-            layout.normal.iconColor = muted
-            layout.normal.titleTextAttributes = [.foregroundColor: muted]
-        }
-        UITabBar.appearance().standardAppearance = appearance
-        UITabBar.appearance().scrollEdgeAppearance = appearance
+        // Kun farven sættes — ingen egen UITabBarAppearance, så iOS 26 beholder Liquid Glass.
+        UITabBar.appearance().unselectedItemTintColor = UIColor(Theme.muted)
     }
 
     var body: some View {
@@ -61,15 +51,20 @@ struct MainTabView: View {
         }
     }
 
-    // iOS 26's glas-tabbar ignorerer UITabBarAppearance for ikonfarver, så ikonerne
-    // tegnes som færdigfarvede billeder: dæmpet grå når ikke valgt, appens blå når valgt.
+    // iOS 26's glas-tabbar farver selv ikonerne sort/hvid. Ikonerne tegnes derfor som
+    // færdigfarvede billeder, og SwiftUI får eksplicit besked på at beholde farven
+    // (.renderingMode(.original)) — ellers laves de om til skabeloner igen.
     private func tabLabel(_ title: String, _ symbol: String, _ tab: MainTab) -> some View {
         let selected = selection == tab
-        let color = UIColor(selected ? Theme.tint : Theme.muted)
+        let color = selected ? Theme.tint : Theme.muted
         let config = UIImage.SymbolConfiguration(pointSize: 22, weight: selected ? .semibold : .regular)
         let image = (UIImage(systemName: symbol, withConfiguration: config) ?? UIImage())
-            .withTintColor(color, renderingMode: .alwaysOriginal)
-        return Label { Text(title) } icon: { Image(uiImage: image) }
+            .withTintColor(UIColor(color), renderingMode: .alwaysOriginal)
+        return Label {
+            Text(title).foregroundStyle(color)
+        } icon: {
+            Image(uiImage: image).renderingMode(.original)
+        }
     }
 }
 
