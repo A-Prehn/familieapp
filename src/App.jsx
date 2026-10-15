@@ -1,42 +1,95 @@
 import { useState } from "react";
-import { AppProvider, useApp } from "./lib/AppContext";
+import { AppProvider, useApp, useLiveData } from "./lib/AppContext";
 import SignIn from "./screens/SignIn";
-import ChildList from "./screens/ChildList";
-import NewChild from "./screens/NewChild";
+import Onboarding from "./screens/Onboarding";
+import HomeTab from "./screens/HomeTab";
+import FamilieTab from "./screens/FamilieTab";
+import SettingsTab from "./screens/SettingsTab";
 import ChildDetail from "./screens/ChildDetail";
-import NewPost from "./screens/NewPost";
-import ShareChild from "./screens/ShareChild";
+import NewChild from "./screens/NewChild";
+import Highlights from "./screens/Highlights";
+import Diary from "./screens/Diary";
+import Gallery from "./screens/Gallery";
+import AboutMe from "./screens/AboutMe";
+import Milestones from "./screens/Milestones";
 
-function Router() {
-  const { user, ready } = useApp();
-  // Simpel navigationsstak: hvert element er { name, params }.
-  const [stack, setStack] = useState([{ name: "home" }]);
+const TABS = [
+  { key: "home", label: "Hjem", icon: "🏠" },
+  { key: "familie", label: "Familie", icon: "👨‍👩‍👧" },
+  { key: "settings", label: "Mere", icon: "⚙️" },
+];
 
-  const push = (name, params = {}) => setStack((s) => [...s, { name, params }]);
-  const pop = () => setStack((s) => (s.length > 1 ? s.slice(0, -1) : s));
-  const reset = () => setStack([{ name: "home" }]);
-  const nav = { push, pop, reset };
+function Shell() {
+  const { user, familyId, ready, store } = useApp();
+  const [tab, setTab] = useState("home");
+  const [stack, setStack] = useState([]);
+
+  const nav = {
+    push: (name, params = {}) => setStack((s) => [...s, { name, params }]),
+    pop: () => setStack((s) => s.slice(0, -1)),
+    reset: () => setStack([]),
+  };
+  const switchTab = (t) => { setTab(t); setStack([]); };
+
+  const { data: families } = useLiveData(
+    () => (user ? store.listFamilies(user.id) : Promise.resolve([])),
+    [user?.id]
+  );
 
   if (!ready) return <div className="phone" />;
   if (!user) return <div className="phone"><SignIn /></div>;
-
-  const top = stack[stack.length - 1];
-  let screen;
-  switch (top.name) {
-    case "newChild": screen = <NewChild nav={nav} />; break;
-    case "child": screen = <ChildDetail nav={nav} childId={top.params.childId} />; break;
-    case "newPost": screen = <NewPost nav={nav} childId={top.params.childId} />; break;
-    case "share": screen = <ShareChild nav={nav} childId={top.params.childId} />; break;
-    default: screen = <ChildList nav={nav} />;
+  // Ingen familie endnu → onboarding (opret eller deltag via kode).
+  if (families && families.length === 0 && !familyId) {
+    return <div className="phone"><Onboarding /></div>;
   }
 
-  return <div className="phone">{screen}</div>;
+  // Drill-down skærme (tabbar skjult).
+  if (stack.length) {
+    const top = stack[stack.length - 1];
+    const p = top.params;
+    let screen;
+    switch (top.name) {
+      case "child": screen = <ChildDetail nav={nav} childId={p.childId} />; break;
+      case "newChild": screen = <NewChild nav={nav} />; break;
+      case "highlights": screen = <Highlights nav={nav} childId={p.childId} />; break;
+      case "diary": screen = <Diary nav={nav} childId={p.childId} />; break;
+      case "gallery": screen = <Gallery nav={nav} childId={p.childId} kind={p.kind} />; break;
+      case "aboutMe": screen = <AboutMe nav={nav} childId={p.childId} />; break;
+      case "milestones": screen = <Milestones nav={nav} childId={p.childId} />; break;
+      default: screen = null;
+    }
+    return <div className="phone">{screen}</div>;
+  }
+
+  // Root-faner (med tabbar).
+  let root;
+  if (tab === "familie") root = <FamilieTab nav={nav} />;
+  else if (tab === "settings") root = <SettingsTab nav={nav} />;
+  else root = <HomeTab nav={nav} />;
+
+  return (
+    <div className="phone">
+      <div className="tab-content">{root}</div>
+      <nav className="tabbar">
+        {TABS.map((t) => (
+          <button
+            key={t.key}
+            className={`tabbar-btn ${tab === t.key ? "active" : ""}`}
+            onClick={() => switchTab(t.key)}
+          >
+            <span className="tabbar-icon">{t.icon}</span>
+            <span className="tabbar-label">{t.label}</span>
+          </button>
+        ))}
+      </nav>
+    </div>
+  );
 }
 
 export default function App() {
   return (
     <AppProvider>
-      <Router />
+      <Shell />
     </AppProvider>
   );
 }

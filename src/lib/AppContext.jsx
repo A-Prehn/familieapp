@@ -3,42 +3,62 @@ import { store } from "./store";
 
 const AppContext = createContext(null);
 const SESSION_KEY = "familieapp.session";
+const FAMILY_KEY = "familieapp.family";
 
 export function AppProvider({ children }) {
   const [user, setUser] = useState(null);
+  const [familyId, setFamilyIdState] = useState(null);
   const [ready, setReady] = useState(false);
 
-  // Genskab session (hvilken bruger er "logget ind" lige nu).
   useEffect(() => {
     (async () => {
       const id = localStorage.getItem(SESSION_KEY);
-      if (id) setUser(await store.getUser(id));
+      if (id) {
+        const u = await store.getUser(id);
+        setUser(u);
+        if (u) {
+          const fams = await store.listFamilies(u.id);
+          const savedFam = localStorage.getItem(FAMILY_KEY);
+          const pick = fams.find((f) => f.id === savedFam) || fams[0];
+          if (pick) setFamilyIdState(pick.id);
+        }
+      }
       setReady(true);
     })();
+  }, []);
+
+  const setFamilyId = useCallback((id) => {
+    if (id) localStorage.setItem(FAMILY_KEY, id);
+    else localStorage.removeItem(FAMILY_KEY);
+    setFamilyIdState(id);
   }, []);
 
   const signIn = useCallback(async (name) => {
     const u = await store.signIn(name);
     localStorage.setItem(SESSION_KEY, u.id);
     setUser(u);
+    setFamilyIdState(null);
     return u;
   }, []);
 
   const switchUser = useCallback(async (id) => {
     const u = await store.getUser(id);
-    if (u) {
-      localStorage.setItem(SESSION_KEY, u.id);
-      setUser(u);
-    }
-  }, []);
+    if (!u) return;
+    localStorage.setItem(SESSION_KEY, u.id);
+    setUser(u);
+    const fams = await store.listFamilies(u.id);
+    setFamilyId(fams[0]?.id || null);
+  }, [setFamilyId]);
 
   const signOut = useCallback(() => {
     localStorage.removeItem(SESSION_KEY);
+    localStorage.removeItem(FAMILY_KEY);
     setUser(null);
+    setFamilyIdState(null);
   }, []);
 
   return (
-    <AppContext.Provider value={{ user, ready, store, signIn, switchUser, signOut }}>
+    <AppContext.Provider value={{ user, familyId, ready, store, signIn, switchUser, signOut, setFamilyId }}>
       {children}
     </AppContext.Provider>
   );
@@ -50,7 +70,7 @@ export function useApp() {
   return ctx;
 }
 
-// Hook der genindlæser data når store'en ændrer sig (realtids-ish).
+// Genindlæser data når store'en ændrer sig (realtids-ish).
 export function useLiveData(loader, deps = []) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -66,7 +86,7 @@ export function useLiveData(loader, deps = []) {
     refresh();
     const onChange = () => refresh();
     window.addEventListener("familieapp:changed", onChange);
-    window.addEventListener("storage", onChange); // ændringer fra andre faner
+    window.addEventListener("storage", onChange);
     return () => {
       window.removeEventListener("familieapp:changed", onChange);
       window.removeEventListener("storage", onChange);

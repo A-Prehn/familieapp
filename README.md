@@ -14,12 +14,18 @@ Denne prototype findes for at ramme UI/UX hurtigt i browseren, hvor flowet kan
 køres og verificeres. Den **rigtige app bygges bagefter i SwiftUI + CloudKit**
 (fase 2). Datalaget her er bevidst skrevet så det 1:1 kan erstattes af CloudKit.
 
-### MVP der er bygget og verificeret
-1. ✅ Log ind (mock Sign in with Apple)
-2. ✅ Opret barn + se det
-3. ✅ Læg opslag med foto op
-4. ✅ Del barn med partner (invitationskode)
-5. ✅ Begge forældre ser hinandens opslag
+### Bygget og verificeret
+Hele website-strukturen fra familie.prehn.net er nu integreret, generaliseret til
+flere familier:
+
+- ✅ Log ind (mock Sign in with Apple) + onboarding (opret/deltag i familie)
+- ✅ Bund-tabbar: **Hjem**, **Familie**, **Mere**
+- ✅ Familie-enhed ejer børn + fælles indhold; deling på familie-niveau (kode)
+- ✅ Pr. barn: Højdepunkter (tidslinje), Dagbog, Maven måned for måned,
+  Måned for måned, Om dig (Q&A), Milepæle (stort gitter m. foto)
+- ✅ Baby "på vej": termin-nedtælling
+- ✅ Familie: Begivenheder, Ferier (tidslinje), Fødselsdage (auto + manuelle)
+- ✅ Foto-upload + lightbox med swipe
 
 ## Kør lokalt
 ```bash
@@ -55,3 +61,9 @@ med **samme metoder**, og UI-laget ændres ikke.
 ## Must-haves (fordi den er offentlig)
 - Privatlivspolitik + GDPR (data om **børn** → dataminimering, samtykke, sletteret)
 - Apple Developer-abonnement (~$99/år), App Store-review, support
+
+## Forretningsmodel (planlagt, fase 2+)
+Betaling skal bygges ind. Arkitekturen understøtter det: alt hænger på en
+familie-enhed, så abonnement/feature-gating kan lægges pr. familie uden ombygning
+(fx gratis = 1 barn / premium = ubegrænset + ekstra sektioner). Afklares senere —
+model, pris, og StoreKit/abonnement i SwiftUI.

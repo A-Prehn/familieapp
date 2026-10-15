@@ -1,58 +1,71 @@
 import { useApp, useLiveData } from "../lib/AppContext";
+import { ScreenHeader } from "../components/ui";
+import { daysUntil, ageFromBirth, MONTHS_FULL, MILESTONES } from "../lib/constants";
 
-function when(ts) {
-  const d = new Date(ts);
-  return d.toLocaleDateString("da-DK", { day: "numeric", month: "short", year: "numeric" });
-}
+const AVATAR = {
+  boy: { cls: "blue", emoji: "👦" },
+  girl: { cls: "pink", emoji: "👧" },
+  unspecified: { cls: "", emoji: "🧒" },
+};
 
 export default function ChildDetail({ nav, childId }) {
   const { store } = useApp();
   const { data: child } = useLiveData(() => store.getChild(childId), [childId]);
-  const { data: posts } = useLiveData(() => store.listPosts(childId), [childId]);
-  const { data: members } = useLiveData(() => store.listMembers(childId), [childId]);
+  if (!child) return <ScreenHeader title="" onBack={nav.pop} backLabel="Hjem" />;
 
-  if (!child) return null;
+  const a = AVATAR[child.gender] || AVATAR.unspecified;
+  const onTheWay = !child.birthDate && child.dueDate;
+  const due = daysUntil(child.dueDate);
+  const dueM = child.dueDate ? new Date(child.dueDate) : null;
+  const filledMs = MILESTONES.filter((m) => child.milestones?.[m.key]).length;
+  const answered = Object.values(child.aboutMe || {}).filter((v) => v && v.trim()).length;
+
+  const sections = [
+    { key: "highlights", wide: true, ico: "⭐", bg: "var(--rose-soft)", title: "Højdepunkter", sub: `${child.highlights.length} ${child.highlights.length === 1 ? "højdepunkt" : "højdepunkter"}`, go: () => nav.push("highlights", { childId }) },
+    { key: "diary", ico: "📖", bg: "var(--neutral-soft)", title: onTheWay ? "Svangerskabsdagbog" : "Dagbog", sub: `${child.diary.length} indlæg`, go: () => nav.push("diary", { childId }) },
+    { key: "belly", ico: "🤰", bg: "var(--neutral-soft)", title: "Maven måned for måned", sub: `${child.bellyGallery.length} fotos`, go: () => nav.push("gallery", { childId, kind: "bellyGallery" }) },
+    { key: "monthly", ico: "👶", bg: "var(--tint-soft)", title: "Måned for måned", sub: `${child.monthlyGallery.length} ${child.monthlyGallery.length === 1 ? "måned" : "måneder"}`, go: () => nav.push("gallery", { childId, kind: "monthlyGallery" }) },
+    { key: "about", ico: "💬", bg: "var(--rose-soft)", title: "Om dig", sub: `${answered} svar`, go: () => nav.push("aboutMe", { childId }) },
+    { key: "milestones", ico: "🌱", bg: "var(--green-soft)", title: "Milepæle", sub: `${filledMs} udfyldt`, go: () => nav.push("milestones", { childId }) },
+  ];
 
   return (
     <>
-      <div className="nav">
-        <button className="back" onClick={nav.pop}>‹ Hjem</button>
-        <div className="title">{child.name}</div>
-        <button className="action" onClick={() => nav.push("share", { childId })}>Del</button>
-      </div>
-
+      <ScreenHeader title={child.name} onBack={nav.pop} backLabel="Hjem" />
       <div className="content">
-        {members && members.length > 1 && (
-          <div style={{ marginBottom: 12 }}>
-            {members.map((m) => (
-              <span key={m.id} className="member-pill">👤 {m.name}</span>
-            ))}
-          </div>
-        )}
-
-        {posts == null ? null : posts.length === 0 ? (
-          <div className="empty">
-            <span className="emoji">📷</span>
-            Ingen opslag endnu.<br />Læg det første øjeblik op.
-          </div>
-        ) : (
-          posts.map((p) => (
-            <div key={p.id} className="card post">
-              {p.photo && <img src={p.photo} alt="" />}
-              <div className="post-body">
-                <div className="post-meta">
-                  <span>{p.authorName}</span>
-                  <span>{when(p.createdAt)}</span>
-                </div>
-                {p.text && <div className="post-text">{p.text}</div>}
+        <div className="card">
+          <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+            <div className={`avatar-lg avatar ${a.cls}`}>{a.emoji}</div>
+            <div>
+              <div style={{ fontFamily: "'Lora',serif", fontSize: 22, fontWeight: 500 }}>{child.name}</div>
+              <div style={{ fontSize: 14, color: "var(--muted)", marginTop: 2 }}>
+                {onTheWay ? "På vej" : ageFromBirth(child.birthDate) || "—"}
               </div>
             </div>
-          ))
-        )}
+          </div>
 
-        <button className="btn" onClick={() => nav.push("newPost", { childId })} style={{ marginTop: 8 }}>
-          ＋ Nyt opslag
-        </button>
+          {onTheWay && (
+            <div className="countdown">
+              <div className="countdown-number">{due > 0 ? due : 0}</div>
+              <div>
+                <div className="countdown-label">dage til termin</div>
+                {dueM && <div className="countdown-detail">Termin: {MONTHS_FULL[dueM.getMonth()]} {dueM.getFullYear()}</div>}
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="section-grid">
+          {sections.map((s) => (
+            <button key={s.key} className={`section-btn ${s.wide ? "wide" : ""}`} onClick={s.go}>
+              <div className="section-ico" style={{ background: s.bg }}>{s.ico}</div>
+              <div>
+                <div className="s-title">{s.title}</div>
+                <div className="s-sub">{s.sub}</div>
+              </div>
+            </button>
+          ))}
+        </div>
       </div>
     </>
   );
