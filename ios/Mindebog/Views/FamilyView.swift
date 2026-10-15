@@ -270,6 +270,8 @@ struct AddEventView: View {
     @State private var place: Place?
     @State private var loaded = false
     @State private var confirmDelete = false
+    @State private var saving = false
+    @State private var saveError: String?
 
     var body: some View {
         NavigationStack {
@@ -298,25 +300,28 @@ struct AddEventView: View {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Gem") {
                         Task {
-                            if var event = editing {
-                                event.title = title; event.date = date; event.details = details
-                                event.photos = photos; event.place = place
-                                _ = try? await state.store.updateEvent(familyId: familyId, event)
-                            } else {
-                                _ = try? await state.store.addEvent(familyId: familyId, title: title, date: date,
-                                                                    details: details, photos: photos, place: place)
+                            await performSave(saving: $saving, errorMessage: $saveError, dismiss: dismiss) {
+                                if var event = editing {
+                                    event.title = title; event.date = date; event.details = details
+                                    event.photos = photos; event.place = place
+                                    _ = try await state.store.updateEvent(familyId: familyId, event)
+                                } else {
+                                    _ = try await state.store.addEvent(familyId: familyId, title: title, date: date,
+                                                                       details: details, photos: photos, place: place)
+                                }
                             }
-                            dismiss()
                         }
                     }
-                    .disabled(title.trimmingCharacters(in: .whitespaces).isEmpty)
+                    .disabled(saving || title.trimmingCharacters(in: .whitespaces).isEmpty)
                 }
             }
+            .saveErrorAlert($saveError)
             .confirmationDialog("Slet \"\(title)\"?", isPresented: $confirmDelete, titleVisibility: .visible) {
                 Button("Slet", role: .destructive) {
                     Task {
-                        if let id = editing?.id { try? await state.store.deleteEvent(familyId: familyId, id: id) }
-                        dismiss()
+                        await performSave(saving: $saving, errorMessage: $saveError, dismiss: dismiss) {
+                            if let id = editing?.id { try await state.store.deleteEvent(familyId: familyId, id: id) }
+                        }
                     }
                 }
             } message: {
@@ -346,6 +351,8 @@ struct AddVacationView: View {
     @State private var place: Place?
     @State private var loaded = false
     @State private var confirmDelete = false
+    @State private var saving = false
+    @State private var saveError: String?
 
     var body: some View {
         NavigationStack {
@@ -375,26 +382,29 @@ struct AddVacationView: View {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Gem") {
                         Task {
-                            if var vacation = editing {
-                                vacation.title = title; vacation.startDate = start; vacation.endDate = end
-                                vacation.details = details; vacation.photos = photos; vacation.place = place
-                                _ = try? await state.store.updateVacation(familyId: familyId, vacation)
-                            } else {
-                                _ = try? await state.store.addVacation(familyId: familyId, title: title,
-                                                                       start: start, end: end,
-                                                                       details: details, photos: photos, place: place)
+                            await performSave(saving: $saving, errorMessage: $saveError, dismiss: dismiss) {
+                                if var vacation = editing {
+                                    vacation.title = title; vacation.startDate = start; vacation.endDate = end
+                                    vacation.details = details; vacation.photos = photos; vacation.place = place
+                                    _ = try await state.store.updateVacation(familyId: familyId, vacation)
+                                } else {
+                                    _ = try await state.store.addVacation(familyId: familyId, title: title,
+                                                                          start: start, end: end,
+                                                                          details: details, photos: photos, place: place)
+                                }
                             }
-                            dismiss()
                         }
                     }
-                    .disabled(title.trimmingCharacters(in: .whitespaces).isEmpty)
+                    .disabled(saving || title.trimmingCharacters(in: .whitespaces).isEmpty)
                 }
             }
+            .saveErrorAlert($saveError)
             .confirmationDialog("Slet \"\(title)\"?", isPresented: $confirmDelete, titleVisibility: .visible) {
                 Button("Slet", role: .destructive) {
                     Task {
-                        if let id = editing?.id { try? await state.store.deleteVacation(familyId: familyId, id: id) }
-                        dismiss()
+                        await performSave(saving: $saving, errorMessage: $saveError, dismiss: dismiss) {
+                            if let id = editing?.id { try await state.store.deleteVacation(familyId: familyId, id: id) }
+                        }
                     }
                 }
             } message: {
@@ -417,6 +427,8 @@ struct AddBirthdayView: View {
     @State private var name = ""
     @State private var date = Date()
     @State private var emoji = ""
+    @State private var saving = false
+    @State private var saveError: String?
 
     var body: some View {
         NavigationStack {
@@ -432,13 +444,15 @@ struct AddBirthdayView: View {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Gem") {
                         Task {
-                            _ = try? await state.store.addBirthday(familyId: familyId, name: name, date: date, emoji: emoji)
-                            dismiss()
+                            await performSave(saving: $saving, errorMessage: $saveError, dismiss: dismiss) {
+                                _ = try await state.store.addBirthday(familyId: familyId, name: name, date: date, emoji: emoji)
+                            }
                         }
                     }
-                    .disabled(name.trimmingCharacters(in: .whitespaces).isEmpty)
+                    .disabled(saving || name.trimmingCharacters(in: .whitespaces).isEmpty)
                 }
             }
+            .saveErrorAlert($saveError)
         }
     }
 }

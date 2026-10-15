@@ -111,9 +111,12 @@ struct PhotoSetEditor: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
+            // Sikker opslag: når et billede slettes, kan SwiftUI kortvarigt tegne en række
+            // med et indeks, der ikke længere findes — den springes så over i stedet for at crashe.
             ForEach(set.photos.indices, id: \.self) { index in
+                if let photo = set.photos.indices.contains(index) ? set.photos[index] : nil {
                 HStack(alignment: .top, spacing: 12) {
-                    DataImage(data: set.photos[index])
+                    DataImage(data: photo)
                         .frame(width: 84, height: 84)
                         .clipShape(RoundedRectangle(cornerRadius: 8))
                         .overlay(alignment: .topLeading) {
@@ -143,13 +146,14 @@ struct PhotoSetEditor: View {
                             .disabled(index == set.coverIndex)
                             Spacer()
                             Button(role: .destructive) {
-                                withAnimation { set.remove(at: index) }
+                                set.remove(at: index)
                             } label: {
                                 Image(systemName: "trash")
                             }
                         }
                         .buttonStyle(.borderless)
                     }
+                }
                 }
             }
             PhotosPicker(selection: $pickerItems, maxSelectionCount: 20, matching: .images) {

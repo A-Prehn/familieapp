@@ -70,6 +70,8 @@ struct AnswerEditView: View {
     let childId: String
     let question: String
     @State var answer: String
+    @State private var saving = false
+    @State private var saveError: String?
 
     var body: some View {
         NavigationStack {
@@ -86,12 +88,15 @@ struct AnswerEditView: View {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Gem") {
                         Task {
-                            try? await state.store.setAnswer(childId: childId, question: question, answer: answer)
-                            dismiss()
+                            await performSave(saving: $saving, errorMessage: $saveError, dismiss: dismiss) {
+                                try await state.store.setAnswer(childId: childId, question: question, answer: answer)
+                            }
                         }
                     }
+                    .disabled(saving)
                 }
             }
+            .saveErrorAlert($saveError)
         }
     }
 }

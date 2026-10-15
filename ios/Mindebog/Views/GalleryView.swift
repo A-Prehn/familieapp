@@ -92,6 +92,9 @@ struct AddGalleryItemView: View {
     let kind: GalleryKind
     @State private var caption = ""
     @State private var photo: Data?
+    @State private var saving = false
+    @State private var saveError: String?
+    @State private var savedFor: Set<String> = []   // ved fejl midt i flere børn: undgå dubletter ved nyt forsøg
 
     var body: some View {
         NavigationStack {
@@ -111,18 +114,24 @@ struct AddGalleryItemView: View {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Gem") {
                         Task {
-                            _ = try? await state.store.addGalleryItem(childId: childId, kind: kind, caption: caption, photo: photo)
-                            // Øvrige børn: "Maven måned for måned" hvis barnet er på vej, ellers "Måned for måned".
-                            for other in alsoFor {
-                                _ = try? await state.store.addGalleryItem(childId: other.id, kind: other.onTheWay ? .belly : .monthly,
-                                                                          caption: caption, photo: photo)
+                            await performSave(saving: $saving, errorMessage: $saveError, dismiss: dismiss) {
+                                if !savedFor.contains(childId) {
+                                    _ = try await state.store.addGalleryItem(childId: childId, kind: kind, caption: caption, photo: photo)
+                                    savedFor.insert(childId)
+                                }
+                                // Øvrige børn: "Maven måned for måned" hvis barnet er på vej, ellers "Måned for måned".
+                                for other in alsoFor where !savedFor.contains(other.id) {
+                                    _ = try await state.store.addGalleryItem(childId: other.id, kind: other.onTheWay ? .belly : .monthly,
+                                                                             caption: caption, photo: photo)
+                                    savedFor.insert(other.id)
+                                }
                             }
-                            dismiss()
                         }
                     }
-                    .disabled(photo == nil)
+                    .disabled(saving || photo == nil)
                 }
             }
+            .saveErrorAlert($saveError)
         }
     }
 }

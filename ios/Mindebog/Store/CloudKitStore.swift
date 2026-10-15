@@ -12,7 +12,9 @@ import CoreLocation
 //
 // Deling: createInvite returnerer share-URL'en; acceptInvite tager en URL.
 // Identitet: iCloud-kontoen (CKContainer.userRecordID) — ingen egen server.
-final class CloudKitStore: Store {
+// actor (ikke class): flere skærme indlæser samtidig, og zoneCache må ikke
+// skrives fra to tråde på én gang.
+actor CloudKitStore: Store {
     private let container: CKContainer
     private var privateDB: CKDatabase { container.privateCloudDatabase }
     private var sharedDB: CKDatabase { container.sharedCloudDatabase }

@@ -78,6 +78,9 @@ struct AddHighlightView: View {
     @State private var date = Date()
     @State private var text = ""
     @State private var photos: [Data] = []
+    @State private var saving = false
+    @State private var saveError: String?
+    @State private var savedFor: Set<String> = []   // ved fejl midt i flere børn: undgå dubletter ved nyt forsøg
 
     var body: some View {
         NavigationStack {
@@ -99,15 +102,18 @@ struct AddHighlightView: View {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Gem") {
                         Task {
-                            for id in [childId] + alsoFor.map(\.id) {
-                                _ = try? await state.store.addHighlight(childId: id, date: date, text: text, photos: photos)
+                            await performSave(saving: $saving, errorMessage: $saveError, dismiss: dismiss) {
+                                for id in [childId] + alsoFor.map(\.id) where !savedFor.contains(id) {
+                                    _ = try await state.store.addHighlight(childId: id, date: date, text: text, photos: photos)
+                                    savedFor.insert(id)
+                                }
                             }
-                            dismiss()
                         }
                     }
-                    .disabled(text.trimmingCharacters(in: .whitespaces).isEmpty && photos.isEmpty)
+                    .disabled(saving || (text.trimmingCharacters(in: .whitespaces).isEmpty && photos.isEmpty))
                 }
             }
+            .saveErrorAlert($saveError)
         }
     }
 }

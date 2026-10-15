@@ -99,6 +99,8 @@ struct MilestoneEditView: View {
     @State private var text = ""             // fritekst, vægt (g), længde (cm)
     @State private var choice = ""
     @State private var photos = PhotoSet()
+    @State private var saving = false
+    @State private var saveError: String?
 
     var body: some View {
         NavigationStack {
@@ -118,8 +120,10 @@ struct MilestoneEditView: View {
                 ToolbarItem(placement: .cancellationAction) { Button("Annullér") { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Gem") { Task { await save() } }
+                        .disabled(saving)
                 }
             }
+            .saveErrorAlert($saveError)
             .onAppear(perform: prefill)
         }
     }
@@ -227,7 +231,8 @@ struct MilestoneEditView: View {
         case .text:
             value = text
         }
-        try? await state.store.setMilestone(childId: child.id, key: def.key, value: value, photos: photos)
-        dismiss()
+        await performSave(saving: $saving, errorMessage: $saveError, dismiss: dismiss) {
+            try await state.store.setMilestone(childId: child.id, key: def.key, value: value, photos: photos)
+        }
     }
 }
