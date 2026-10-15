@@ -10,6 +10,7 @@ struct HomeView: View {
     @State private var quickAdd: QuickAdd?
     @State private var chooseChildFor: QuickAdd.Kind?
     @State private var pendingAdd: QuickAdd?
+    @State private var showAddEvent = false
     @State private var lightbox: LightboxState?
 
     var body: some View {
@@ -50,9 +51,11 @@ struct HomeView: View {
             switch item.kind {
             case .highlight: AddHighlightView(childId: first.id, alsoFor: others, forNames: names)
             case .diary: AddDiaryView(childId: first.id, alsoFor: others, forNames: names)
-            case .photo: AddGalleryItemView(childId: first.id, alsoFor: others, forNames: names,
-                                            kind: first.onTheWay ? .belly : .monthly)
             }
+        }
+        // Begivenhed hører til hele familien (Fælles) — intet barnevalg.
+        .sheet(isPresented: $showAddEvent, onDismiss: { Task { await load() } }) {
+            AddEventView(familyId: state.familyId ?? "")
         }
         // Flere børn: vælg ét eller flere — samme indlæg gemmes for hvert valgt barn.
         .sheet(item: $chooseChildFor, onDismiss: {
@@ -103,12 +106,14 @@ struct HomeView: View {
         HStack(spacing: 10) {
             quickButton("Højdepunkt", "star", Theme.rose, .highlight)
             quickButton("Dagbog", "book", Theme.neutralDark, .diary)
-            quickButton("Foto", "camera", Theme.tint, .photo)
+            quickButton("Begivenhed", "calendar.badge.plus", Theme.tint, nil)
         }
     }
 
-    private func quickButton(_ title: String, _ symbol: String, _ color: Color, _ kind: QuickAdd.Kind) -> some View {
+    /// kind = nil → ny begivenhed under Fælles; ellers et indlæg for ét eller flere børn.
+    private func quickButton(_ title: String, _ symbol: String, _ color: Color, _ kind: QuickAdd.Kind?) -> some View {
         Button {
+            guard let kind else { showAddEvent = true; return }
             if children.count == 1, let only = children.first {
                 quickAdd = QuickAdd(kind: kind, children: [only])
             } else {
@@ -254,13 +259,12 @@ struct RecentMemory: Identifiable, Codable {
 
 struct QuickAdd: Identifiable {
     enum Kind: String, Identifiable {
-        case highlight, diary, photo
+        case highlight, diary
         var id: String { rawValue }
         var title: String {
             switch self {
             case .highlight: return "Højdepunkt"
             case .diary: return "Dagbog"
-            case .photo: return "Foto"
             }
         }
     }
