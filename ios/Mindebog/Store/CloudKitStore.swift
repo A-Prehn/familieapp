@@ -262,6 +262,21 @@ actor CloudKitStore: Store {
         return Highlight(id: saved.recordID.recordName, date: date, text: text, photos: photos, createdAt: Date())
     }
 
+    func updateHighlight(childId: String, _ highlight: Highlight) async throws {
+        let (db, zoneID) = try await locateChild(childId)
+        let record = try await db.record(for: CKRecord.ID(recordName: highlight.id, zoneID: zoneID))
+        record["date"] = highlight.date as CKRecordValue?
+        record["text"] = highlight.text.trimmingCharacters(in: .whitespaces) as CKRecordValue
+        let assets = highlight.photos.compactMap { Self.asset(from: $0) }
+        record["photos"] = assets.isEmpty ? nil : assets as CKRecordValue
+        _ = try await persist(record, in: db)
+    }
+
+    func deleteHighlight(childId: String, id: String) async throws {
+        let (db, zoneID) = try await locateChild(childId)
+        _ = try await db.deleteRecord(withID: CKRecord.ID(recordName: id, zoneID: zoneID))
+    }
+
     // MARK: - Milepæle
 
     func milestones(childId: String) async throws -> [String: MilestoneEntry] {
@@ -371,6 +386,20 @@ actor CloudKitStore: Store {
         return DiaryEntry(id: saved.recordID.recordName, date: date, text: text, photo: photo, createdAt: Date())
     }
 
+    func updateDiary(childId: String, _ entry: DiaryEntry) async throws {
+        let (db, zoneID) = try await locateChild(childId)
+        let record = try await db.record(for: CKRecord.ID(recordName: entry.id, zoneID: zoneID))
+        record["date"] = entry.date as CKRecordValue?
+        record["text"] = entry.text.trimmingCharacters(in: .whitespaces) as CKRecordValue
+        record["photo"] = entry.photo.flatMap { Self.asset(from: $0) }
+        _ = try await persist(record, in: db)
+    }
+
+    func deleteDiary(childId: String, id: String) async throws {
+        let (db, zoneID) = try await locateChild(childId)
+        _ = try await db.deleteRecord(withID: CKRecord.ID(recordName: id, zoneID: zoneID))
+    }
+
     // MARK: - Gallerier
 
     func gallery(childId: String, kind: GalleryKind) async throws -> [GalleryItem] {
@@ -395,6 +424,19 @@ actor CloudKitStore: Store {
         record["photo"] = photo.flatMap { Self.asset(from: $0) }
         let saved = try await persist(record, in: db)
         return GalleryItem(id: saved.recordID.recordName, caption: caption, photo: photo, createdAt: Date())
+    }
+
+    func updateGalleryItem(childId: String, _ item: GalleryItem) async throws {
+        let (db, zoneID) = try await locateChild(childId)
+        let record = try await db.record(for: CKRecord.ID(recordName: item.id, zoneID: zoneID))
+        record["caption"] = item.caption.trimmingCharacters(in: .whitespaces) as CKRecordValue
+        record["photo"] = item.photo.flatMap { Self.asset(from: $0) }
+        _ = try await persist(record, in: db)
+    }
+
+    func deleteGalleryItem(childId: String, id: String) async throws {
+        let (db, zoneID) = try await locateChild(childId)
+        _ = try await db.deleteRecord(withID: CKRecord.ID(recordName: id, zoneID: zoneID))
     }
 
     // MARK: - Familie-indhold
@@ -583,6 +625,21 @@ actor CloudKitStore: Store {
         record["emoji"] = (trimmedEmoji.isEmpty ? "🎂" : trimmedEmoji) as CKRecordValue
         let saved = try await persist(record, in: db)
         return CustomBirthday(id: saved.recordID.recordName, name: name, date: date, emoji: trimmedEmoji.isEmpty ? "🎂" : trimmedEmoji)
+    }
+
+    func updateBirthday(familyId: String, _ birthday: CustomBirthday) async throws {
+        let (db, zoneID) = try await locate(familyId)
+        let record = try await db.record(for: CKRecord.ID(recordName: birthday.id, zoneID: zoneID))
+        record["name"] = birthday.name.trimmingCharacters(in: .whitespaces) as CKRecordValue
+        record["date"] = birthday.date as CKRecordValue
+        let trimmedEmoji = birthday.emoji.trimmingCharacters(in: .whitespaces)
+        record["emoji"] = (trimmedEmoji.isEmpty ? "🎂" : trimmedEmoji) as CKRecordValue
+        _ = try await persist(record, in: db)
+    }
+
+    func deleteBirthday(familyId: String, id: String) async throws {
+        let (db, zoneID) = try await locate(familyId)
+        _ = try await db.deleteRecord(withID: CKRecord.ID(recordName: id, zoneID: zoneID))
     }
 
     // MARK: - Hjælpere

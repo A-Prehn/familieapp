@@ -5,6 +5,7 @@ struct HighlightsView: View {
     let child: Child
     @State private var items: [Highlight] = []
     @State private var showAdd = false
+    @State private var editing: Highlight?
     @State private var lightbox: LightboxState?
 
     var body: some View {
@@ -32,11 +33,15 @@ struct HighlightsView: View {
         .sheet(isPresented: $showAdd, onDismiss: { Task { await load() } }) {
             AddHighlightView(childId: child.id)
         }
+        .sheet(item: $editing, onDismiss: { Task { await load() } }) { highlight in
+            AddHighlightView(childId: child.id, editing: highlight)
+        }
         .fullScreenCover(item: $lightbox) { LightboxView(state: $0) }
         .refreshable { await load() }
         .task { await load() }
     }
 
+    // Tryk på kortet = redigér; tryk på et billede = fuld skærm.
     private func card(_ highlight: Highlight) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             if let date = highlight.date {
@@ -60,6 +65,11 @@ struct HighlightsView: View {
         .background(Theme.card)
         .clipShape(RoundedRectangle(cornerRadius: 14))
         .overlay(RoundedRectangle(cornerRadius: 14).stroke(Theme.sep))
+        .contentShape(RoundedRectangle(cornerRadius: 14))
+        .onTapGesture { editing = highlight }
+        .contextMenu {
+            Button { editing = highlight } label: { Label("Redigér", systemImage: "pencil") }
+        }
     }
 
     private func load() async {
@@ -75,12 +85,16 @@ struct AddHighlightView: View {
     var alsoFor: [Child] = []
     /// Navne vist øverst i formularen, når der gemmes for flere børn.
     var forNames: [String] = []
+    /// Sat ved redigering; nil ved oprettelse.
+    var editing: Highlight? = nil
     @State private var date = Date()
     @State private var text = ""
     @State private var photos: [Data] = []
     @State private var saving = false
     @State private var saveError: String?
     @State private var savedFor: Set<String> = []   // ved fejl midt i flere børn: undgå dubletter ved nyt forsøg
+    @State private var loaded = false
+    @State private var confirmDelete = false
 
     var body: some View {
         NavigationStack {
@@ -94,8 +108,13 @@ struct AddHighlightView: View {
                 Section("Billeder") {
                     MultiPhotoField(photos: $photos)
                 }
+                if editing != nil {
+                    Section {
+                        Button("Slet højdepunkt", role: .destructive) { confirmDelete = true }
+                    }
+                }
             }
-            .navigationTitle("Nyt højdepunkt")
+            .navigationTitle(editing == nil ? "Nyt højdepunkt" : "Redigér højdepunkt")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Annullér") { dismiss() } }
@@ -103,9 +122,14 @@ struct AddHighlightView: View {
                     Button("Gem") {
                         Task {
                             await performSave(saving: $saving, errorMessage: $saveError, dismiss: dismiss) {
-                                for id in [childId] + alsoFor.map(\.id) where !savedFor.contains(id) {
-                                    _ = try await state.store.addHighlight(childId: id, date: date, text: text, photos: photos)
-                                    savedFor.insert(id)
+                                if var highlight = editing {
+                                    highlight.date = date; highlight.text = text; highlight.photos = photos
+                                    try await state.store.updateHighlight(childId: childId, highlight)
+                                } else {
+                                    for id in [childId] + alsoFor.map(\.id) where !savedFor.contains(id) {
+                                        _ = try await state.store.addHighlight(childId: id, date: date, text: text, photos: photos)
+                                        savedFor.insert(id)
+                                    }
                                 }
                             }
                         }
@@ -114,6 +138,22 @@ struct AddHighlightView: View {
                 }
             }
             .saveErrorAlert($saveError)
+            .confirmationDialog("Slet højdepunktet?", isPresented: $confirmDelete, titleVisibility: .visible) {
+                Button("Slet", role: .destructive) {
+                    Task {
+                        await performSave(saving: $saving, errorMessage: $saveError, dismiss: dismiss) {
+                            if let id = editing?.id { try await state.store.deleteHighlight(childId: childId, id: id) }
+                        }
+                    }
+                }
+            } message: {
+                Text("Højdepunktet og dets billeder slettes for hele familien.")
+            }
+            .onAppear {
+                guard !loaded, let h = editing else { return }
+                loaded = true
+                date = h.date ?? h.createdAt; text = h.text; photos = h.photos
+            }
         }
     }
 }

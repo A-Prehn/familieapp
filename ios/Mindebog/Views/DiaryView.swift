@@ -5,6 +5,7 @@ struct DiaryView: View {
     let child: Child
     @State private var entries: [DiaryEntry] = []
     @State private var showAdd = false
+    @State private var editing: DiaryEntry?
     @State private var lightbox: LightboxState?
 
     var body: some View {
@@ -32,11 +33,15 @@ struct DiaryView: View {
         .sheet(isPresented: $showAdd, onDismiss: { Task { await load() } }) {
             AddDiaryView(childId: child.id)
         }
+        .sheet(item: $editing, onDismiss: { Task { await load() } }) { entry in
+            AddDiaryView(childId: child.id, editing: entry)
+        }
         .fullScreenCover(item: $lightbox) { LightboxView(state: $0) }
         .refreshable { await load() }
         .task { await load() }
     }
 
+    // Tryk på opslaget = redigér; tryk på billedet = fuld skærm.
     private func card(_ entry: DiaryEntry) -> some View {
         VStack(alignment: .leading, spacing: 0) {
             if let photo = entry.photo {
@@ -58,6 +63,11 @@ struct DiaryView: View {
         .background(Theme.card)
         .clipShape(RoundedRectangle(cornerRadius: 14))
         .overlay(RoundedRectangle(cornerRadius: 14).stroke(Theme.sep))
+        .contentShape(RoundedRectangle(cornerRadius: 14))
+        .onTapGesture { editing = entry }
+        .contextMenu {
+            Button { editing = entry } label: { Label("Redigér", systemImage: "pencil") }
+        }
     }
 
     private func load() async {
@@ -73,12 +83,16 @@ struct AddDiaryView: View {
     var alsoFor: [Child] = []
     /// Navne vist øverst i formularen, når der gemmes for flere børn.
     var forNames: [String] = []
+    /// Sat ved redigering; nil ved oprettelse.
+    var editing: DiaryEntry? = nil
     @State private var date = Date()
     @State private var text = ""
     @State private var photo: Data?
     @State private var saving = false
     @State private var saveError: String?
     @State private var savedFor: Set<String> = []   // ved fejl midt i flere børn: undgå dubletter ved nyt forsøg
+    @State private var loaded = false
+    @State private var confirmDelete = false
 
     var body: some View {
         NavigationStack {
@@ -92,8 +106,13 @@ struct AddDiaryView: View {
                 Section("Billede") {
                     PhotoField(data: $photo)
                 }
+                if editing != nil {
+                    Section {
+                        Button("Slet indlæg", role: .destructive) { confirmDelete = true }
+                    }
+                }
             }
-            .navigationTitle("Nyt indlæg")
+            .navigationTitle(editing == nil ? "Nyt indlæg" : "Redigér indlæg")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Annullér") { dismiss() } }
@@ -101,9 +120,14 @@ struct AddDiaryView: View {
                     Button("Gem") {
                         Task {
                             await performSave(saving: $saving, errorMessage: $saveError, dismiss: dismiss) {
-                                for id in [childId] + alsoFor.map(\.id) where !savedFor.contains(id) {
-                                    _ = try await state.store.addDiary(childId: id, date: date, text: text, photo: photo)
-                                    savedFor.insert(id)
+                                if var entry = editing {
+                                    entry.date = date; entry.text = text; entry.photo = photo
+                                    try await state.store.updateDiary(childId: childId, entry)
+                                } else {
+                                    for id in [childId] + alsoFor.map(\.id) where !savedFor.contains(id) {
+                                        _ = try await state.store.addDiary(childId: id, date: date, text: text, photo: photo)
+                                        savedFor.insert(id)
+                                    }
                                 }
                             }
                         }
@@ -112,6 +136,22 @@ struct AddDiaryView: View {
                 }
             }
             .saveErrorAlert($saveError)
+            .confirmationDialog("Slet indlægget?", isPresented: $confirmDelete, titleVisibility: .visible) {
+                Button("Slet", role: .destructive) {
+                    Task {
+                        await performSave(saving: $saving, errorMessage: $saveError, dismiss: dismiss) {
+                            if let id = editing?.id { try await state.store.deleteDiary(childId: childId, id: id) }
+                        }
+                    }
+                }
+            } message: {
+                Text("Indlægget og dets billede slettes for hele familien.")
+            }
+            .onAppear {
+                guard !loaded, let e = editing else { return }
+                loaded = true
+                date = e.date ?? e.createdAt; text = e.text; photo = e.photo
+            }
         }
     }
 }

@@ -279,4 +279,48 @@ actor MemoryStore: Store {
         birthdaysByFamily[familyId, default: []].append(birthday)
         return birthday
     }
+
+    // MARK: Redigér / slet
+    func updateHighlight(childId: String, _ highlight: Highlight) async throws {
+        guard let i = highlightsByChild[childId]?.firstIndex(where: { $0.id == highlight.id }) else { throw StoreError.notFound }
+        highlightsByChild[childId]?[i] = highlight
+    }
+
+    func deleteHighlight(childId: String, id: String) async throws {
+        highlightsByChild[childId]?.removeAll { $0.id == id }
+    }
+
+    func updateDiary(childId: String, _ entry: DiaryEntry) async throws {
+        guard let i = diaryByChild[childId]?.firstIndex(where: { $0.id == entry.id }) else { throw StoreError.notFound }
+        diaryByChild[childId]?[i] = entry
+    }
+
+    func deleteDiary(childId: String, id: String) async throws {
+        diaryByChild[childId]?.removeAll { $0.id == id }
+    }
+
+    func updateGalleryItem(childId: String, _ item: GalleryItem) async throws {
+        for kind in [GalleryKind.belly, .monthly] {
+            if let i = galleryByChild[childId]?[kind]?.firstIndex(where: { $0.id == item.id }) {
+                galleryByChild[childId]?[kind]?[i] = item
+                return
+            }
+        }
+        throw StoreError.notFound
+    }
+
+    func deleteGalleryItem(childId: String, id: String) async throws {
+        for kind in [GalleryKind.belly, .monthly] {
+            galleryByChild[childId]?[kind]?.removeAll { $0.id == id }
+        }
+    }
+
+    func updateBirthday(familyId: String, _ birthday: CustomBirthday) async throws {
+        guard let i = birthdaysByFamily[familyId]?.firstIndex(where: { $0.id == birthday.id }) else { throw StoreError.notFound }
+        birthdaysByFamily[familyId]?[i] = birthday
+    }
+
+    func deleteBirthday(familyId: String, id: String) async throws {
+        birthdaysByFamily[familyId]?.removeAll { $0.id == id }
+    }
 }

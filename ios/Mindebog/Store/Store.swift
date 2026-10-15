@@ -25,6 +25,8 @@ protocol Store {
     // Pr. barn
     func highlights(childId: String) async throws -> [Highlight]
     func addHighlight(childId: String, date: Date?, text: String, photos: [Data]) async throws -> Highlight
+    func updateHighlight(childId: String, _ highlight: Highlight) async throws
+    func deleteHighlight(childId: String, id: String) async throws
 
     func milestones(childId: String) async throws -> [String: MilestoneEntry]
     func setMilestone(childId: String, key: String, value: String?, photos: PhotoSet) async throws
@@ -34,9 +36,13 @@ protocol Store {
 
     func diary(childId: String) async throws -> [DiaryEntry]
     func addDiary(childId: String, date: Date?, text: String, photo: Data?) async throws -> DiaryEntry
+    func updateDiary(childId: String, _ entry: DiaryEntry) async throws
+    func deleteDiary(childId: String, id: String) async throws
 
     func gallery(childId: String, kind: GalleryKind) async throws -> [GalleryItem]
     func addGalleryItem(childId: String, kind: GalleryKind, caption: String, photo: Data?) async throws -> GalleryItem
+    func updateGalleryItem(childId: String, _ item: GalleryItem) async throws
+    func deleteGalleryItem(childId: String, id: String) async throws
 
     // Pr. familie
     func events(familyId: String) async throws -> [FamilyEvent]
@@ -58,6 +64,8 @@ protocol Store {
 
     func birthdays(familyId: String) async throws -> [CustomBirthday]
     func addBirthday(familyId: String, name: String, date: Date, emoji: String) async throws -> CustomBirthday
+    func updateBirthday(familyId: String, _ birthday: CustomBirthday) async throws
+    func deleteBirthday(familyId: String, id: String) async throws
 }
 
 enum StoreError: LocalizedError {

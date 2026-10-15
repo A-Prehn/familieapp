@@ -7,6 +7,7 @@ struct GalleryView: View {
     let kind: GalleryKind
     @State private var items: [GalleryItem] = []
     @State private var showAdd = false
+    @State private var editing: GalleryItem?
     @State private var lightbox: LightboxState?
 
     private let columns = [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)]
@@ -36,6 +37,9 @@ struct GalleryView: View {
         .sheet(isPresented: $showAdd, onDismiss: { Task { await load() } }) {
             AddGalleryItemView(childId: child.id, kind: kind)
         }
+        .sheet(item: $editing, onDismiss: { Task { await load() } }) { item in
+            AddGalleryItemView(childId: child.id, kind: kind, editing: item)
+        }
         .fullScreenCover(item: $lightbox) { LightboxView(state: $0) }
         .refreshable { await load() }
         .task { await load() }
@@ -55,17 +59,34 @@ struct GalleryView: View {
                 .clipped()
                 .contentShape(Rectangle())
                 .onTapGesture { openLightbox(at: item) }
+                // Lille blyant: redigér tekst/billede (tryk på selve billedet = fuld skærm).
+                .overlay(alignment: .topTrailing) {
+                    Button { editing = item } label: {
+                        Image(systemName: "pencil.circle.fill")
+                            .font(.title3)
+                            .symbolRenderingMode(.palette)
+                            .foregroundStyle(.white, .black.opacity(0.45))
+                            .padding(6)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Redigér")
+                }
             if !item.caption.isEmpty {
                 Text(item.caption)
                     .font(.system(size: 13, weight: .medium))
                     .foregroundStyle(Theme.text)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(10)
+                    .contentShape(Rectangle())
+                    .onTapGesture { editing = item }
             }
         }
         .background(Theme.card)
         .clipShape(RoundedRectangle(cornerRadius: 14))
         .overlay(RoundedRectangle(cornerRadius: 14).stroke(Theme.sep))
+        .contextMenu {
+            Button { editing = item } label: { Label("Redigér", systemImage: "pencil") }
+        }
     }
 
     private func openLightbox(at item: GalleryItem) {
@@ -90,11 +111,15 @@ struct AddGalleryItemView: View {
     /// Navne vist øverst i formularen, når der gemmes for flere børn.
     var forNames: [String] = []
     let kind: GalleryKind
+    /// Sat ved redigering; nil ved oprettelse.
+    var editing: GalleryItem? = nil
     @State private var caption = ""
     @State private var photo: Data?
     @State private var saving = false
     @State private var saveError: String?
     @State private var savedFor: Set<String> = []   // ved fejl midt i flere børn: undgå dubletter ved nyt forsøg
+    @State private var loaded = false
+    @State private var confirmDelete = false
 
     var body: some View {
         NavigationStack {
@@ -106,8 +131,13 @@ struct AddGalleryItemView: View {
                 Section("Billede") {
                     PhotoField(data: $photo)
                 }
+                if editing != nil {
+                    Section {
+                        Button("Slet foto", role: .destructive) { confirmDelete = true }
+                    }
+                }
             }
-            .navigationTitle("Nyt foto")
+            .navigationTitle(editing == nil ? "Nyt foto" : "Redigér foto")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Annullér") { dismiss() } }
@@ -115,6 +145,11 @@ struct AddGalleryItemView: View {
                     Button("Gem") {
                         Task {
                             await performSave(saving: $saving, errorMessage: $saveError, dismiss: dismiss) {
+                                if var item = editing {
+                                    item.caption = caption; item.photo = photo
+                                    try await state.store.updateGalleryItem(childId: childId, item)
+                                    return
+                                }
                                 if !savedFor.contains(childId) {
                                     _ = try await state.store.addGalleryItem(childId: childId, kind: kind, caption: caption, photo: photo)
                                     savedFor.insert(childId)
@@ -132,6 +167,22 @@ struct AddGalleryItemView: View {
                 }
             }
             .saveErrorAlert($saveError)
+            .confirmationDialog("Slet fotoet?", isPresented: $confirmDelete, titleVisibility: .visible) {
+                Button("Slet", role: .destructive) {
+                    Task {
+                        await performSave(saving: $saving, errorMessage: $saveError, dismiss: dismiss) {
+                            if let id = editing?.id { try await state.store.deleteGalleryItem(childId: childId, id: id) }
+                        }
+                    }
+                }
+            } message: {
+                Text("Fotoet slettes for hele familien.")
+            }
+            .onAppear {
+                guard !loaded, let item = editing else { return }
+                loaded = true
+                caption = item.caption; photo = item.photo
+            }
         }
     }
 }

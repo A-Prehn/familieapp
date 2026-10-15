@@ -72,7 +72,7 @@ struct PhotoField: View {
     }
 }
 
-// Flere billeder (højdepunkter).
+// Flere billeder (højdepunkter) — med fjern-knap på hvert billede.
 struct MultiPhotoField: View {
     @Binding var photos: [Data]
     @State private var pickerItem: PhotosPickerItem?
@@ -80,9 +80,25 @@ struct MultiPhotoField: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             ForEach(photos.indices, id: \.self) { index in
-                DataImage(data: photos[index], contentMode: .fit)
-                    .frame(maxHeight: 180)
-                    .clipShape(RoundedRectangle(cornerRadius: 10))
+                // Sikker opslag, så en række med et netop slettet indeks ikke crasher.
+                if let photo = photos.indices.contains(index) ? photos[index] : nil {
+                    DataImage(data: photo, contentMode: .fit)
+                        .frame(maxHeight: 180)
+                        .clipShape(RoundedRectangle(cornerRadius: 10))
+                        .overlay(alignment: .topTrailing) {
+                            Button {
+                                if photos.indices.contains(index) { photos.remove(at: index) }
+                            } label: {
+                                Image(systemName: "xmark.circle.fill")
+                                    .font(.title3)
+                                    .symbolRenderingMode(.palette)
+                                    .foregroundStyle(.white, .black.opacity(0.55))
+                                    .padding(6)
+                            }
+                            .buttonStyle(.borderless)
+                            .accessibilityLabel("Fjern billede")
+                        }
+                }
             }
             PhotosPicker(selection: $pickerItem, matching: .images) {
                 Label("Tilføj billede", systemImage: "photo.badge.plus")

@@ -18,6 +18,7 @@ struct FamilyView: View {
     @State private var activeSheet: Tab?
     @State private var editingEvent: FamilyEvent?
     @State private var editingVacation: Vacation?
+    @State private var editingBirthday: CustomBirthday?
     @State private var lightbox: LightboxState?
 
     var body: some View {
@@ -56,6 +57,9 @@ struct FamilyView: View {
         }
         .sheet(item: $editingVacation, onDismiss: { Task { await load() } }) { vacation in
             AddVacationView(familyId: state.familyId ?? "", editing: vacation)
+        }
+        .sheet(item: $editingBirthday, onDismiss: { Task { await load() } }) { birthday in
+            AddBirthdayView(familyId: state.familyId ?? "", editing: birthday)
         }
         .fullScreenCover(item: $lightbox) { LightboxView(state: $0) }
         .refreshable { await load() }
@@ -140,6 +144,8 @@ struct FamilyView: View {
         let date: Date
         let days: Int
         let turning: Int
+        /// Sat for egne fødselsdage (kan redigeres her); nil for børnene (rettes på barnets side).
+        var custom: CustomBirthday? = nil
     }
 
     private var birthdayRows: [BirthdayRow] {
@@ -161,7 +167,9 @@ struct FamilyView: View {
             }
         }
         for custom in customBirthdays {
-            rows.append(make(id: custom.id, name: custom.name, emoji: custom.emoji, date: custom.date))
+            var row = make(id: custom.id, name: custom.name, emoji: custom.emoji, date: custom.date)
+            row.custom = custom
+            rows.append(row)
         }
         return rows.sorted { $0.days < $1.days }
     }
@@ -197,8 +205,13 @@ struct FamilyView: View {
                                 .font(.footnote).foregroundStyle(Theme.muted)
                         }
                         Spacer()
+                        if row.custom != nil {
+                            Image(systemName: "chevron.right").font(.caption).foregroundStyle(Theme.muted)
+                        }
                     }
                     .padding(.vertical, 12)
+                    .contentShape(Rectangle())
+                    .onTapGesture { if let custom = row.custom { editingBirthday = custom } }
                 }
             }
             .padding(.horizontal, 16)
@@ -424,11 +437,15 @@ struct AddBirthdayView: View {
     @EnvironmentObject var state: AppState
     @Environment(\.dismiss) private var dismiss
     let familyId: String
+    /// Sat ved redigering; nil ved oprettelse.
+    var editing: CustomBirthday? = nil
     @State private var name = ""
     @State private var date = Date()
     @State private var emoji = ""
     @State private var saving = false
     @State private var saveError: String?
+    @State private var loaded = false
+    @State private var confirmDelete = false
 
     var body: some View {
         NavigationStack {
@@ -436,8 +453,13 @@ struct AddBirthdayView: View {
                 TextField("Navn (f.eks. Mormor)", text: $name)
                 DatePicker("Fødselsdato", selection: $date, in: ...Date(), displayedComponents: .date)
                 TextField("Emoji (valgfri)", text: $emoji)
+                if editing != nil {
+                    Section {
+                        Button("Slet fødselsdag", role: .destructive) { confirmDelete = true }
+                    }
+                }
             }
-            .navigationTitle("Ny fødselsdag")
+            .navigationTitle(editing == nil ? "Ny fødselsdag" : "Redigér fødselsdag")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Annullér") { dismiss() } }
@@ -445,7 +467,12 @@ struct AddBirthdayView: View {
                     Button("Gem") {
                         Task {
                             await performSave(saving: $saving, errorMessage: $saveError, dismiss: dismiss) {
-                                _ = try await state.store.addBirthday(familyId: familyId, name: name, date: date, emoji: emoji)
+                                if var birthday = editing {
+                                    birthday.name = name; birthday.date = date; birthday.emoji = emoji
+                                    try await state.store.updateBirthday(familyId: familyId, birthday)
+                                } else {
+                                    _ = try await state.store.addBirthday(familyId: familyId, name: name, date: date, emoji: emoji)
+                                }
                             }
                         }
                     }
@@ -453,6 +480,20 @@ struct AddBirthdayView: View {
                 }
             }
             .saveErrorAlert($saveError)
+            .confirmationDialog("Slet \(name)s fødselsdag?", isPresented: $confirmDelete, titleVisibility: .visible) {
+                Button("Slet", role: .destructive) {
+                    Task {
+                        await performSave(saving: $saving, errorMessage: $saveError, dismiss: dismiss) {
+                            if let id = editing?.id { try await state.store.deleteBirthday(familyId: familyId, id: id) }
+                        }
+                    }
+                }
+            }
+            .onAppear {
+                guard !loaded, let b = editing else { return }
+                loaded = true
+                name = b.name; date = b.date; emoji = b.emoji
+            }
         }
     }
 }
