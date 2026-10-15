@@ -77,12 +77,28 @@ final class CloudKitStore: Store {
         let (db, zoneID) = try await locate(familyId)
         var members: [AppUser] = []
         if let share = try? await fetchShare(db: db, zoneID: zoneID) {
-            for p in share.participants {
-                let name = p.userIdentity.nameComponents.map {
-                    PersonNameComponentsFormatter.localizedString(from: $0, style: .default)
-                } ?? "Deltager"
-                let id = p.userIdentity.userRecordID?.recordName ?? UUID().uuidString
-                members.append(AppUser(id: id, name: name.isEmpty ? "Deltager" : name))
+            // Ejeren er selv en "deltager" i en CKShare. Vis rolle, "(dig)" og evt. mail/telefon,
+            // da iCloud ofte ikke udleverer navne.
+            let me = share.currentUserParticipant
+            let myName = UserDefaults.standard.string(forKey: nameKey)
+            for p in share.participants.sorted(by: { $0.role == .owner && $1.role != .owner }) {
+                let identity = p.userIdentity
+                var name = identity.nameComponents
+                    .map { PersonNameComponentsFormatter.localizedString(from: $0, style: .default) } ?? ""
+                if p == me, name.isEmpty, let myName, myName != "Forælder" { name = myName }
+                if name.isEmpty {
+                    name = identity.lookupInfo?.emailAddress ?? identity.lookupInfo?.phoneNumber ?? ""
+                }
+                if name.isEmpty { name = p.role == .owner ? "Ejer" : "Deltager" }
+
+                var tags: [String] = []
+                if p.role == .owner { tags.append("ejer") }
+                if p == me { tags.append("dig") }
+                if p.acceptanceStatus == .pending { tags.append("inviteret") }
+                let label = tags.isEmpty ? name : "\(name) (\(tags.joined(separator: ", ")))"
+
+                let id = identity.userRecordID?.recordName ?? UUID().uuidString
+                members.append(AppUser(id: id, name: label))
             }
         }
         if members.isEmpty {

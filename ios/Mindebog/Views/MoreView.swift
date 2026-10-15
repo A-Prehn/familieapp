@@ -18,7 +18,7 @@ struct MoreView: View {
             Section("Familie") {
                 Text(family?.name ?? "—").font(.headline)
                 ForEach(members) { m in
-                    Label(m.name + (m.id == state.user?.id ? " (dig)" : ""), systemImage: "person")
+                    Label(m.name + (m.id == state.user?.id && !m.name.contains("dig") ? " (dig)" : ""), systemImage: "person")
                 }
             }
 
