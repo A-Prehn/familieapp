@@ -18,7 +18,8 @@ struct ChildDetailView: View {
 
                 LazyVGrid(columns: columns, spacing: 10) {
                     NavigationLink { DiaryView(child: child) } label: {
-                        tile(child.onTheWay ? "Svangerskabsdagbog" : "Dagbog", "book", Theme.neutralDark)
+                        // Blød bindestreg: lange sammensatte ord deles pænt ("Svangerskabs-/dagbog").
+                        tile(child.onTheWay ? "Svangerskabs\u{00AD}dagbog" : "Dagbog", "book", Theme.neutralDark)
                     }
                     NavigationLink { GalleryView(child: child, kind: .belly) } label: {
                         tile("Maven måned for måned", "figure.and.child.holdinghands", Theme.neutralDark)
