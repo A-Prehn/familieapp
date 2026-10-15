@@ -44,21 +44,32 @@ struct MainTabView: View {
     var body: some View {
         TabView(selection: $selection) {
             NavigationStack { HomeView().tabSwipe(.home, selection: $selection) }
-                .tabItem { Label("Hjem", systemImage: "house") }
+                .tabItem { tabLabel("Hjem", "house", .home) }
                 .tag(MainTab.home)
 
             NavigationStack { ChildrenView().tabSwipe(.family, selection: $selection) }
-                .tabItem { Label("Familie", systemImage: "person.2") }
+                .tabItem { tabLabel("Familie", "person.2", .family) }
                 .tag(MainTab.family)
 
             NavigationStack { FamilyView().tabSwipe(.shared, selection: $selection) }
-                .tabItem { Label("Fælles", systemImage: "calendar") }
+                .tabItem { tabLabel("Fælles", "calendar", .shared) }
                 .tag(MainTab.shared)
 
             NavigationStack { MoreView().tabSwipe(.more, selection: $selection) }
-                .tabItem { Label("Mere", systemImage: "gearshape") }
+                .tabItem { tabLabel("Mere", "gearshape", .more) }
                 .tag(MainTab.more)
         }
+    }
+
+    // iOS 26's glas-tabbar ignorerer UITabBarAppearance for ikonfarver, så ikonerne
+    // tegnes som færdigfarvede billeder: dæmpet grå når ikke valgt, appens blå når valgt.
+    private func tabLabel(_ title: String, _ symbol: String, _ tab: MainTab) -> some View {
+        let selected = selection == tab
+        let color = UIColor(selected ? Theme.tint : Theme.muted)
+        let config = UIImage.SymbolConfiguration(pointSize: 22, weight: selected ? .semibold : .regular)
+        let image = (UIImage(systemName: symbol, withConfiguration: config) ?? UIImage())
+            .withTintColor(color, renderingMode: .alwaysOriginal)
+        return Label { Text(title) } icon: { Image(uiImage: image) }
     }
 }
 
