@@ -72,17 +72,24 @@ jobs:
 
       - name: Hent App Store-provisioning-profil (fastlane sigh via API-nøgle)
         env:
-          APP_STORE_CONNECT_API_KEY_KEY_ID: ${{ secrets.ASC_KEY_ID }}
-          APP_STORE_CONNECT_API_KEY_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
-          APP_STORE_CONNECT_API_KEY_KEY_FILEPATH: /Users/runner/.appstoreconnect/private_keys/AuthKey_${{ secrets.ASC_KEY_ID }}.p8
+          FASTLANE_SKIP_UPDATE_CHECK: "1"
+          FASTLANE_HIDE_CHANGELOG: "1"
         run: |
+          # sigh på kommandolinjen læser nøglen fra en JSON-fil (ikke fra env).
+          jq -n \
+            --arg k "${{ secrets.ASC_KEY_ID }}" \
+            --arg i "${{ secrets.ASC_ISSUER_ID }}" \
+            --rawfile p "$KEY_PATH" \
+            '{key_id: $k, issuer_id: $i, key: $p, in_house: false}' > /tmp/asc_key.json
           mkdir -p ios/profiles
           fastlane sigh \
+            --api_key_path /tmp/asc_key.json \
             --app_identifier "$BUNDLE_ID" \
             --team_id "$TEAM_ID" \
             --output_path ios/profiles \
             --filename Mindebog_AppStore.mobileprovision \
             --skip_install false
+          rm -f /tmp/asc_key.json
           echo "PROFILE_UUID=$(/usr/libexec/PlistBuddy -c 'Print :UUID' /dev/stdin <<< "$(security cms -D -i ios/profiles/Mindebog_AppStore.mobileprovision)")" >> "$GITHUB_ENV"
           echo "PROFILE_NAME=$(/usr/libexec/PlistBuddy -c 'Print :Name' /dev/stdin <<< "$(security cms -D -i ios/profiles/Mindebog_AppStore.mobileprovision)")" >> "$GITHUB_ENV"
 
