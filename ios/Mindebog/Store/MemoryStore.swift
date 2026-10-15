@@ -282,6 +282,23 @@ actor MemoryStore: Store {
         return birthday
     }
 
+    // MARK: Vækst
+    private var measurementsByChild: [String: [Measurement]] = [:]
+
+    func measurements(childId: String) async throws -> [Measurement] {
+        (measurementsByChild[childId] ?? []).sorted { $0.date < $1.date }
+    }
+
+    func saveMeasurement(childId: String, _ measurement: Measurement) async throws {
+        var list = measurementsByChild[childId] ?? []
+        if let i = list.firstIndex(where: { $0.id == measurement.id }) { list[i] = measurement } else { list.append(measurement) }
+        measurementsByChild[childId] = list
+    }
+
+    func deleteMeasurement(childId: String, id: String) async throws {
+        measurementsByChild[childId]?.removeAll { $0.id == id }
+    }
+
     // MARK: Breve
     private var lettersByChild: [String: [Letter]] = [:]
 

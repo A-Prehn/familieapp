@@ -168,6 +168,15 @@ struct Vacation: Identifiable, Hashable, Codable {
     var photo: Data? { photos.coverPhoto }
 }
 
+/// En måling til vækstkurven (vægt, højde, hovedomkreds — hver kan udelades).
+struct Measurement: Identifiable, Hashable, Codable {
+    let id: String
+    var date: Date
+    var weightGrams: Int?
+    var heightCm: Double?
+    var headCm: Double?
+}
+
 /// Brev til barnet — forseglet indtil `openDate` (fx 18-års fødselsdagen).
 struct Letter: Identifiable, Hashable, Codable {
     let id: String

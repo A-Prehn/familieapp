@@ -42,6 +42,15 @@ struct ChildDetailView: View {
                     NavigationLink { LettersView(child: child) } label: {
                         tile("Breve til dig", "envelope", Theme.neutralDark)
                     }
+                    // Vækst og vaccinationer giver først mening, når barnet er født.
+                    if !child.onTheWay {
+                        NavigationLink { GrowthView(child: child) } label: {
+                            tile("Vækst", "chart.line.uptrend.xyaxis", Theme.tint)
+                        }
+                        NavigationLink { VaccinesView(child: child) } label: {
+                            tile("Vaccinationer", "syringe", Theme.green)
+                        }
+                    }
                 }
                 .buttonStyle(.plain)
             }

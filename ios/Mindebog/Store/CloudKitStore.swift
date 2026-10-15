@@ -448,6 +448,36 @@ actor CloudKitStore: Store {
         _ = try await db.deleteRecord(withID: CKRecord.ID(recordName: id, zoneID: zoneID))
     }
 
+    // MARK: - Vækst
+
+    func measurements(childId: String) async throws -> [Measurement] {
+        try await childRecords(childId, type: "Measurement").compactMap { r in
+            guard let date = r["date"] as? Date else { return nil }
+            return Measurement(id: r.recordID.recordName, date: date,
+                               weightGrams: (r["weightGrams"] as? Int64).map(Int.init),
+                               heightCm: r["heightCm"] as? Double,
+                               headCm: r["headCm"] as? Double)
+        }
+        .sorted { $0.date < $1.date }
+    }
+
+    func saveMeasurement(childId: String, _ m: Measurement) async throws {
+        let (db, zoneID) = try await locateChild(childId)
+        let id = CKRecord.ID(recordName: m.id, zoneID: zoneID)
+        let record = (try? await db.record(for: id)) ?? CKRecord(recordType: "Measurement", recordID: id)
+        record["childRef"] = childRef(childId, zoneID)
+        record["date"] = m.date as CKRecordValue
+        record["weightGrams"] = m.weightGrams.map { Int64($0) as CKRecordValue }
+        record["heightCm"] = m.heightCm as CKRecordValue?
+        record["headCm"] = m.headCm as CKRecordValue?
+        _ = try await persist(record, in: db)
+    }
+
+    func deleteMeasurement(childId: String, id: String) async throws {
+        let (db, zoneID) = try await locateChild(childId)
+        _ = try await db.deleteRecord(withID: CKRecord.ID(recordName: id, zoneID: zoneID))
+    }
+
     // MARK: - Breve til barnet
 
     func letters(childId: String) async throws -> [Letter] {

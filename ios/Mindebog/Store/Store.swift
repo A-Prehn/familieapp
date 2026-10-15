@@ -46,6 +46,11 @@ protocol Store {
     func updateGalleryItem(childId: String, _ item: GalleryItem) async throws
     func deleteGalleryItem(childId: String, id: String) async throws
 
+    // Vækst
+    func measurements(childId: String) async throws -> [Measurement]
+    func saveMeasurement(childId: String, _ measurement: Measurement) async throws   // opret eller opdatér
+    func deleteMeasurement(childId: String, id: String) async throws
+
     // Breve til barnet
     func letters(childId: String) async throws -> [Letter]
     func addLetter(childId: String, _ letter: Letter) async throws

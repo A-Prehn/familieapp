@@ -175,6 +175,23 @@ DEFINE SCHEMA
         GRANT READ TO "_world"
     );
 
+    RECORD TYPE Measurement (
+        "___createTime" TIMESTAMP,
+        "___createdBy"  REFERENCE,
+        "___etag"       STRING,
+        "___modTime"    TIMESTAMP,
+        "___modifiedBy" REFERENCE,
+        "___recordID"   REFERENCE QUERYABLE,
+        childRef        REFERENCE QUERYABLE,
+        date            TIMESTAMP,
+        weightGrams     INT64,
+        heightCm        DOUBLE,
+        headCm          DOUBLE,
+        GRANT WRITE TO "_creator",
+        GRANT CREATE TO "_icloud",
+        GRANT READ TO "_world"
+    );
+
     RECORD TYPE Letter (
         "___createTime" TIMESTAMP,
         "___createdBy"  REFERENCE,
