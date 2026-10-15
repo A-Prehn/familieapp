@@ -2,23 +2,45 @@ import Foundation
 
 // Faste data overført fra familie.prehn.net. Generiske — intet familiespecifikt.
 
+/// Hvilken slags værdi en milepæl har — styrer feltet i redigér-boksen og visningen.
+/// Værdien gemmes altid som tekst: dato "yyyy-MM-dd", tid "HH:mm", vægt i gram, længde i cm.
+enum MilestoneKind: Hashable {
+    case date
+    case time
+    case weight          // gram
+    case length          // cm
+    case choice([String])
+    case text
+}
+
 struct MilestoneDef: Identifiable, Hashable {
     let key: String
     let label: String
     let icon: String        // emoji, som på websitet
-    let isDate: Bool
+    let kind: MilestoneKind
     var id: String { key }
+    var isDate: Bool { kind == .date }
+
+    init(key: String, label: String, icon: String, isDate: Bool) {
+        self.init(key: key, label: label, icon: icon, kind: isDate ? .date : .text)
+    }
+
+    init(key: String, label: String, icon: String, kind: MilestoneKind) {
+        self.key = key; self.label = label; self.icon = icon; self.kind = kind
+    }
 }
 
 enum Constants {
     static let milestones: [MilestoneDef] = [
         MilestoneDef(key: "due_date", label: "Terminsdato", icon: "📅", isDate: true),
         MilestoneDef(key: "birth_date", label: "Fødselsdag", icon: "🌱", isDate: true),
-        MilestoneDef(key: "birth_time", label: "Tidspunkt", icon: "⏰", isDate: false),
-        MilestoneDef(key: "birth_weight", label: "Fødselsvægt", icon: "⚖️", isDate: false),
-        MilestoneDef(key: "birth_length", label: "Fødselslængde", icon: "📏", isDate: false),
-        MilestoneDef(key: "eye_color", label: "Øjenfarve", icon: "👁️", isDate: false),
-        MilestoneDef(key: "hair_color", label: "Hårfarve", icon: "✨", isDate: false),
+        MilestoneDef(key: "birth_time", label: "Tidspunkt", icon: "⏰", kind: .time),
+        MilestoneDef(key: "birth_weight", label: "Fødselsvægt", icon: "⚖️", kind: .weight),
+        MilestoneDef(key: "birth_length", label: "Fødselslængde", icon: "📏", kind: .length),
+        MilestoneDef(key: "eye_color", label: "Øjenfarve", icon: "👁️",
+                     kind: .choice(["Blå", "Grå", "Grøn", "Hassel", "Brun", "Mørkebrun", "Skifter stadig"])),
+        MilestoneDef(key: "hair_color", label: "Hårfarve", icon: "✨",
+                     kind: .choice(["Intet hår endnu", "Lyst", "Mellemblond", "Lysebrunt", "Brunt", "Mørkt", "Sort", "Rødt"])),
         MilestoneDef(key: "first_car_ride", label: "Første biltur hjem", icon: "🚗", isDate: true),
         MilestoneDef(key: "first_doctor", label: "Første lægebesøg", icon: "🩺", isDate: true),
         MilestoneDef(key: "first_vaccine", label: "Første vaccination", icon: "💉", isDate: true),
@@ -110,6 +132,56 @@ enum Constants {
             "Hvad har du sagt der overraskede os?",
             "Hvad har du forklaret os på din helt egen måde?"])
     ]
+}
+
+// Visning/parsing af milepæls-værdier. Tåler ældre fritekst ("3450 g", "3,4 kg", "52cm", "14.32").
+enum MilestoneValue {
+    static func display(_ value: String, kind: MilestoneKind) -> String {
+        switch kind {
+        case .date:
+            return Fmt.parseIso(value).map(Fmt.long) ?? value
+        case .time:
+            return parseTime(value).map { String(format: "kl. %02d:%02d", $0.hour, $0.minute) } ?? value
+        case .weight:
+            guard let grams = grams(value) else { return value }
+            let f = NumberFormatter()
+            f.locale = Locale(identifier: "da_DK"); f.numberStyle = .decimal
+            return "\(f.string(from: NSNumber(value: grams)) ?? String(grams)) g"
+        case .length:
+            guard let cm = centimeters(value) else { return value }
+            return cm.truncatingRemainder(dividingBy: 1) == 0
+                ? "\(Int(cm)) cm"
+                : String(format: "%.1f cm", cm).replacingOccurrences(of: ".", with: ",")
+        case .choice, .text:
+            return value
+        }
+    }
+
+    /// "14:32", "14.32", "kl. 14:32" → (14, 32)
+    static func parseTime(_ value: String) -> (hour: Int, minute: Int)? {
+        let digits = value.split(whereSeparator: { !$0.isNumber }).compactMap { Int($0) }
+        guard digits.count >= 2, (0..<24).contains(digits[0]), (0..<60).contains(digits[1]) else { return nil }
+        return (digits[0], digits[1])
+    }
+
+    /// "3450", "3450 g", "3.450 g", "3,4 kg" → 3450
+    static func grams(_ value: String) -> Int? {
+        let lower = value.lowercased()
+        if lower.contains("kg") {
+            let n = Double(lower.replacingOccurrences(of: "kg", with: "")
+                .replacingOccurrences(of: ",", with: ".").trimmingCharacters(in: .whitespaces))
+            return n.map { Int(($0 * 1000).rounded()) }
+        }
+        let digits = value.filter(\.isNumber)
+        return Int(digits)
+    }
+
+    /// "52", "52 cm", "51,5" → 52.0 / 51.5
+    static func centimeters(_ value: String) -> Double? {
+        let cleaned = value.lowercased().replacingOccurrences(of: "cm", with: "")
+            .replacingOccurrences(of: ",", with: ".").trimmingCharacters(in: .whitespaces)
+        return Double(cleaned)
+    }
 }
 
 // Dato-hjælpere (dansk).

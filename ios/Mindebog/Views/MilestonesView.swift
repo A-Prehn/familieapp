@@ -79,8 +79,7 @@ struct MilestonesView: View {
 
     private func displayValue(_ def: MilestoneDef, _ entry: MilestoneEntry?) -> String {
         guard let value = entry?.value else { return "—" }
-        if def.isDate, let date = Fmt.parseIso(value) { return Fmt.long(date) }
-        return value
+        return MilestoneValue.display(value, kind: def.kind)
     }
 
     private func load() async {
@@ -95,26 +94,16 @@ struct MilestoneEditView: View {
     let def: MilestoneDef
     let entry: MilestoneEntry?
 
-    @State private var hasDate = false
+    @State private var hasValue = false      // dato/tid sat
     @State private var date = Date()
-    @State private var text = ""
+    @State private var text = ""             // fritekst, vægt (g), længde (cm)
+    @State private var choice = ""
     @State private var photos = PhotoSet()
 
     var body: some View {
         NavigationStack {
             Form {
-                if def.isDate {
-                    Section("Dato") {
-                        Toggle("Sæt dato", isOn: $hasDate)
-                        if hasDate {
-                            DatePicker("Dato", selection: $date, displayedComponents: .date)
-                        }
-                    }
-                } else {
-                    Section("Værdi") {
-                        TextField("Skriv her…", text: $text)
-                    }
-                }
+                valueSection
                 Section {
                     PhotoSetEditor(set: $photos)
                 } header: {
@@ -135,23 +124,107 @@ struct MilestoneEditView: View {
         }
     }
 
+    // Felt der passer til milepælens type.
+    @ViewBuilder
+    private var valueSection: some View {
+        switch def.kind {
+        case .date:
+            Section("Dato") {
+                Toggle("Sæt dato", isOn: $hasValue)
+                if hasValue {
+                    DatePicker("Dato", selection: $date, displayedComponents: .date)
+                }
+            }
+        case .time:
+            Section("Klokkeslæt") {
+                Toggle("Sæt tidspunkt", isOn: $hasValue)
+                if hasValue {
+                    DatePicker("Tidspunkt", selection: $date, displayedComponents: .hourAndMinute)
+                        .environment(\.locale, Locale(identifier: "da_DK"))
+                }
+            }
+        case .weight:
+            Section {
+                HStack {
+                    TextField("F.eks. 3450", text: $text)
+                        .keyboardType(.numberPad)
+                    Text("gram").foregroundStyle(Theme.muted)
+                }
+            } header: {
+                Text("Vægt")
+            } footer: {
+                if let g = Int(text), g > 0 {
+                    Text("= \(MilestoneValue.display(String(g), kind: .weight)) (\(String(format: "%.2f", Double(g) / 1000).replacingOccurrences(of: ".", with: ",")) kg)")
+                }
+            }
+        case .length:
+            Section("Længde") {
+                HStack {
+                    TextField("F.eks. 52", text: $text)
+                        .keyboardType(.decimalPad)
+                    Text("cm").foregroundStyle(Theme.muted)
+                }
+            }
+        case .choice(let options):
+            Section("Vælg") {
+                Picker(def.label, selection: $choice) {
+                    Text("Ikke valgt").tag("")
+                    ForEach(options, id: \.self) { Text($0).tag($0) }
+                    // Bevar en ældre fritekst-værdi, som ikke er i listen.
+                    if !choice.isEmpty && !options.contains(choice) {
+                        Text(choice).tag(choice)
+                    }
+                }
+                .pickerStyle(.inline)
+                .labelsHidden()
+            }
+        case .text:
+            Section("Værdi") {
+                TextField("Skriv her…", text: $text)
+            }
+        }
+    }
+
     private func prefill() {
         photos = entry?.photos ?? PhotoSet()
-        if def.isDate {
-            if let value = entry?.value, let parsed = Fmt.parseIso(value) {
-                date = parsed
-                hasDate = true
+        let value = entry?.value ?? ""
+        switch def.kind {
+        case .date:
+            if let parsed = Fmt.parseIso(value) { date = parsed; hasValue = true }
+        case .time:
+            if let t = MilestoneValue.parseTime(value),
+               let d = Calendar.current.date(bySettingHour: t.hour, minute: t.minute, second: 0, of: Date()) {
+                date = d; hasValue = true
             }
-        } else {
-            text = entry?.value ?? ""
+        case .weight:
+            text = MilestoneValue.grams(value).map(String.init) ?? ""
+        case .length:
+            text = MilestoneValue.centimeters(value)
+                .map { $0.truncatingRemainder(dividingBy: 1) == 0 ? String(Int($0)) : String($0).replacingOccurrences(of: ".", with: ",") } ?? ""
+        case .choice:
+            choice = value
+        case .text:
+            text = value
         }
     }
 
     private func save() async {
         let value: String?
-        if def.isDate {
-            value = hasDate ? Fmt.iso(date) : nil
-        } else {
+        switch def.kind {
+        case .date:
+            value = hasValue ? Fmt.iso(date) : nil
+        case .time:
+            let c = Calendar.current.dateComponents([.hour, .minute], from: date)
+            value = hasValue ? String(format: "%02d:%02d", c.hour ?? 0, c.minute ?? 0) : nil
+        case .weight:
+            value = MilestoneValue.grams(text).map(String.init)        // kun tal, i gram
+        case .length:
+            value = MilestoneValue.centimeters(text).map { cm in
+                cm.truncatingRemainder(dividingBy: 1) == 0 ? String(Int(cm)) : String(cm)
+            }
+        case .choice:
+            value = choice.isEmpty ? nil : choice
+        case .text:
             value = text
         }
         try? await state.store.setMilestone(childId: child.id, key: def.key, value: value, photos: photos)
