@@ -165,10 +165,11 @@ actor MemoryStore: Store {
         }
     }
 
-    func addEvent(familyId: String, title: String, date: Date?, details: String) async throws -> FamilyEvent {
+    func addEvent(familyId: String, title: String, date: Date?, details: String, photo: Data?) async throws -> FamilyEvent {
         let event = FamilyEvent(id: newId("ev"),
                                 title: title.trimmingCharacters(in: .whitespaces),
-                                date: date, details: details.trimmingCharacters(in: .whitespaces))
+                                date: date, details: details.trimmingCharacters(in: .whitespaces),
+                                photo: photo)
         eventsByFamily[familyId, default: []].append(event)
         return event
     }

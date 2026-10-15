@@ -292,19 +292,21 @@ final class CloudKitStore: Store {
             FamilyEvent(id: r.recordID.recordName,
                         title: r["title"] as? String ?? "",
                         date: r["date"] as? Date,
-                        details: r["details"] as? String ?? "")
+                        details: r["details"] as? String ?? "",
+                        photo: Self.assetData(r["photo"]))
         }.sorted { ($0.date ?? .distantPast) > ($1.date ?? .distantPast) }
     }
 
-    func addEvent(familyId: String, title: String, date: Date?, details: String) async throws -> FamilyEvent {
+    func addEvent(familyId: String, title: String, date: Date?, details: String, photo: Data?) async throws -> FamilyEvent {
         let (db, zoneID) = try await locate(familyId)
         let record = CKRecord(recordType: "Event", recordID: CKRecord.ID(recordName: newId("ev"), zoneID: zoneID))
         record["familyRef"] = familyRef(zoneID)
         record["title"] = title.trimmingCharacters(in: .whitespaces) as CKRecordValue
         if let date { record["date"] = date as CKRecordValue }
         record["details"] = details.trimmingCharacters(in: .whitespaces) as CKRecordValue
+        record["photo"] = photo.flatMap { Self.asset(from: $0) }
         let saved = try await db.save(record)
-        return FamilyEvent(id: saved.recordID.recordName, title: title, date: date, details: details)
+        return FamilyEvent(id: saved.recordID.recordName, title: title, date: date, details: details, photo: photo)
     }
 
     func vacations(familyId: String) async throws -> [Vacation] {

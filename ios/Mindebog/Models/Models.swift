@@ -95,6 +95,7 @@ struct FamilyEvent: Identifiable, Hashable, Codable {
     var title: String
     var date: Date?
     var details: String
+    var photo: Data?
 }
 
 struct Vacation: Identifiable, Hashable, Codable {

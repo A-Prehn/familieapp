@@ -135,6 +135,7 @@ DEFINE SCHEMA
         title           STRING,
         date            TIMESTAMP,
         details         STRING,
+        photo           ASSET,
         GRANT WRITE TO "_creator",
         GRANT CREATE TO "_icloud",
         GRANT READ TO "_world"

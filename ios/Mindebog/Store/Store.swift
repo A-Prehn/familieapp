@@ -37,7 +37,7 @@ protocol Store {
 
     // Pr. familie
     func events(familyId: String) async throws -> [FamilyEvent]
-    func addEvent(familyId: String, title: String, date: Date?, details: String) async throws -> FamilyEvent
+    func addEvent(familyId: String, title: String, date: Date?, details: String, photo: Data?) async throws -> FamilyEvent
 
     func vacations(familyId: String) async throws -> [Vacation]
     func addVacation(familyId: String, title: String, start: Date?, end: Date?,

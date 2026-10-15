@@ -26,7 +26,7 @@ struct MainTabView: View {
                 .tabItem { Label("Hjem", systemImage: "house") }
 
             NavigationStack { FamilyView() }
-                .tabItem { Label("Familie", systemImage: "person.2") }
+                .tabItem { Label("Fælles", systemImage: "calendar") }
 
             NavigationStack { MoreView() }
                 .tabItem { Label("Mere", systemImage: "gearshape") }

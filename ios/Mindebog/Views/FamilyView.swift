@@ -36,7 +36,7 @@ struct FamilyView: View {
             .padding(16)
         }
         .background(Theme.bg.ignoresSafeArea())
-        .navigationTitle(family?.name ?? "Familie")
+        .navigationTitle("Fælles")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
@@ -73,13 +73,20 @@ struct FamilyView: View {
                                 .font(.serifTitle(20))
                         }
                         .frame(width: 44)
-                        VStack(alignment: .leading, spacing: 2) {
+                        VStack(alignment: .leading, spacing: 6) {
                             Text(event.title).font(.system(size: 15, weight: .medium))
                             if !event.details.isEmpty {
                                 Text(event.details).font(.footnote).foregroundStyle(Theme.muted)
                             }
+                            if let photo = event.photo {
+                                Color.clear
+                                    .aspectRatio(4.0 / 3.0, contentMode: .fit)
+                                    .overlay { DataImage(data: photo) }
+                                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                                    .onTapGesture { lightbox = LightboxState(photos: [photo]) }
+                            }
                         }
-                        Spacer()
+                        Spacer(minLength: 0)
                     }
                     .padding(.vertical, 12)
                 }
@@ -254,6 +261,7 @@ struct AddEventView: View {
     @State private var title = ""
     @State private var date = Date()
     @State private var details = ""
+    @State private var photo: Data?
 
     var body: some View {
         NavigationStack {
@@ -263,6 +271,9 @@ struct AddEventView: View {
                 Section("Beskrivelse") {
                     TextField("Beskrivelse", text: $details, axis: .vertical).lineLimit(2...5)
                 }
+                Section("Billede") {
+                    PhotoField(data: $photo)
+                }
             }
             .navigationTitle("Ny begivenhed")
             .navigationBarTitleDisplayMode(.inline)
@@ -271,7 +282,8 @@ struct AddEventView: View {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Gem") {
                         Task {
-                            _ = try? await state.store.addEvent(familyId: familyId, title: title, date: date, details: details)
+                            _ = try? await state.store.addEvent(familyId: familyId, title: title, date: date,
+                                                                details: details, photo: photo)
                             dismiss()
                         }
                     }
