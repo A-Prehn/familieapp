@@ -6,3 +6,6 @@ DerivedData/
 build/
 *.xcuserstate
 .DS_Store
+
+# Signering — private nøgler og certifikater må ALDRIG committes
+signing/

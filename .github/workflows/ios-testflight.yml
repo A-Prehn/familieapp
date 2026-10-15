@@ -1,13 +1,16 @@
 name: iOS TestFlight
 
 # Signerer og uploader appen til TestFlight — uden Mac.
-# Bruger cloud-signering via App Store Connect API-nøgle, så ingen certifikater
-# skal vedligeholdes manuelt.
 #
-# Kræver disse GitHub Secrets (Settings → Secrets and variables → Actions):
-#   ASC_KEY_ID      – Key ID for App Store Connect API-nøglen
-#   ASC_ISSUER_ID   – Issuer ID
-#   ASC_KEY_P8      – hele indholdet af .p8-filen
+# Metode: manuelt distributionscertifikat (.p12, oprettet én gang) + App Store-
+# provisioning-profil hentet med fastlane via App Store Connect API-nøglen.
+# Upload sker med altool via samme API-nøgle. Xcodes cloud-signering bruges
+# IKKE (den afviser API-nøglen fra GitHub-runnere).
+#
+# GitHub Secrets:
+#   ASC_KEY_ID, ASC_ISSUER_ID, ASC_KEY_P8   – App Store Connect API-nøgle
+#   DIST_CERT_P12_BASE64                    – Apple Distribution-certifikat (.p12, base64)
+#   DIST_CERT_PASSWORD                      – adgangskode til .p12
 
 on:
   workflow_dispatch:
@@ -24,8 +27,12 @@ jobs:
     name: Signér og upload til TestFlight
     runs-on: macos-15
     env:
+      TEAM_ID: 9VMB4XZSKS
+      BUNDLE_ID: net.prehn.mindebog
       KEY_DIR: /Users/runner/.appstoreconnect/private_keys
       KEY_PATH: /Users/runner/.appstoreconnect/private_keys/AuthKey_${{ secrets.ASC_KEY_ID }}.p8
+      KEYCHAIN_PATH: /Users/runner/ci.keychain-db
+      KEYCHAIN_PASSWORD: ci-temp-password
     steps:
       - uses: actions/checkout@v4
 
@@ -47,24 +54,59 @@ jobs:
           mkdir -p "$KEY_DIR"
           printf '%s\n' "${{ secrets.ASC_KEY_P8 }}" | tr -d '\r' > "$KEY_PATH"
           chmod 600 "$KEY_PATH"
-          # Sanity-tjek uden at afsløre nøglen
-          echo "Linjer: $(wc -l < "$KEY_PATH")"
-          echo "Key ID-længde: ${#ASC_KEY_ID_CHECK} (skal være 10)"
-          echo "Issuer ID-længde: ${#ASC_ISSUER_ID_CHECK} (skal være 36)"
-          echo "Nøglen kan parses som EC-nøgle:"
-          openssl pkey -in "$KEY_PATH" -noout -check && echo OK
-        env:
-          ASC_KEY_ID_CHECK: ${{ secrets.ASC_KEY_ID }}
-          ASC_ISSUER_ID_CHECK: ${{ secrets.ASC_ISSUER_ID }}
+          openssl pkey -in "$KEY_PATH" -noout -check && echo "API-nøgle OK"
 
-      - name: Test login mod App Store Connect (uafhængigt af Xcode)
+      - name: Importér distributionscertifikat i midlertidig keychain
         run: |
-          xcrun altool --list-apps \
-            --apiKey "${{ secrets.ASC_KEY_ID }}" \
-            --apiIssuer "${{ secrets.ASC_ISSUER_ID }}" \
-            --output-format json | head -c 600; echo
+          echo "${{ secrets.DIST_CERT_P12_BASE64 }}" | base64 --decode > /tmp/dist.p12
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security import /tmp/dist.p12 -P "${{ secrets.DIST_CERT_PASSWORD }}" \
+            -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security list-keychains -d user -s "$KEYCHAIN_PATH" login.keychain-db
+          rm -f /tmp/dist.p12
+          echo "Identiteter i keychain:"
+          security find-identity -v -p codesigning "$KEYCHAIN_PATH"
 
-      - name: Skriv ExportOptions.plist
+      - name: Hent App Store-provisioning-profil (fastlane sigh via API-nøgle)
+        env:
+          APP_STORE_CONNECT_API_KEY_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          APP_STORE_CONNECT_API_KEY_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          APP_STORE_CONNECT_API_KEY_KEY_FILEPATH: /Users/runner/.appstoreconnect/private_keys/AuthKey_${{ secrets.ASC_KEY_ID }}.p8
+        run: |
+          mkdir -p ios/profiles
+          fastlane sigh \
+            --app_identifier "$BUNDLE_ID" \
+            --team_id "$TEAM_ID" \
+            --output_path ios/profiles \
+            --filename Mindebog_AppStore.mobileprovision \
+            --skip_install false
+          echo "PROFILE_UUID=$(/usr/libexec/PlistBuddy -c 'Print :UUID' /dev/stdin <<< "$(security cms -D -i ios/profiles/Mindebog_AppStore.mobileprovision)")" >> "$GITHUB_ENV"
+          echo "PROFILE_NAME=$(/usr/libexec/PlistBuddy -c 'Print :Name' /dev/stdin <<< "$(security cms -D -i ios/profiles/Mindebog_AppStore.mobileprovision)")" >> "$GITHUB_ENV"
+
+      - name: Arkivér (manuel signering)
+        working-directory: ios
+        run: |
+          set -o pipefail
+          echo "Profil: $PROFILE_NAME ($PROFILE_UUID)"
+          xcodebuild archive \
+            -project Mindebog.xcodeproj \
+            -scheme Mindebog \
+            -configuration Release \
+            -destination 'generic/platform=iOS' \
+            -archivePath build/Mindebog.xcarchive \
+            CODE_SIGN_STYLE=Manual \
+            CODE_SIGNING_ALLOWED=YES \
+            CODE_SIGNING_REQUIRED=YES \
+            CODE_SIGN_IDENTITY="Apple Distribution" \
+            DEVELOPMENT_TEAM="$TEAM_ID" \
+            PROVISIONING_PROFILE_SPECIFIER="$PROFILE_NAME" \
+            OTHER_CODE_SIGN_FLAGS="--keychain $KEYCHAIN_PATH" \
+            CURRENT_PROJECT_VERSION="${{ github.run_number }}"
+
+      - name: Eksportér IPA (manuel signering)
         working-directory: ios
         run: |
           cat > ExportOptions.plist <<EOF
@@ -73,47 +115,36 @@ jobs:
           <plist version="1.0">
           <dict>
             <key>method</key><string>app-store-connect</string>
-            <key>destination</key><string>upload</string>
-            <key>signingStyle</key><string>automatic</string>
-            <key>teamID</key><string>9VMB4XZSKS</string>
+            <key>destination</key><string>export</string>
+            <key>signingStyle</key><string>manual</string>
+            <key>teamID</key><string>$TEAM_ID</string>
+            <key>signingCertificate</key><string>Apple Distribution</string>
+            <key>provisioningProfiles</key>
+            <dict>
+              <key>$BUNDLE_ID</key><string>$PROFILE_NAME</string>
+            </dict>
             <key>uploadSymbols</key><true/>
-            <key>manageAppVersionAndBuildNumber</key><false/>
           </dict>
           </plist>
           EOF
-
-      - name: Arkivér (signeret)
-        working-directory: ios
-        run: |
-          set -o pipefail
-          xcodebuild archive \
-            -project Mindebog.xcodeproj \
-            -scheme Mindebog \
-            -configuration Release \
-            -destination 'generic/platform=iOS' \
-            -archivePath build/Mindebog.xcarchive \
-            -allowProvisioningUpdates \
-            -authenticationKeyPath "$KEY_PATH" \
-            -authenticationKeyID "${{ secrets.ASC_KEY_ID }}" \
-            -authenticationKeyIssuerID "${{ secrets.ASC_ISSUER_ID }}" \
-            CODE_SIGNING_ALLOWED=NO \
-            CODE_SIGNING_REQUIRED=NO \
-            DEVELOPMENT_TEAM="9VMB4XZSKS" \
-            CURRENT_PROJECT_VERSION="${{ github.run_number }}"
-
-      - name: Eksportér og upload til TestFlight
-        working-directory: ios
-        run: |
           set -o pipefail
           xcodebuild -exportArchive \
             -archivePath build/Mindebog.xcarchive \
             -exportOptionsPlist ExportOptions.plist \
-            -exportPath build/export \
-            -allowProvisioningUpdates \
-            -authenticationKeyPath "$KEY_PATH" \
-            -authenticationKeyID "${{ secrets.ASC_KEY_ID }}" \
-            -authenticationKeyIssuerID "${{ secrets.ASC_ISSUER_ID }}"
+            -exportPath build/export
+          ls -la build/export
+
+      - name: Upload til TestFlight (altool via API-nøgle)
+        working-directory: ios
+        run: |
+          xcrun altool --upload-app \
+            --type ios \
+            --file "build/export/Mindebog.ipa" \
+            --apiKey "${{ secrets.ASC_KEY_ID }}" \
+            --apiIssuer "${{ secrets.ASC_ISSUER_ID }}"
 
       - name: Ryd op
         if: always()
-        run: rm -f "$KEY_PATH"
+        run: |
+          rm -f "$KEY_PATH"
+          security delete-keychain "$KEYCHAIN_PATH" 2>/dev/null || true
