@@ -4,6 +4,9 @@ struct ChildDetailView: View {
     @EnvironmentObject var state: AppState
     @State private var child: Child
     @State private var editing = false
+    @State private var makingBook = false
+    @State private var bookShare: ShareSheet?
+    @State private var bookError: String?
 
     init(child: Child) {
         _child = State(initialValue: child)
@@ -61,9 +64,21 @@ struct ChildDetailView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
-                if state.canEdit { Button("Redigér") { editing = true } }
+                Menu {
+                    if state.canEdit {
+                        Button { editing = true } label: { Label("Redigér", systemImage: "pencil") }
+                    }
+                    Button { Task { await makeBook() } } label: {
+                        Label("Lav mindebog (PDF)", systemImage: "book.closed")
+                    }
+                } label: {
+                    if makingBook { ProgressView() } else { Image(systemName: "ellipsis.circle") }
+                }
+                .disabled(makingBook)
             }
         }
+        .sheet(item: $bookShare) { $0 }
+        .saveErrorAlert($bookError)
         .sheet(isPresented: $editing) {
             NewChildView(editing: child) { updated in child = updated }
         }
@@ -99,6 +114,20 @@ struct ChildDetailView: View {
         .background(Theme.card)
         .clipShape(RoundedRectangle(cornerRadius: 16))
         .overlay(RoundedRectangle(cornerRadius: 16).stroke(Theme.sep))
+    }
+
+    /// Bygger mindebogen som PDF og åbner del-arket (Gem i Filer, Mail, Udskriv …).
+    private func makeBook() async {
+        makingBook = true
+        defer { makingBook = false }
+        let familyName = (try? await state.store.families(for: state.user?.id ?? ""))?
+            .first { $0.id == state.familyId }?.name ?? "Vores familie"
+        do {
+            let url = try await BookExporter.make(child: child, store: state.store, familyName: familyName)
+            bookShare = ShareSheet(url: url)
+        } catch {
+            bookError = "Kunne ikke lave mindebogen: \(error.localizedDescription)"
+        }
     }
 
     private var subtitle: String {
