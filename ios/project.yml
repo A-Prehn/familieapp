@@ -33,6 +33,8 @@ targets:
         INFOPLIST_KEY_UILaunchScreen_Generation: "YES"
         INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents: "YES"
         INFOPLIST_KEY_UISupportedInterfaceOrientations: "UIInterfaceOrientationPortrait"
+        # Ingen egen kryptering (kun Apples/HTTPS) → TestFlight spørger ikke om export compliance
+        INFOPLIST_KEY_ITSAppUsesNonExemptEncryption: "NO"
         # iCloud/CloudKit-entitlements. Ignoreres i usigneret simulator-build (CI),
         # anvendes når appen signeres med Apple Developer-kontoen.
         CODE_SIGN_ENTITLEMENTS: Mindebog/Mindebog.entitlements
