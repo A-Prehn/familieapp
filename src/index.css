@@ -257,6 +257,22 @@ textarea { resize: vertical; min-height: 90px; }
 .home-card.add { color: var(--tint); justify-content: center; border-style: dashed; }
 .home-card.add .plus { font-size: 30px; }
 
+/* --- Hjem-feed ------------------------------------------------------------ */
+.greeting { font-family: "Lora", serif; font-size: 22px; font-weight: 500; margin: 4px 4px 0; }
+.today-row { display: flex; align-items: center; gap: 14px; padding: 14px; cursor: pointer; border: 1px solid var(--sep); box-shadow: none; }
+.today-row:active { transform: scale(0.98); }
+.row-title.serif { font-family: "Lora", serif; font-weight: 500; }
+.quick-row { display: flex; gap: 10px; margin-top: 4px; }
+.quick-btn { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 12px 0; background: var(--card); border: 1px solid var(--sep); border-radius: 12px; font-family: inherit; font-size: 12px; color: var(--text); cursor: pointer; }
+.quick-btn:active { transform: scale(0.97); }
+.memory-row { display: flex; gap: 12px; align-items: flex-start; padding: 12px; cursor: pointer; border: 1px solid var(--sep); box-shadow: none; }
+.memory-row img { width: 64px; height: 64px; object-fit: cover; border-radius: 8px; flex-shrink: 0; cursor: zoom-in; }
+.memory-icon { width: 64px; height: 64px; border-radius: 8px; background: var(--bg-dark); display: flex; align-items: center; justify-content: center; color: var(--neutral-dark); flex-shrink: 0; }
+.memory-meta { font-size: 12px; color: var(--muted); }
+.memory-text { font-size: 14px; margin-top: 3px; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.memory-date { font-size: 11px; color: var(--text-light); margin-top: 3px; }
+.event-photo { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; border-radius: 8px; margin-top: 8px; display: block; cursor: zoom-in; }
+
 /* --- Milepæls-gitter ----------------------------------------------------- */
 .milestone-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .milestone { background: var(--bg); border: 1px solid var(--sep); border-radius: 10px; overflow: hidden; text-align: center; }

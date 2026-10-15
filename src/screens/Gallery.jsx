@@ -7,11 +7,11 @@ const META = {
   monthlyGallery: { title: "Måned for måned", capLabel: "Måned", capPlaceholder: "F.eks. 3 måneder" },
 };
 
-export default function Gallery({ nav, childId, kind }) {
+export default function Gallery({ nav, childId, kind, autoAdd }) {
   const meta = META[kind] || META.monthlyGallery;
   const { store } = useApp();
   const { data: child } = useLiveData(() => store.getChild(childId), [childId]);
-  const [adding, setAdding] = useState(false);
+  const [adding, setAdding] = useState(!!autoAdd);
   const [lb, setLb] = useState(null);
   const [caption, setCaption] = useState("");
   const [photo, setPhoto] = useState(null);

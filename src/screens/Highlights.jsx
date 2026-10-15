@@ -4,10 +4,10 @@ import { ScreenHeader, EmptyState, Modal, Lightbox } from "../components/ui";
 import { fileToResizedDataURL } from "../lib/photo";
 import { formatDate } from "../lib/constants";
 
-export default function Highlights({ nav, childId }) {
+export default function Highlights({ nav, childId, autoAdd }) {
   const { store } = useApp();
   const { data: child } = useLiveData(() => store.getChild(childId), [childId]);
-  const [adding, setAdding] = useState(false);
+  const [adding, setAdding] = useState(!!autoAdd);
   const [lb, setLb] = useState(null);
 
   const [date, setDate] = useState("");

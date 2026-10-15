@@ -78,9 +78,9 @@ function Shell() {
     switch (top.name) {
       case "child": screen = <ChildDetail nav={nav} childId={p.childId} />; break;
       case "newChild": screen = <NewChild nav={nav} />; break;
-      case "highlights": screen = <Highlights nav={nav} childId={p.childId} />; break;
-      case "diary": screen = <Diary nav={nav} childId={p.childId} />; break;
-      case "gallery": screen = <Gallery nav={nav} childId={p.childId} kind={p.kind} />; break;
+      case "highlights": screen = <Highlights nav={nav} childId={p.childId} autoAdd={p.autoAdd} />; break;
+      case "diary": screen = <Diary nav={nav} childId={p.childId} autoAdd={p.autoAdd} />; break;
+      case "gallery": screen = <Gallery nav={nav} childId={p.childId} kind={p.kind} autoAdd={p.autoAdd} />; break;
       case "aboutMe": screen = <AboutMe nav={nav} childId={p.childId} />; break;
       case "milestones": screen = <Milestones nav={nav} childId={p.childId} />; break;
       default: screen = null;

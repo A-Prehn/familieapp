@@ -3,11 +3,11 @@ import { useApp, useLiveData } from "../lib/AppContext";
 import { ScreenHeader, EmptyState, Modal, Lightbox, PhotoPicker } from "../components/ui";
 import { formatDate } from "../lib/constants";
 
-export default function Diary({ nav, childId }) {
+export default function Diary({ nav, childId, autoAdd }) {
   const { store } = useApp();
   const { data: child } = useLiveData(() => store.getChild(childId), [childId]);
   const onTheWay = child && !child.birthDate && child.dueDate;
-  const [adding, setAdding] = useState(false);
+  const [adding, setAdding] = useState(!!autoAdd);
   const [lb, setLb] = useState(null);
   const [date, setDate] = useState("");
   const [text, setText] = useState("");

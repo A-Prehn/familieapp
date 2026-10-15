@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Plus } from "lucide-react";
 import { useApp, useLiveData } from "../lib/AppContext";
 import { EmptyState, Modal, Lightbox, PhotoPicker } from "../components/ui";
-import { MONTHS_SHORT, MONTHS_FULL, formatDate } from "../lib/constants";
+import { MONTHS_SHORT, MONTHS_FULL, formatDate, daysUntil, ageFromBirth } from "../lib/constants";
 
 const SUBS = [["events", "Begivenheder"], ["vacations", "Ferier"], ["birthdays", "Fødselsdage"]];
 
@@ -13,7 +13,17 @@ function nextBirthday(dateStr, today) {
   return next;
 }
 
-export default function FamilieTab() {
+const AVATAR = { boy: { cls: "blue", emoji: "👦" }, girl: { cls: "pink", emoji: "👧" }, unspecified: { cls: "", emoji: "🧒" } };
+
+function childSub(c) {
+  if (!c.birthDate && c.dueDate) {
+    const d = daysUntil(c.dueDate);
+    return d != null && d > 0 ? `${d} dage til termin` : "Termin nået";
+  }
+  return ageFromBirth(c.birthDate) || "Ingen fødselsdato";
+}
+
+export default function FamilieTab({ nav }) {
   const { familyId, store } = useApp();
   const [sub, setSub] = useState("events");
   const { data: family } = useLiveData(() => store.getFamily(familyId), [familyId]);
@@ -26,7 +36,7 @@ export default function FamilieTab() {
   function openAdd() { setForm({}); setAdding(true); }
   async function save() {
     setBusy(true);
-    if (sub === "events") await store.addFamilyItem(familyId, "events", { title: form.title?.trim(), date: form.date || null, description: form.description?.trim() || "" });
+    if (sub === "events") await store.addFamilyItem(familyId, "events", { title: form.title?.trim(), date: form.date || null, description: form.description?.trim() || "", photo: form.photo || null });
     else if (sub === "vacations") await store.addFamilyItem(familyId, "vacations", { title: form.title?.trim(), startDate: form.startDate || null, endDate: form.endDate || null, description: form.description?.trim() || "", photo: form.photo || null });
     else await store.addFamilyItem(familyId, "birthdays", { name: form.name?.trim(), date: form.date || null, emoji: form.emoji?.trim() || "🎂" });
     setBusy(false); setAdding(false);
@@ -40,13 +50,34 @@ export default function FamilieTab() {
         <button className="action" onClick={openAdd} aria-label="Tilføj"><Plus size={22} strokeWidth={1.8} /></button>
       </div>
       <div className="content">
+        <div className="section-label" style={{ marginTop: 4 }}>Vores børn</div>
+        {children == null ? null : (
+          <div className="home-grid">
+            {children.map((c) => {
+              const a = AVATAR[c.gender] || AVATAR.unspecified;
+              return (
+                <div key={c.id} className="home-card" onClick={() => nav.push("child", { childId: c.id })}>
+                  <div className={`avatar ${a.cls}`}>{a.emoji}</div>
+                  <div className="home-card-name">{c.name}</div>
+                  <div className="home-card-sub">{childSub(c)}</div>
+                </div>
+              );
+            })}
+            <div className="home-card add" onClick={() => nav.push("newChild")}>
+              <Plus size={30} strokeWidth={1.5} />
+              <div className="home-card-name">Tilføj barn</div>
+            </div>
+          </div>
+        )}
+
+        <div className="section-label">Fælles</div>
         <div className="subnav">
           {SUBS.map(([k, l]) => (
             <button key={k} className={sub === k ? "active" : ""} onClick={() => setSub(k)}>{l}</button>
           ))}
         </div>
 
-        {sub === "events" && <Events events={family?.events || []} />}
+        {sub === "events" && <Events events={family?.events || []} onPhoto={setLb} />}
         {sub === "vacations" && <Vacations vacations={family?.vacations || []} onPhoto={setLb} />}
         {sub === "birthdays" && <Birthdays family={family} children={children || []} />}
       </div>
@@ -65,7 +96,8 @@ export default function FamilieTab() {
               <label className="field"><span>Titel</span><input value={form.title || ""} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="F.eks. Sommerfest" autoFocus /></label>
               <label className="field"><span>Dato</span><input type="date" value={form.date || ""} onChange={(e) => setForm({ ...form, date: e.target.value })} /></label>
               <label className="field"><span>Beskrivelse</span><textarea value={form.description || ""} onChange={(e) => setForm({ ...form, description: e.target.value })} /></label>
-              <button className="btn" disabled={busy || !form.title?.trim()} onClick={save}>Gem</button>
+              <PhotoPicker value={form.photo} onChange={(p) => setForm({ ...form, photo: p })} />
+              <button className="btn" disabled={busy || !form.title?.trim()} onClick={save} style={{ marginTop: 12 }}>Gem</button>
             </>
           ) : (
             <>
@@ -85,7 +117,7 @@ export default function FamilieTab() {
   );
 }
 
-function Events({ events }) {
+function Events({ events, onPhoto }) {
   const sorted = events.slice().sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
   if (!sorted.length) return <EmptyState emoji="📅">Ingen begivenheder endnu.</EmptyState>;
   return (
@@ -101,6 +133,7 @@ function Events({ events }) {
             <div className="event-main">
               <div className="event-title">{ev.title}</div>
               {ev.description && <div className="event-sub">{ev.description}</div>}
+              {ev.photo && <img className="event-photo" src={ev.photo} alt="" onClick={() => onPhoto(ev.photo)} />}
             </div>
           </div>
         );
