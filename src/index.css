@@ -16,6 +16,8 @@
   --green-soft: #e6f3ec;
   --neutral: #a89572;   /* baby */
   --neutral-soft: #f0ece2;
+  --neutral-dark: #5f5238;
+  --terracotta: #c4896b;
   --radius: 16px;
   --shadow: 0 1px 3px rgba(44, 40, 32, 0.05), 0 8px 24px rgba(44, 40, 32, 0.04);
   font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
@@ -211,10 +213,10 @@ textarea { resize: vertical; min-height: 90px; }
 .tabbar-btn.active .tabbar-icon { filter: none; }
 
 /* --- Barn: countdown + sektions-knapper ---------------------------------- */
-.countdown { display: flex; align-items: center; gap: 16px; background: var(--neutral-soft); border-radius: 14px; padding: 16px; margin-top: 4px; }
-.countdown-number { font-family: "Lora", serif; font-size: 40px; font-weight: 600; color: var(--neutral); line-height: 1; }
-.countdown-label { font-weight: 600; font-size: 15px; }
-.countdown-detail { font-size: 13px; color: var(--muted); margin-top: 2px; }
+.countdown { display: flex; align-items: center; gap: 20px; background: var(--neutral-soft); border-radius: 10px; padding: 18px 20px; margin-top: 16px; }
+.countdown-number { font-family: "Lora", serif; font-size: 48px; font-weight: 500; color: var(--neutral-dark); line-height: 1; }
+.countdown-label { font-size: 13px; color: var(--neutral); margin-bottom: 4px; }
+.countdown-detail { font-size: 13px; color: var(--neutral-dark); line-height: 1.6; }
 
 .section-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 4px; }
 .section-btn {
@@ -227,29 +229,46 @@ textarea { resize: vertical; min-height: 90px; }
 .section-btn .s-title { font-size: 13px; font-weight: 600; }
 .section-btn .s-sub { font-size: 12px; color: var(--muted); }
 
-.section-label { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; margin: 24px 4px 10px; }
+.section-label { font-size: 11px; color: var(--text-light); text-transform: uppercase; letter-spacing: 0.1em; margin: 28px 4px 14px; display: flex; align-items: center; gap: 10px; }
+.section-label::after { content: ""; flex: 1; height: 1px; background: var(--sep); }
+
+/* Hjem — kort-gitter (som websitet) */
+.home-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.home-card { background: var(--card); border: 1px solid var(--sep); border-radius: 14px; padding: 20px 16px; cursor: pointer; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 10px; transition: transform 0.1s; }
+.home-card:active { transform: scale(0.97); }
+.home-card .avatar { width: 56px; height: 56px; }
+.home-card-name { font-family: "Lora", serif; font-size: 16px; font-weight: 500; }
+.home-card-sub { font-size: 12px; color: var(--muted); }
+.home-card.add { color: var(--tint); justify-content: center; border-style: dashed; }
+.home-card.add .plus { font-size: 30px; }
 
 /* --- Milepæls-gitter ----------------------------------------------------- */
 .milestone-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-.milestone { background: var(--card); border: 1px solid var(--sep); border-radius: 14px; overflow: hidden; }
-.milestone.filled { border-color: #c8e6d4; }
-.ms-media { width: 100%; aspect-ratio: 1; display: flex; align-items: center; justify-content: center; font-size: 32px; background: var(--bg-dark); cursor: pointer; }
+.milestone { background: var(--bg); border: 1px solid var(--sep); border-radius: 10px; overflow: hidden; text-align: center; }
+.milestone.filled { background: var(--card); border-color: #c8e6d4; }
+.ms-media { width: 100%; aspect-ratio: 4 / 3; display: flex; align-items: center; justify-content: center; font-size: 28px; background: var(--bg-dark); cursor: pointer; opacity: 0.4; }
+.milestone.filled .ms-media { opacity: 0.85; }
+.ms-media:has(img) { opacity: 1; background: var(--bg-dark); }
 .ms-media img { width: 100%; height: 100%; object-fit: cover; }
-.ms-body { padding: 10px 12px; }
-.ms-label { font-size: 13px; font-weight: 500; }
-.ms-value { font-size: 13px; color: var(--muted); margin-top: 2px; min-height: 18px; }
-.ms-value input { font-size: 13px; padding: 4px 6px; border: 1px solid var(--sep); border-radius: 8px; }
+.ms-body { padding: 10px 8px 12px; }
+.ms-label { font-size: 11px; color: var(--muted); }
+.ms-value { font-size: 12px; font-weight: 500; color: var(--text-light); margin-top: 2px; min-height: 16px; }
+.milestone.filled .ms-value { color: var(--text); }
 
 /* --- Tidslinje ----------------------------------------------------------- */
-.timeline { position: relative; margin: 8px 0 8px 10px; padding-left: 20px; border-left: 2px solid var(--sep); }
-.tl-year { font-family: "Lora", serif; font-weight: 600; font-size: 18px; margin: 18px 0 10px -31px; background: var(--tint-soft); color: var(--tint-dark); display: inline-block; padding: 2px 12px; border-radius: 20px; }
-.tl-item { position: relative; margin-bottom: 14px; }
-.tl-dot { position: absolute; left: -27px; top: 14px; width: 10px; height: 10px; border-radius: 50%; background: var(--tint); border: 2px solid var(--bg); }
+.timeline { position: relative; padding: 4px 0 8px; }
+.timeline::before { content: ""; position: absolute; left: 50%; top: 0; bottom: 0; width: 1px; background: var(--sep); transform: translateX(-50%); }
+.tl-year { display: flex; justify-content: center; margin: 22px 0 16px; position: relative; z-index: 1; }
+.tl-year span { background: var(--bg); border: 1px solid var(--sep); border-radius: 20px; padding: 3px 14px; font-size: 12px; font-family: "Lora", serif; letter-spacing: 0.03em; color: var(--muted); }
+.tl-item { display: grid; grid-template-columns: 1fr 28px 1fr; align-items: start; margin-bottom: 20px; }
+.tl-dot { grid-column: 2; width: 10px; height: 10px; border-radius: 50%; background: var(--bg); border: 2px solid var(--terracotta); justify-self: center; margin-top: 16px; position: relative; z-index: 1; }
 .tl-card { background: var(--card); border: 1px solid var(--sep); border-radius: 14px; padding: 14px; box-shadow: var(--shadow); }
-.tl-date { font-size: 12px; color: var(--muted); }
-.tl-title { font-size: 16px; font-weight: 600; margin-top: 2px; }
-.tl-desc { font-size: 14px; color: var(--text); margin-top: 4px; white-space: pre-wrap; }
-.tl-card img { width: 100%; border-radius: 10px; margin-top: 10px; display: block; cursor: zoom-in; }
+.tl-card.tl-left { grid-column: 1; }
+.tl-card.tl-right { grid-column: 3; }
+.tl-date { font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+.tl-title { font-family: "Lora", serif; font-size: 16px; font-weight: 500; line-height: 1.3; }
+.tl-desc { font-size: 13px; color: var(--muted); margin-top: 4px; line-height: 1.6; white-space: pre-wrap; }
+.tl-card img { width: 100%; border-radius: 8px; margin-top: 10px; display: block; cursor: zoom-in; aspect-ratio: 4 / 3; object-fit: cover; }
 
 /* --- Galleri ------------------------------------------------------------- */
 .photo-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
@@ -258,22 +277,22 @@ textarea { resize: vertical; min-height: 90px; }
 .photo-cap { padding: 8px 10px; font-size: 13px; font-weight: 500; }
 
 /* --- Sub-nav (Familie) --------------------------------------------------- */
-.subnav { display: flex; gap: 6px; background: var(--bg-dark); border-radius: 12px; padding: 4px; margin-bottom: 16px; }
-.subnav button { flex: 1; border: none; background: none; padding: 8px; border-radius: 9px; font-size: 14px; cursor: pointer; color: var(--muted); font-family: inherit; }
-.subnav button.active { background: var(--card); color: var(--text); font-weight: 600; box-shadow: 0 1px 2px rgba(0,0,0,0.08); }
+.subnav { display: flex; gap: 8px; margin-bottom: 20px; }
+.subnav button { padding: 6px 18px; border-radius: 20px; border: 1.5px solid var(--sep); background: none; font-size: 13px; color: var(--muted); cursor: pointer; font-family: inherit; transition: all 0.15s; white-space: nowrap; }
+.subnav button.active { background: var(--text); color: #fff; border-color: var(--text); }
 
 /* --- Begivenheder / fødselsdage ------------------------------------------ */
-.event-item { display: flex; gap: 14px; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--sep); }
+.event-item { display: flex; gap: 14px; align-items: flex-start; padding: 12px 0; border-bottom: 1px solid var(--sep); }
 .event-item:last-child { border-bottom: none; }
-.event-datebox { min-width: 52px; text-align: center; background: var(--bg-dark); border-radius: 10px; padding: 6px 4px; }
-.event-month { font-size: 11px; color: var(--muted); font-weight: 600; }
-.event-day { font-size: 20px; font-weight: 700; font-family: "Lora", serif; }
-.event-main { flex: 1; min-width: 0; }
-.event-title { font-size: 16px; font-weight: 600; }
+.event-datebox { width: 44px; text-align: center; flex-shrink: 0; }
+.event-month { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
+.event-day { font-size: 20px; font-weight: 500; font-family: "Lora", serif; line-height: 1.1; }
+.event-main { flex: 1; min-width: 0; padding-top: 2px; }
+.event-title { font-size: 15px; font-weight: 500; }
 .event-sub { font-size: 13px; color: var(--muted); margin-top: 2px; }
-.bday-count { min-width: 60px; text-align: center; background: var(--rose-soft); color: var(--rose); border-radius: 10px; padding: 6px 4px; }
-.bday-count .n { font-size: 20px; font-weight: 700; font-family: "Lora", serif; line-height: 1; }
-.bday-count .u { font-size: 11px; }
+.bday-count { min-width: 60px; text-align: center; background: var(--bg-dark); border-radius: 10px; padding: 8px 4px; flex-shrink: 0; }
+.bday-count .n { font-size: 20px; font-weight: 700; font-family: "Lora", serif; line-height: 1; color: var(--text); }
+.bday-count .u { font-size: 11px; color: var(--text-light); }
 
 /* --- Lightbox ------------------------------------------------------------ */
 .lightbox { position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 200; display: flex; align-items: center; justify-content: center; }
@@ -284,7 +303,7 @@ textarea { resize: vertical; min-height: 90px; }
 .lb-count { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); color: #fff; font-size: 13px; background: rgba(0,0,0,0.5); padding: 6px 14px; border-radius: 12px; }
 
 /* Barn-header avatar stor */
-.avatar-lg { width: 60px; height: 60px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 28px; flex-shrink: 0; }
+.avatar-lg { width: 64px; height: 64px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 30px; flex-shrink: 0; }
 
 .qa-row { padding: 13px 14px; border-top: 1px solid var(--sep); }
 .qa-row:first-child { border-top: none; }

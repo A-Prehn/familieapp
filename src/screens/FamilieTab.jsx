@@ -114,16 +114,17 @@ function Vacations({ vacations, onPhoto }) {
   let lastYear = null;
   return (
     <div className="timeline">
-      {sorted.map((v) => {
+      {sorted.map((v, idx) => {
         const year = v.startDate ? new Date(v.startDate).getFullYear() : null;
         const showYear = year && year !== lastYear;
         if (year) lastYear = year;
+        const side = idx % 2 === 0 ? "tl-left" : "tl-right";
         return (
           <div key={v.id}>
-            {showYear && <div className="tl-year">{year}</div>}
+            {showYear && <div className="tl-year"><span>{year}</span></div>}
             <div className="tl-item">
               <div className="tl-dot" />
-              <div className="tl-card">
+              <div className={`tl-card ${side}`}>
                 <div className="tl-title">{v.title}</div>
                 {(v.startDate || v.endDate) && (
                   <div className="tl-date">{[v.startDate, v.endDate].filter(Boolean).map(formatDate).join(" – ")}</div>

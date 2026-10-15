@@ -41,17 +41,18 @@ export default function Highlights({ nav, childId }) {
           <EmptyState emoji="⭐">Ingen højdepunkter endnu.</EmptyState>
         ) : (
           <div className="timeline">
-            {sorted.map((h) => {
+            {sorted.map((h, idx) => {
               const year = h.date ? new Date(h.date).getFullYear() : null;
               const showYear = year && year !== lastYear;
               if (year) lastYear = year;
               const pics = h.photos?.length ? h.photos : h.photo ? [h.photo] : [];
+              const side = idx % 2 === 0 ? "tl-left" : "tl-right";
               return (
                 <div key={h.id}>
-                  {showYear && <div className="tl-year">{year}</div>}
+                  {showYear && <div className="tl-year"><span>{year}</span></div>}
                   <div className="tl-item">
                     <div className="tl-dot" />
-                    <div className="tl-card">
+                    <div className={`tl-card ${side}`}>
                       {h.date && <div className="tl-date">{formatDate(h.date)}</div>}
                       <div className="tl-title">{h.text}</div>
                       {pics.map((p, i) => (
