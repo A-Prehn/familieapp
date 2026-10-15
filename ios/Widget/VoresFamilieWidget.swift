@@ -1,5 +1,6 @@
 import WidgetKit
 import SwiftUI
+import UIKit
 
 // Widgets til hjemmeskærmen. Data kommer fra appen via App Group'en (WidgetSnapshot),
 // så widgetten skal ikke selv logge ind i iCloud. Opdateres ved midnat og når appen åbnes.
@@ -109,7 +110,7 @@ struct BirthdaysView: View {
                     .foregroundStyle(WTheme.text)
                 Text(first.days == 0 ? "I dag!" : (first.days == 1 ? "dag til" : "dage til"))
                     .font(.caption).foregroundStyle(WTheme.muted)
-                Text("\(first.emoji) \(first.name)")
+                HStack(spacing: 4) { EmojiView(emoji: first.emoji, size: 15); Text(first.name) }
                     .font(.subheadline.weight(.medium)).foregroundStyle(WTheme.text).lineLimit(1)
                 Text("fylder \(first.turning)").font(.caption2).foregroundStyle(WTheme.muted)
             } else {
@@ -131,7 +132,8 @@ struct BirthdaysView: View {
                                 }
                             }
                         VStack(alignment: .leading, spacing: 0) {
-                            Text("\(b.emoji) \(b.name)").font(.subheadline.weight(.medium)).lineLimit(1)
+                            HStack(spacing: 4) { EmojiView(emoji: b.emoji, size: 15); Text(b.name) }
+                                .font(.subheadline.weight(.medium)).lineLimit(1)
                             Text(b.days == 0 ? "I dag · fylder \(b.turning)"
                                  : "\(b.days == 1 ? "1 dag" : "\(b.days) dage") · fylder \(b.turning)")
                                 .font(.caption2).foregroundStyle(WTheme.muted)
@@ -272,5 +274,40 @@ struct VoresFamilieWidgets: WidgetBundle {
         DueWidget()
         OnThisDayWidget()
         QuoteWidget()
+    }
+}
+
+// MARK: - Emoji i farver
+
+/// I gennemsigtig/tonet hjemmeskærm tegner iOS al tekst i én farve, også emojis.
+/// Derfor tegnes emojien som et billede, der fra iOS 18 må vises i fulde farver.
+struct EmojiView: View {
+    @Environment(\.widgetRenderingMode) private var renderingMode
+    let emoji: String
+    let size: CGFloat
+
+    var body: some View {
+        if renderingMode == .fullColor {
+            Text(emoji).font(.system(size: size))
+        } else if #available(iOS 18.0, *), let image = Self.render(emoji, size: size) {
+            Image(uiImage: image)
+                .resizable()
+                .widgetAccentedRenderingMode(.fullColor)
+                .frame(width: size * 1.2, height: size * 1.2)
+        }
+        // iOS 17 i tonet stil: emojien udelades hellere end at stå som en hvid klat.
+    }
+
+    private static func render(_ emoji: String, size: CGFloat) -> UIImage? {
+        guard !emoji.isEmpty else { return nil }
+        let side = size * 1.2
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 3
+        format.opaque = false
+        return UIGraphicsImageRenderer(size: CGSize(width: side, height: side), format: format).image { _ in
+            let attr = NSAttributedString(string: emoji, attributes: [.font: UIFont.systemFont(ofSize: size)])
+            let s = attr.size()
+            attr.draw(at: CGPoint(x: (side - s.width) / 2, y: (side - s.height) / 2))
+        }
     }
 }
