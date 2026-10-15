@@ -200,6 +200,7 @@ struct HomeView: View {
         guard let loadedKids = try? await store.children(familyId: familyId) else { return }
         children = loadedKids
         ChildPalette.update(children)
+        Task { await Reminders.schedule(children: loadedKids) }
         defer {
             ScreenCache.save(Cached(children: children, recent: recent, onThisDay: onThisDay, day: todayKey), key: cacheKey)
         }

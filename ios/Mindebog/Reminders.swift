@@ -1,0 +1,94 @@
+import Foundation
+import UserNotifications
+
+// Månedlig påmindelse — lokale notifikationer på telefonen (ingen iCloud/server):
+//  • Født barn under 3 år: hver "månedsdag" kl. 10 ("Theo er 3 måneder i dag 📸").
+//  • Barn på vej: hver ny graviditetsuge kl. 10 ("Uge 24 i dag – tag ugens mavebillede").
+// Planlægges igen hver gang børnene indlæses, så ændrede datoer og nye børn kommer med.
+enum Reminders {
+    static let enabledKey = "mindebog.monthlyReminder"
+    private static let prefix = "reminder_"
+    private static let hour = 10
+
+    static var isEnabled: Bool { UserDefaults.standard.bool(forKey: enabledKey) }
+
+    /// Slår til (spørger om tilladelse) og planlægger. Returnerer false hvis brugeren afviste.
+    static func enable(children: [Child]) async -> Bool {
+        let granted = (try? await UNUserNotificationCenter.current()
+            .requestAuthorization(options: [.alert, .sound, .badge])) ?? false
+        UserDefaults.standard.set(granted, forKey: enabledKey)
+        if granted { await schedule(children: children) }
+        return granted
+    }
+
+    static func disable() async {
+        UserDefaults.standard.set(false, forKey: enabledKey)
+        await removeAll()
+    }
+
+    /// Erstatter alle planlagte påmindelser med nye ud fra børnene.
+    static func schedule(children: [Child]) async {
+        guard isEnabled else { return }
+        await removeAll()
+        let center = UNUserNotificationCenter.current()
+        // iOS tillader højst 64 planlagte notifikationer pr. app — fordel dem.
+        let perChild = max(4, 56 / max(children.count, 1))
+        for child in children {
+            for request in requests(for: child, limit: perChild) {
+                try? await center.add(request)
+            }
+        }
+    }
+
+    private static func removeAll() async {
+        let center = UNUserNotificationCenter.current()
+        let ids = await center.pendingNotificationRequests().map(\.identifier).filter { $0.hasPrefix(prefix) }
+        center.removePendingNotificationRequests(withIdentifiers: ids)
+    }
+
+    private static func requests(for child: Child, limit: Int) -> [UNNotificationRequest] {
+        let cal = Calendar.current
+        let now = Date()
+        var out: [UNNotificationRequest] = []
+
+        if let birth = child.birthDate {
+            // Månedsdage de næste måneder, indtil barnet fylder 3 år.
+            for n in 1...36 where out.count < limit {
+                guard let day = cal.date(byAdding: .month, value: n, to: birth),
+                      let fire = cal.date(bySettingHour: hour, minute: 0, second: 0, of: day),
+                      fire > now else { continue }
+                let age: String
+                if n % 12 == 0 { age = n == 12 ? "1 år" : "\(n / 12) år" }
+                else if n > 12 { age = "\(n / 12) år og \(n % 12) \(n % 12 == 1 ? "måned" : "måneder")" }
+                else { age = n == 1 ? "1 måned" : "\(n) måneder" }
+                out.append(request(id: "\(prefix)\(child.id)_m\(n)", fire: fire,
+                                   title: "\(child.name) er \(age) i dag 📸",
+                                   body: "Tag månedens billede til Måned for måned."))
+            }
+        } else if let due = child.dueDate, due > now {
+            // Graviditetsuger: uge 1 starter 40 uger før termin.
+            guard let start = cal.date(byAdding: .day, value: -280, to: due) else { return out }
+            for week in 4...41 where out.count < limit {
+                guard let day = cal.date(byAdding: .day, value: (week - 1) * 7, to: start),
+                      let fire = cal.date(bySettingHour: hour, minute: 0, second: 0, of: day),
+                      fire > now, fire < due else { continue }
+                out.append(request(id: "\(prefix)\(child.id)_w\(week)", fire: fire,
+                                   title: "Uge \(week) i dag 🤰",
+                                   body: "Tag ugens mavebillede til Maven måned for måned."))
+            }
+        }
+        return out
+    }
+
+    private static func request(id: String, fire: Date, title: String, body: String) -> UNNotificationRequest {
+        let content = UNMutableNotificationContent()
+        content.title = title
+        content.body = body
+        content.sound = .default
+        let parts = Calendar.current.dateComponents([.year, .month, .day, .hour, .minute], from: fire)
+        let trigger = UNCalendarNotificationTrigger(dateMatching: parts, repeats: false)
+        return UNNotificationRequest(identifier: id, content: content, trigger: trigger)
+    }
+
+    static func isReminder(_ identifier: String) -> Bool { identifier.hasPrefix(prefix) }
+}

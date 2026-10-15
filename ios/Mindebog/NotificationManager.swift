@@ -70,11 +70,11 @@ enum NotificationManager {
     }
 }
 
-// Vis ikke notifikationer mens appen er åben — så får man heller ikke besked
-// om det man lige selv har lagt op.
+// Vis ikke familie-notifikationer mens appen er åben — så får man heller ikke besked
+// om det man lige selv har lagt op. Månedlige påmindelser vises dog altid.
 final class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate {
     func userNotificationCenter(_ center: UNUserNotificationCenter,
                                 willPresent notification: UNNotification) async -> UNNotificationPresentationOptions {
-        []
+        Reminders.isReminder(notification.request.identifier) ? [.banner, .sound] : []
     }
 }

@@ -12,6 +12,7 @@ struct MoreView: View {
     @State private var notificationsOn = NotificationManager.isEnabled
     @State private var notificationMessage: String?
     @State private var notificationBusy = false
+    @State private var remindersOn = Reminders.isEnabled
 
     var body: some View {
         List {
@@ -64,10 +65,13 @@ struct MoreView: View {
                 if let notificationMessage {
                     Text(notificationMessage).font(.footnote).foregroundStyle(Theme.rose)
                 }
+                Toggle(isOn: Binding(get: { remindersOn }, set: { on in Task { await setReminders(on) } })) {
+                    Label("Månedlig påmindelse", systemImage: "calendar.badge.clock")
+                }
             } header: {
                 Text("Notifikationer")
             } footer: {
-                Text("Få besked når den anden forælder lægger noget nyt op.")
+                Text("Få besked når den anden forælder lægger noget nyt op — og en påmindelse på hver månedsdag (eller ny graviditetsuge), så I husker månedens billede.")
             }
 
             Section {
@@ -174,6 +178,20 @@ struct MoreView: View {
             notificationsOn = false
         }
         notificationBusy = false
+    }
+
+    private func setReminders(_ on: Bool) async {
+        notificationMessage = nil
+        if on {
+            let kids = (try? await state.store.children(familyId: state.familyId ?? "")) ?? []
+            remindersOn = await Reminders.enable(children: kids)
+            if !remindersOn {
+                notificationMessage = "Notifikationer er slået fra for Vores familie. Slå dem til i iPhonens Indstillinger → Vores familie → Notifikationer."
+            }
+        } else {
+            await Reminders.disable()
+            remindersOn = false
+        }
     }
 
     private func makeInvite() async {

@@ -54,6 +54,7 @@ struct ChildrenView: View {
         guard let loaded = try? await state.store.children(familyId: familyId) else { return }
         children = loaded
         ChildPalette.update(children)
+        Task { await Reminders.schedule(children: loaded) }
         if let fams = try? await state.store.families(for: state.user?.id ?? "") {
             family = fams.first { $0.id == familyId }
         }
