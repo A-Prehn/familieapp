@@ -1,10 +1,11 @@
 import SwiftUI
 
-// Hjem = "lige nu": hilsen, børnene i dag, hurtig-tilføj og seneste minder.
-// Oversigten/strukturen ligger under Familie-fanen.
+// Hjem: hilsen, hurtig-tilføj, "På denne dag" (minder fra samme dato tidligere år)
+// og seneste minder. Børnene ligger under Familie-fanen.
 struct HomeView: View {
     @EnvironmentObject var state: AppState
     @State private var children: [Child] = []
+    @State private var onThisDay: [RecentMemory] = []
     @State private var recent: [RecentMemory] = []
     @State private var quickAdd: QuickAdd?
     @State private var chooseChildFor: QuickAdd.Kind?
@@ -22,9 +23,15 @@ struct HomeView: View {
                 if children.isEmpty {
                     emptyState
                 } else {
-                    todaySection
                     quickAddSection
-                    if !recent.isEmpty { recentSection }
+                    if !onThisDay.isEmpty {
+                        memorySection("På denne dag", onThisDay) { m in
+                            "\(yearsAgo(m.date)) · \(m.childName) · \(m.kind)"
+                        }
+                    }
+                    if !recent.isEmpty {
+                        memorySection("Seneste minder", recent) { m in "\(m.childName) · \(m.kind)" }
+                    }
                 }
             }
             .padding(16)
@@ -66,30 +73,6 @@ struct HomeView: View {
         .overlay(RoundedRectangle(cornerRadius: 14).stroke(Theme.sep))
     }
 
-    private var todaySection: some View {
-        VStack(spacing: 10) {
-            SectionLabel("I dag")
-            ForEach(children) { child in
-                NavigationLink(value: child) {
-                    HStack(spacing: 14) {
-                        Circle().fill(Theme.bgDark).frame(width: 48, height: 48)
-                            .overlay(Image(systemName: "figure.child").foregroundStyle(Theme.neutralDark))
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(child.name).font(.serifTitle(17)).foregroundStyle(Theme.text)
-                            Text(ChildAge.today(child)).font(.footnote).foregroundStyle(Theme.muted)
-                        }
-                        Spacer()
-                        Image(systemName: "chevron.right").font(.caption).foregroundStyle(Theme.muted)
-                    }
-                    .padding(14)
-                    .background(Theme.card).clipShape(RoundedRectangle(cornerRadius: 14))
-                    .overlay(RoundedRectangle(cornerRadius: 14).stroke(Theme.sep))
-                }
-                .buttonStyle(.plain)
-            }
-        }
-    }
-
     private var quickAddSection: some View {
         HStack(spacing: 10) {
             quickButton("Højdepunkt", "star", Theme.rose, .highlight)
@@ -117,10 +100,11 @@ struct HomeView: View {
         .buttonStyle(.plain)
     }
 
-    private var recentSection: some View {
+    private func memorySection(_ title: String, _ items: [RecentMemory],
+                               meta: @escaping (RecentMemory) -> String) -> some View {
         VStack(spacing: 10) {
-            SectionLabel("Seneste minder")
-            ForEach(recent) { memory in
+            SectionLabel(title)
+            ForEach(items) { memory in
                 HStack(alignment: .top, spacing: 12) {
                     if let photo = memory.photo {
                         DataImage(data: photo)
@@ -133,7 +117,7 @@ struct HomeView: View {
                             .overlay(Image(systemName: memory.symbol).foregroundStyle(Theme.neutralDark))
                     }
                     VStack(alignment: .leading, spacing: 3) {
-                        Text("\(memory.childName) · \(memory.kind)")
+                        Text(meta(memory))
                             .font(.caption).foregroundStyle(Theme.muted)
                         Text(memory.text.isEmpty ? "Uden tekst" : memory.text)
                             .font(.footnote).foregroundStyle(Theme.text).lineLimit(2)
@@ -169,7 +153,7 @@ struct HomeView: View {
         let loadedKids = (try? await store.children(familyId: familyId)) ?? []
         children = loadedKids
 
-        // Seneste minder på tværs af børnene (højdepunkter + dagbog).
+        // Børnenes minder (højdepunkter + dagbog).
         var memories: [RecentMemory] = []
         for child in loadedKids {
             for h in (try? await store.highlights(childId: child.id)) ?? [] {
@@ -182,6 +166,32 @@ struct HomeView: View {
             }
         }
         recent = Array(memories.sorted { $0.sortDate > $1.sortDate }.prefix(5))
+
+        // Fælles minder tæller også med i "På denne dag".
+        var all = memories
+        for e in (try? await store.events(familyId: familyId)) ?? [] {
+            all.append(RecentMemory(id: "ev_\(e.id)", childName: "Fælles", kind: "Begivenhed", symbol: "calendar",
+                                    date: e.date, sortDate: e.date ?? .distantPast, text: e.title, photo: e.photo))
+        }
+        for v in (try? await store.vacations(familyId: familyId)) ?? [] {
+            all.append(RecentMemory(id: "va_\(v.id)", childName: "Fælles", kind: "Ferie", symbol: "beach.umbrella",
+                                    date: v.startDate, sortDate: v.startDate ?? .distantPast, text: v.title, photo: v.photo))
+        }
+        let cal = Calendar.current
+        let now = Date()
+        let today = cal.dateComponents([.year, .month, .day], from: now)
+        onThisDay = all.filter { m in
+            guard let date = m.date else { return false }
+            let c = cal.dateComponents([.year, .month, .day], from: date)
+            return c.month == today.month && c.day == today.day && (c.year ?? 0) < (today.year ?? 0)
+        }
+        .sorted { $0.sortDate > $1.sortDate }
+    }
+
+    private func yearsAgo(_ date: Date?) -> String {
+        guard let date else { return "" }
+        let years = Calendar.current.component(.year, from: Date()) - Calendar.current.component(.year, from: date)
+        return years == 1 ? "For 1 år siden" : "For \(years) år siden"
     }
 }
 
