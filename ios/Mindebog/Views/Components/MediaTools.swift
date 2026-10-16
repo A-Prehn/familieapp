@@ -205,6 +205,7 @@ struct MediaField: View {
     @State private var videoItem: PhotosPickerItem?
     @State private var paywall: PaywallReason?
     @State private var working = false
+    @State private var recording = false
     @State private var message: String?
     @StateObject private var recorder = AudioRecorder()
     @StateObject private var playback = AudioPlayback()
@@ -219,10 +220,19 @@ struct MediaField: View {
                     Spacer()
                     Button("Fjern", role: .destructive) { video = .remove }
                 } else if state.isPremium {
-                    PhotosPicker(selection: $videoItem, matching: .videos) {
-                        Label(working ? "Forbereder video…" : videoLabel, systemImage: "video.badge.plus")
+                    if working {
+                        Label("Forbereder video…", systemImage: "hourglass")
+                    } else {
+                        if VideoRecorder.isAvailable {
+                            Button { recording = true } label: {
+                                Label("Optag video", systemImage: "video")
+                            }
+                        }
+                        Spacer()
+                        PhotosPicker(selection: $videoItem, matching: .videos) {
+                            Label(VideoRecorder.isAvailable ? "Fra Fotos" : videoLabel, systemImage: "photo.on.rectangle")
+                        }
                     }
-                    .disabled(working)
                 } else {
                     // Video er Premium: knappen viser betalingsskærmen.
                     Button { paywall = .video } label: {
@@ -273,6 +283,13 @@ struct MediaField: View {
             }
         }
         .sheet(item: $paywall) { PaywallView(reason: $0) }
+        .fullScreenCover(isPresented: $recording) {
+            VideoRecorder { url in
+                recording = false
+                if let url { Task { await prepareVideo(url) } }
+            }
+            .ignoresSafeArea()
+        }
         .onChange(of: videoItem) { _, item in
             guard let item else { return }
             Task { await importVideo(item) }
@@ -303,18 +320,70 @@ struct MediaField: View {
             message = "Kunne ikke hente videoen."
             return
         }
-        let seconds = await MediaFiles.duration(of: movie.url)
+        await prepareVideo(movie.url)
+    }
+
+    /// Fælles for video fra Fotos og video optaget med kameraet: tjek længde og komprimér.
+    private func prepareVideo(_ url: URL) async {
+        working = true
+        message = nil
+        defer { working = false }
+        let seconds = await MediaFiles.duration(of: url)
         guard seconds <= MediaLimits.maxVideoSeconds else {
             message = "Videoen er for lang (maks \(Int(MediaLimits.maxVideoSeconds / 60)) min). Klip den til i Fotos først."
-            try? FileManager.default.removeItem(at: movie.url)
+            try? FileManager.default.removeItem(at: url)
             return
         }
         do {
-            let compressed = try await MediaFiles.compressVideo(movie.url)
-            try? FileManager.default.removeItem(at: movie.url)
+            let compressed = try await MediaFiles.compressVideo(url)
+            try? FileManager.default.removeItem(at: url)
             video = .set(compressed, seconds)
         } catch {
             message = "Kunne ikke forberede videoen."
         }
+    }
+}
+
+// MARK: - Optag video med kameraet
+
+/// Kameraet i videotilstand (maks 3 min). Optagelsen kopieres til vores mediemappe;
+/// `nil` betyder annulleret.
+struct VideoRecorder: UIViewControllerRepresentable {
+    var onFinish: (URL?) -> Void
+
+    static var isAvailable: Bool {
+        UIImagePickerController.isSourceTypeAvailable(.camera)
+            && (UIImagePickerController.availableMediaTypes(for: .camera) ?? []).contains(UTType.movie.identifier)
+    }
+
+    func makeUIViewController(context: Context) -> UIImagePickerController {
+        let picker = UIImagePickerController()
+        picker.sourceType = .camera
+        picker.mediaTypes = [UTType.movie.identifier]
+        picker.cameraCaptureMode = .video
+        picker.videoMaximumDuration = MediaLimits.maxVideoSeconds
+        picker.videoQuality = .typeHigh          // komprimeres bagefter som videoer fra Fotos
+        picker.delegate = context.coordinator
+        return picker
+    }
+
+    func updateUIViewController(_ picker: UIImagePickerController, context: Context) {}
+
+    func makeCoordinator() -> Coordinator { Coordinator(onFinish: onFinish) }
+
+    final class Coordinator: NSObject, UIImagePickerControllerDelegate, UINavigationControllerDelegate {
+        let onFinish: (URL?) -> Void
+        init(onFinish: @escaping (URL?) -> Void) { self.onFinish = onFinish }
+
+        func imagePickerController(_ picker: UIImagePickerController,
+                                   didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey: Any]) {
+            guard let source = info[.mediaURL] as? URL else { onFinish(nil); return }
+            // Systemet sletter sin midlertidige fil — kopiér den, før vi svarer.
+            let copy = MediaFiles.newURL(source.pathExtension.isEmpty ? "mov" : source.pathExtension)
+            let ok = (try? FileManager.default.copyItem(at: source, to: copy)) != nil
+            onFinish(ok ? copy : nil)
+        }
+
+        func imagePickerControllerDidCancel(_ picker: UIImagePickerController) { onFinish(nil) }
     }
 }
