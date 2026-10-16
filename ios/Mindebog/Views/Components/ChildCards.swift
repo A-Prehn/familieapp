@@ -144,10 +144,20 @@ struct ChildCard: View {
             ChildAvatar(child: child, size: 56)
             Text(child.name).font(.serifTitle(16)).foregroundStyle(Theme.text)
             Text(ChildAge.short(child)).font(.caption).foregroundStyle(Theme.muted)
+            // Tydeligt, at kortet kan åbnes: højdepunkter, milepæle, billeder m.m. ligger herinde.
+            HStack(spacing: 4) {
+                Text("Åbn mindebog").font(.caption.weight(.semibold))
+                Image(systemName: "chevron.right").font(.caption2.weight(.bold))
+            }
+            .foregroundStyle(Theme.tint)
+            .padding(.horizontal, 10).padding(.vertical, 5)
+            .background(Capsule().fill(Theme.tint.opacity(0.1)))
         }
-        .frame(maxWidth: .infinity).padding(.vertical, 20)
+        .frame(maxWidth: .infinity).padding(.vertical, 18)
         .background(Theme.card).clipShape(RoundedRectangle(cornerRadius: 14))
         .overlay(RoundedRectangle(cornerRadius: 14).stroke(Theme.sep))
+        .shadow(color: .black.opacity(0.05), radius: 6, y: 2)
+        .accessibilityHint("Åbner \(child.name)s mindebog")
     }
 }
 

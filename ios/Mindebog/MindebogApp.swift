@@ -187,6 +187,14 @@ final class AppState: ObservableObject {
         ScreenCache.clear()
     }
 
+    /// Skift til en anden familie, man er med i (fx søsterens, man følger med kun visning).
+    func switchFamily(_ id: String) {
+        guard id != familyId else { return }
+        ScreenCache.clear()          // så den forrige families skærme ikke vises et øjeblik
+        setFamily(id)
+        NotificationCenter.default.post(name: .storeDidChange, object: nil)
+    }
+
     private func setFamily(_ id: String?) {
         familyId = id
         if let id { UserDefaults.standard.set(id, forKey: familyKey) }

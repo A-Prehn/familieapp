@@ -3,6 +3,7 @@ import SwiftUI
 struct MoreView: View {
     @EnvironmentObject var state: AppState
     @State private var family: Family?
+    @State private var allFamilies: [Family] = []
     @State private var members: [AppUser] = []
     @State private var invite: String?
     @State private var busy = false
@@ -30,6 +31,32 @@ struct MoreView: View {
 
     var body: some View {
         List {
+            // Er man med i flere familier (fx sin egen og søsterens), kan man skifte her.
+            if allFamilies.count > 1 {
+                Section {
+                    ForEach(allFamilies) { f in
+                        Button {
+                            state.switchFamily(f.id)
+                            Task { await load() }
+                        } label: {
+                            HStack {
+                                Image(systemName: f.id == state.familyId ? "checkmark.circle.fill" : "circle")
+                                    .foregroundStyle(f.id == state.familyId ? Theme.green : Theme.muted)
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(f.name).foregroundStyle(Theme.text)
+                                    Text(f.ownerId == state.user?.id ? "Din familie" : "Delt med dig")
+                                        .font(.caption).foregroundStyle(Theme.muted)
+                                }
+                            }
+                        }
+                    }
+                } header: {
+                    Text("Skift familie")
+                } footer: {
+                    Text("Du er med i flere familier. Vælg, hvilken du vil se. Hjem, Familie og Fælles viser den valgte.")
+                }
+            }
+
             Section {
                 if state.usingCloud {
                     NavigationLink {
@@ -259,7 +286,19 @@ struct MoreView: View {
             displayName = current == "Forælder" ? "" : current
         }
         guard let familyId = state.familyId else { return }
-        family = try? await state.store.families(for: state.user?.id ?? "").first { $0.id == familyId }
+        let fetched = (try? await state.store.families(for: state.user?.id ?? "")) ?? []
+        family = fetched.first { $0.id == familyId }
+        // Skjul tomme egne familier (fx gamle testfamilier): vis den valgte, dem der er delt med en,
+        // og egne familier med mindst ét barn.
+        var visible: [Family] = []
+        for f in fetched {
+            if f.id == familyId || f.ownerId != state.user?.id {
+                visible.append(f)
+            } else if let kids = try? await state.store.children(familyId: f.id), !kids.isEmpty {
+                visible.append(f)
+            }
+        }
+        allFamilies = visible
         members = (try? await state.store.members(familyId: familyId)) ?? []
         if let id = UserDefaults.standard.string(forKey: myBirthdayKey(familyId)),
            let found = (try? await state.store.birthdays(familyId: familyId))?.first(where: { $0.id == id }) {

@@ -12,6 +12,7 @@ struct BirthdayPhotosView: View {
     @State private var loaded = false
     @State private var pickerItems: [PhotosPickerItem] = []
     @State private var showSuggestions = false
+    @State private var showPicker = false
     @State private var adding = 0
     @State private var editing: GalleryItem?
     @State private var lightbox: LightboxState?
@@ -80,6 +81,13 @@ struct BirthdayPhotosView: View {
                         Image(systemName: "gift").font(.system(size: 34, weight: .light)).foregroundStyle(Theme.rose)
                         Text("Ingen billeder fra \(age)-års fødselsdagen endnu.")
                             .font(.subheadline).foregroundStyle(Theme.muted)
+                        if state.canEdit {
+                            Button { showPicker = true } label: {
+                                Label("Tilføj billeder", systemImage: "photo.badge.plus")
+                            }
+                            .buttonStyle(.borderedProminent)
+                            .padding(.top, 4)
+                        }
                     }
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 30)
@@ -111,15 +119,15 @@ struct BirthdayPhotosView: View {
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 if state.canEdit {
+                    // Apples billedvælger kan ikke ligge direkte i en menu — den åbnes via en knap.
                     Menu {
-                        PhotosPicker(selection: $pickerItems, maxSelectionCount: 30, matching: .images) {
-                            Label("Vælg billeder", systemImage: "photo.on.rectangle")
-                        }
+                        Button { showPicker = true } label: { Label("Vælg billeder", systemImage: "photo.on.rectangle") }
                         Button { showSuggestions = true } label: { Label("Forslag fra Fotos", systemImage: "sparkles") }
                     } label: { Image(systemName: "plus") }
                 }
             }
         }
+        .photosPicker(isPresented: $showPicker, selection: $pickerItems, maxSelectionCount: 30, matching: .images)
         .sheet(isPresented: $showSuggestions) {
             PhotoSuggestionsView(days: 31) { picked in Task { await add(picked) } }
         }
