@@ -7,6 +7,7 @@ struct ChildDetailView: View {
     @State private var makingBook = false
     @State private var bookShare: ShareSheet?
     @State private var bookError: String?
+    @State private var paywall: PaywallReason?
 
     init(child: Child) {
         _child = State(initialValue: child)
@@ -87,6 +88,7 @@ struct ChildDetailView: View {
             }
         }
         .sheet(item: $bookShare) { $0 }
+        .sheet(item: $paywall) { PaywallView(reason: $0) }
         .saveErrorAlert($bookError)
         .sheet(isPresented: $editing) {
             NewChildView(editing: child) { updated in child = updated }
@@ -127,6 +129,7 @@ struct ChildDetailView: View {
 
     /// Bygger mindebogen som PDF og åbner del-arket (Gem i Filer, Mail, Udskriv …).
     private func makeBook() async {
+        guard state.isPremium else { paywall = .book; return }
         makingBook = true
         defer { makingBook = false }
         let familyName = (try? await state.store.families(for: state.user?.id ?? ""))?

@@ -23,6 +23,7 @@ DEFINE SCHEMA
         name            STRING,
         ownerId         STRING,
         ownerName       STRING,
+        premiumUntil    TIMESTAMP,
         GRANT WRITE TO "_creator",
         GRANT CREATE TO "_icloud",
         GRANT READ TO "_world"

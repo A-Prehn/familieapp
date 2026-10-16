@@ -431,6 +431,14 @@ actor MemoryStore: Store {
     }
     func deleteTradition(familyId: String, id: String) async throws { traditionsByFamily[familyId]?.removeAll { $0.id == id } }
     func traditionAudio(familyId: String, id: String) async throws -> URL? { mediaByRecord[id]?.audio }
+
+    // MARK: Premium (kun i hukommelsen)
+    private var premiumByFamily: [String: Date] = [:]
+    func familyPremium(familyId: String) async -> Date? { premiumByFamily[familyId] }
+    func setFamilyPremium(familyId: String, until: Date?) async throws {
+        guard let until, until > (premiumByFamily[familyId] ?? .distantPast) else { return }
+        premiumByFamily[familyId] = until
+    }
     // MARK: Familietræ
     func persons(familyId: String) async throws -> [Person] {
         personsByFamily[familyId] ?? []

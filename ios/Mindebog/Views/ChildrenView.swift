@@ -6,6 +6,12 @@ struct ChildrenView: View {
     @State private var children: [Child] = []
     @State private var family: Family?
     @State private var showNewChild = false
+    @State private var paywall: PaywallReason?
+
+    /// Gratis-versionen har plads til ét barn — barn nr. 2 kræver Premium.
+    private func addChild() {
+        if !state.isPremium && children.count >= AppState.freeChildLimit { paywall = .child } else { showNewChild = true }
+    }
 
     private let columns = [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)]
 
@@ -19,7 +25,7 @@ struct ChildrenView: View {
                             .buttonStyle(.plain)
                     }
                     if state.canEdit {
-                        Button { showNewChild = true } label: { AddChildCard() }
+                        Button { addChild() } label: { AddChildCard() }
                             .buttonStyle(.plain)
                     }
                 }
@@ -32,9 +38,10 @@ struct ChildrenView: View {
         .navigationDestination(for: Child.self) { ChildDetailView(child: $0) }
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
-                if state.canEdit { Button { showNewChild = true } label: { Image(systemName: "plus") } }
+                if state.canEdit { Button { addChild() } label: { Image(systemName: "plus") } }
             }
         }
+        .sheet(item: $paywall) { PaywallView(reason: $0) }
         .sheet(isPresented: $showNewChild, onDismiss: { Task { await load() } }) {
             NewChildView()
         }

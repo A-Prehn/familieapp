@@ -909,6 +909,27 @@ actor CloudKitStore: Store {
         return try await media(recordID: CKRecord.ID(recordName: id, zoneID: zoneID), in: db).audio
     }
 
+    // MARK: - Premium for familien
+
+    func familyPremium(familyId: String) async -> Date? {
+        guard let (db, zoneID) = try? await locate(familyId) else { return nil }
+        let id = CKRecord.ID(recordName: "family", zoneID: zoneID)
+        let record = try? await db.records(for: [id], desiredKeys: ["premiumUntil"])[id]?.get()
+        return record?["premiumUntil"] as? Date
+    }
+
+    func setFamilyPremium(familyId: String, until: Date?) async throws {
+        let (db, zoneID) = try await locate(familyId)
+        let id = CKRecord.ID(recordName: "family", zoneID: zoneID)
+        guard let record = try await db.records(for: [id], desiredKeys: ["premiumUntil"])[id]?.get() else { return }
+        // Skriv kun, hvis datoen bliver senere — så et udløbet abonnement på én telefon ikke
+        // overskriver et engangskøb fra en anden.
+        let current = record["premiumUntil"] as? Date
+        guard let until, until > (current ?? .distantPast) else { return }
+        record["premiumUntil"] = until as CKRecordValue
+        _ = try await persist(record, in: db)
+    }
+
     // MARK: - Familietræ
 
     func persons(familyId: String) async throws -> [Person] {

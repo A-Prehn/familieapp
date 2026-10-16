@@ -201,7 +201,9 @@ struct MediaField: View {
     var videoLabel = "Vælg video"
     var audioLabel = "Optag lydnote"
 
+    @EnvironmentObject private var state: AppState
     @State private var videoItem: PhotosPickerItem?
+    @State private var paywall: PaywallReason?
     @State private var working = false
     @State private var message: String?
     @StateObject private var recorder = AudioRecorder()
@@ -216,11 +218,19 @@ struct MediaField: View {
                     Label("Video \(MediaFiles.format(d))", systemImage: "play.rectangle")
                     Spacer()
                     Button("Fjern", role: .destructive) { video = .remove }
-                } else {
+                } else if state.isPremium {
                     PhotosPicker(selection: $videoItem, matching: .videos) {
                         Label(working ? "Forbereder video…" : videoLabel, systemImage: "video.badge.plus")
                     }
                     .disabled(working)
+                } else {
+                    // Video er Premium: knappen viser betalingsskærmen.
+                    Button { paywall = .video } label: {
+                        HStack {
+                            Label(videoLabel, systemImage: "video.badge.plus")
+                            Image(systemName: "lock.fill").font(.caption2)
+                        }
+                    }
                 }
             }
             .buttonStyle(.borderless)
@@ -262,6 +272,7 @@ struct MediaField: View {
                 Text(message).font(.footnote).foregroundStyle(Theme.rose)
             }
         }
+        .sheet(item: $paywall) { PaywallView(reason: $0) }
         .onChange(of: videoItem) { _, item in
             guard let item else { return }
             Task { await importVideo(item) }

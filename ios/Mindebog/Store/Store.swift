@@ -77,6 +77,10 @@ protocol Store {
     func deleteTradition(familyId: String, id: String) async throws
     func traditionAudio(familyId: String, id: String) async throws -> URL?
 
+    // Premium for hele familien (ejerens køb, så partner/bedsteforældre også får det)
+    func familyPremium(familyId: String) async -> Date?
+    func setFamilyPremium(familyId: String, until: Date?) async throws
+
     // Pr. familie
     func events(familyId: String) async throws -> [FamilyEvent]
     func addEvent(familyId: String, title: String, date: Date?, details: String,

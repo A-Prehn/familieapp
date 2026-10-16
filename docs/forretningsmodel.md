@@ -1,6 +1,20 @@
 # Forretningsmodel — Mindebog
 
-## Besluttet (15. oktober 2026)
+## Besluttet (16. oktober 2026) — erstatter beslutningen fra 15. oktober
+
+- **Freemium med to måder at betale:** 19 kr/md (abonnement) eller 199 kr én gang ("Premium for altid").
+- **Hvorfor:** konkurrenterne (Tinybeans ~520 kr/år, FamilyAlbum ~410 kr/år, Qeepsake 330–670 kr/år,
+  Keepli engangskøb ~350 kr) har serverudgifter; det har vi ikke. Engangskøbet svarer til ~10 måneders
+  abonnement (branchens tommelfingerregel: 10–15 måneder).
+- **Gratis:** ét barn med alle sektioner, lyd, stamtræ, traditioner, tegninger, widgets og påmindelser.
+- **Premium:** flere børn, deling med partner/bedsteforældre, video, PDF-mindebog.
+- **"Eksportér alt" er altid gratis** — løftet om, at minderne aldrig låses inde.
+- **Kun én i familien betaler.** Køberens telefon skriver `premiumUntil` på Family-recorden i iCloud,
+  så alle i den delte familie får Premium.
+- Fotogrænsen (50) fra 15. oktober er droppet: dyr at tælle på tværs af iCloud og føles som en mur.
+- Produkt-ID'er: `net.prehn.mindebog.premium.monthly`, `net.prehn.mindebog.premium.lifetime`.
+
+## Tidligere beslutning (15. oktober 2026)
 
 - **Model B: freemium + abonnement.** Lifetime kan tilføjes senere.
 - **Pris: 29 kr/md eller 199 kr/år.**

@@ -43,6 +43,29 @@ final class AppState: ObservableObject {
         let value = await store.canEdit(familyId: familyId)
         canEdit = value
         UserDefaults.standard.set(value, forKey: "mindebog.canEdit")
+        await refreshPremium()
+    }
+
+    // MARK: Premium
+
+    /// Premium, hvis man selv har købt — eller hvis en anden i familien har (gemt på familien i iCloud).
+    @Published private(set) var isPremium: Bool = UserDefaults.standard.bool(forKey: "mindebog.premium")
+    /// Gratis-versionen: ét barn. Resten (deling, video, PDF-bog) kræver Premium.
+    static let freeChildLimit = 1
+
+    func refreshPremium() async {
+        let purchases = Purchases.shared
+        await purchases.refreshEntitlements()
+        var premium = purchases.hasOwnPremium
+        if let familyId {
+            // Ens eget køb deles med familien, så partner og bedsteforældre også får glæde af det.
+            if let own = purchases.ownUntil, own > Date() {
+                try? await store.setFamilyPremium(familyId: familyId, until: own)
+            }
+            if let shared = await store.familyPremium(familyId: familyId), shared > Date() { premium = true }
+        }
+        isPremium = premium
+        UserDefaults.standard.set(premium, forKey: "mindebog.premium")
     }
 
     private let userIdKey = "mindebog.userId"

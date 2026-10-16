@@ -23,6 +23,9 @@ struct MoreView: View {
     @State private var birthdayDraft = Calendar.current.date(byAdding: .year, value: -30, to: Date()) ?? Date()
     @State private var birthdayBusy = false
     @State private var showExport = false
+    @State private var paywall: PaywallReason?
+    @State private var restoring = false
+    @ObservedObject private var purchases = Purchases.shared
 
     var body: some View {
         List {
@@ -158,6 +161,37 @@ struct MoreView: View {
             }
 
             Section {
+                if state.isPremium {
+                    Label(premiumText, systemImage: "heart.circle.fill")
+                        .foregroundStyle(Theme.rose)
+                    if purchases.hasOwnPremium && !purchases.ownsLifetime {
+                        Button("Administrér abonnement") {
+                            if let url = URL(string: "https://apps.apple.com/account/subscriptions") { UIApplication.shared.open(url) }
+                        }
+                    }
+                } else {
+                    Button { paywall = .general } label: {
+                        Label("Få Premium", systemImage: "heart.circle")
+                    }
+                    Button(restoring ? "Gendanner…" : "Gendan køb") {
+                        Task {
+                            restoring = true
+                            _ = await purchases.restore()
+                            await state.refreshPremium()
+                            restoring = false
+                        }
+                    }
+                    .disabled(restoring)
+                }
+            } header: {
+                Text("Premium")
+            } footer: {
+                Text(state.isPremium
+                     ? "Premium gælder for hele familien, også dem I har delt med."
+                     : "Gratis: ét barn med alle sektioner. Premium: flere børn, deling med familien, video og PDF-mindebog.")
+            }
+
+            Section {
                 Button { showExport = true } label: {
                     Label("Eksportér alt", systemImage: "square.and.arrow.down.on.square")
                 }
@@ -202,6 +236,7 @@ struct MoreView: View {
             }
         }
         .sheet(isPresented: $showExport) { ExportView() }
+        .sheet(item: $paywall) { PaywallView(reason: $0) }
         .task { await load() }
     }
 
@@ -222,6 +257,12 @@ struct MoreView: View {
     }
 
     private func myBirthdayKey(_ familyId: String) -> String { "mindebog.myBirthday.\(familyId)" }
+
+    private var premiumText: String {
+        if purchases.ownsLifetime { return "Premium for altid" }
+        if purchases.hasOwnPremium { return "Premium (abonnement)" }
+        return "Premium via familien"
+    }
 
     private var birthdayChanged: Bool {
         guard let myBirthday else { return true }
@@ -262,6 +303,8 @@ struct MoreView: View {
     }
 
     private func openSharing() async {
+        // Deling er Premium — men den, der allerede er med i en delt familie, skal ikke stoppes.
+        if !state.isPremium && members.count <= 1 { paywall = .sharing; return }
         guard let cloud = state.store as? CloudKitStore, let familyId = state.familyId else { return }
         busy = true
         state.errorMessage = nil
