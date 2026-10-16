@@ -18,6 +18,7 @@ struct FamilyView: View {
     @State private var customBirthdays: [CustomBirthday] = []
     @State private var persons: [Person] = []
     @State private var editingPerson: Person?
+    @State private var members: [AppUser] = []
     @State private var activeSheet: Tab?
     @State private var editingEvent: FamilyEvent?
     @State private var editingVacation: Vacation?
@@ -55,7 +56,8 @@ struct FamilyView: View {
             case .events: AddEventView(familyId: state.familyId ?? "")
             case .vacations: AddVacationView(familyId: state.familyId ?? "")
             case .birthdays: AddBirthdayView(familyId: state.familyId ?? "")
-            case .tree: PersonEditView(familyId: state.familyId ?? "", persons: persons, children: children)
+            case .tree: PersonEditView(familyId: state.familyId ?? "", persons: persons, children: children,
+                                       members: members, birthdays: customBirthdays)
             }
         }
         .sheet(item: $editingEvent, onDismiss: { Task { await load() } }) { event in
@@ -68,7 +70,8 @@ struct FamilyView: View {
             AddBirthdayView(familyId: state.familyId ?? "", editing: birthday)
         }
         .sheet(item: $editingPerson, onDismiss: { Task { await load() } }) { person in
-            PersonEditView(familyId: state.familyId ?? "", persons: persons, children: children, editing: person)
+            PersonEditView(familyId: state.familyId ?? "", persons: persons, children: children,
+                           members: members, birthdays: customBirthdays, editing: person)
         }
         .fullScreenCover(item: $lightbox) { LightboxView(state: $0) }
         .refreshable { await load() }
@@ -276,6 +279,7 @@ struct FamilyView: View {
         if let v = try? await state.store.children(familyId: familyId) { children = v; ChildPalette.update(v) }
         if let v = try? await state.store.birthdays(familyId: familyId) { customBirthdays = v }
         if let v = try? await state.store.persons(familyId: familyId) { persons = v }
+        if let v = try? await state.store.members(familyId: familyId) { members = v }
         ScreenCache.save(Cached(events: events, vacations: vacations, children: children, birthdays: customBirthdays, persons: persons),
                          key: cacheKey)
     }

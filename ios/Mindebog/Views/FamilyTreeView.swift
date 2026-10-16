@@ -151,9 +151,18 @@ struct PersonEditView: View {
     let familyId: String
     let persons: [Person]
     let children: [Child]
+    var members: [AppUser] = []
+    var birthdays: [CustomBirthday] = []
     var editing: Person? = nil
 
     @State private var draft = Person(id: newId("person"), name: "")
+    /// Medlemmer (forældrene i appen), som ikke allerede står i træet.
+    private var unlinkedMembers: [AppUser] {
+        members.filter { m in
+            m.name != "Forælder" && !m.name.isEmpty
+                && !persons.contains { $0.name.caseInsensitiveCompare(m.name) == .orderedSame && $0.id != draft.id }
+        }
+    }
     @State private var hasBirth = false
     @State private var birth = Date()
     @State private var hasDeath = false
@@ -170,7 +179,31 @@ struct PersonEditView: View {
     var body: some View {
         NavigationStack {
             Form {
-                if editing == nil, !unlinkedChildren.isEmpty, draft.childId == nil {
+                if editing == nil, !unlinkedMembers.isEmpty, draft.childId == nil, draft.name.isEmpty {
+                    Section {
+                        ForEach(unlinkedMembers) { m in
+                            Button {
+                                draft.name = m.name
+                                // Fødselsdagen fra Mere → Dig, hvis den er sat (gemt som familie-fødselsdag).
+                                if let b = birthdays.first(where: { $0.name.caseInsensitiveCompare(m.name) == .orderedSame }) {
+                                    hasBirth = true; birth = b.date
+                                }
+                            } label: {
+                                HStack {
+                                    Image(systemName: "person.circle").font(.title2).foregroundStyle(Theme.neutralDark)
+                                    Text(m.name + (m.id == state.user?.id ? " (dig)" : ""))
+                                    Spacer()
+                                    Image(systemName: "plus.circle").foregroundStyle(Theme.muted)
+                                }
+                            }
+                            .foregroundStyle(Theme.text)
+                        }
+                    } header: {
+                        Text("Hurtigt: jer forældre")
+                    }
+                }
+
+                if editing == nil, !unlinkedChildren.isEmpty, draft.childId == nil, draft.name.isEmpty {
                     Section {
                         ForEach(unlinkedChildren) { c in
                             Button {
