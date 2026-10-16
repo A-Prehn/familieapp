@@ -17,7 +17,7 @@ struct GalleryView: View {
     }
     /// Billederne i den valgte rækkefølge.
     private var sorted: [GalleryItem] {
-        items.sorted { oldestFirst ? $0.createdAt < $1.createdAt : $0.createdAt > $1.createdAt }
+        items.sorted { oldestFirst ? $0.shownDate < $1.shownDate : $0.shownDate > $1.shownDate }
     }
     @State private var showAdd = false
     @State private var editing: GalleryItem?
@@ -49,7 +49,7 @@ struct GalleryView: View {
             } else if kind == .belly {
                 // Maven: tidslinje i rækkefølge (første uge øverst), så man kan se maven vokse.
                 TimelineView(items: sorted,
-                             year: { Calendar.current.component(.year, from: $0.createdAt) }) { item in
+                             year: { Calendar.current.component(.year, from: $0.shownDate) }) { item in
                     timelineCard(item)
                 }
                 .padding(16)
@@ -114,14 +114,14 @@ struct GalleryView: View {
     private func timelineCard(_ item: GalleryItem) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             // Uge/måned og så kommentaren efter, fx "Uge 24 · Første spark i dag".
-            (Text(item.caption.isEmpty ? Fmt.long(item.createdAt) : item.caption)
+            (Text(item.caption.isEmpty ? Fmt.long(item.shownDate) : item.caption)
                 .font(.serifTitle(16))
                 .foregroundStyle(Theme.text)
              + Text(item.note.isEmpty ? "" : "  ·  \(item.note)")
                 .font(.system(size: 15))
                 .foregroundStyle(Theme.neutralDark))
             if !item.caption.isEmpty {
-                Text(Fmt.long(item.createdAt)).font(.caption).foregroundStyle(Theme.muted)
+                Text(Fmt.long(item.shownDate)).font(.caption).foregroundStyle(Theme.muted)
             }
             if let photo = item.photo {
                 Color.clear
@@ -252,6 +252,7 @@ struct AddGalleryItemView: View {
     }
     @State private var caption = ""
     @State private var note = ""
+    @State private var date = Date()
     @State private var photo: Data?
     @State private var saving = false
     @State private var saveError: String?
@@ -267,6 +268,12 @@ struct AddGalleryItemView: View {
                     TextField(kind.captionPlaceholder, text: $caption)
                 }
                 Section {
+                    DatePicker("Dato", selection: $date, in: ...Date(), displayedComponents: .date)
+                        .environment(\.locale, Locale(identifier: "da_DK"))
+                } footer: {
+                    Text("Hvornår billedet er fra. Vælger du et billede fra Fotos, sættes datoen automatisk til den dag, det blev taget.")
+                }
+                Section {
                     TextField(notePlaceholder, text: $note, axis: .vertical)
                         .lineLimit(2...5)
                 } header: {
@@ -277,7 +284,7 @@ struct AddGalleryItemView: View {
                          : "Vises efter \(kind == .belly ? "ugen" : "måneden") på oversigten.")
                 }
                 Section("Billede") {
-                    PhotoField(data: $photo)
+                    PhotoField(data: $photo, onCaptureDate: { date = $0 })
                 }
                 if editing != nil {
                     Section {
@@ -292,7 +299,7 @@ struct AddGalleryItemView: View {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Gem") {
                         if var item = editing {
-                            item.caption = caption; item.photo = photo; item.note = note
+                            item.caption = caption; item.photo = photo; item.note = note; item.date = date
                             let updated = item
                             Task {
                                 await performSave(saving: $saving, errorMessage: $saveError, dismiss: dismiss) {
@@ -302,16 +309,23 @@ struct AddGalleryItemView: View {
                         } else {
                             // Nyt foto: luk med det samme, upload i baggrunden.
                             let (store, childId, kind, caption, note, photo, others) = (state.store, childId, kind, caption, note, photo, alsoFor)
+                            // Datoen gemmes kun, hvis den ikke er i dag (så er "lagt op" den samme dag).
+                            let chosen: Date? = Calendar.current.isDateInToday(date) ? nil : date
                             performSaveInBackground(label: "fotoet", dismiss: dismiss) {
                                 var created = try await store.addGalleryItem(childId: childId, kind: kind, caption: caption, photo: photo)
-                                if !note.isEmpty {
+                                if !note.isEmpty || chosen != nil {
                                     created.note = note
+                                    created.date = chosen
                                     try await store.updateGalleryItem(childId: childId, created)
                                 }
                                 // Øvrige børn: "Maven måned for måned" hvis barnet er på vej, ellers "Måned for måned".
                                 for other in others {
-                                    _ = try await store.addGalleryItem(childId: other.id, kind: other.onTheWay ? .belly : .monthly,
-                                                                       caption: caption, photo: photo)
+                                    var extra = try await store.addGalleryItem(childId: other.id, kind: other.onTheWay ? .belly : .monthly,
+                                                                               caption: caption, photo: photo)
+                                    if chosen != nil {
+                                        extra.date = chosen
+                                        try await store.updateGalleryItem(childId: other.id, extra)
+                                    }
                                 }
                             }
                         }
@@ -334,7 +348,7 @@ struct AddGalleryItemView: View {
             .onAppear {
                 guard !loaded else { return }
                 loaded = true
-                if let item = editing { caption = item.caption; photo = item.photo; note = item.note }
+                if let item = editing { caption = item.caption; photo = item.photo; note = item.note; date = item.shownDate }
                 else if caption.isEmpty { caption = defaultCaption }
             }
         }

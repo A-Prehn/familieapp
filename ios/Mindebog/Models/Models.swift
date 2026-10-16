@@ -146,8 +146,12 @@ struct GalleryItem: Identifiable, Hashable, Codable {
     var caption: String
     /// Lille beskrivelse (fx til tegninger) — vises kun i fuldskærmsvisningen.
     var note: String = ""
+    /// Hvornår billedet er fra (kan rettes). nil = da det blev lagt op.
+    var date: Date? = nil
     var photo: Data?
     var createdAt: Date
+    /// Datoen, der vises og sorteres efter.
+    var shownDate: Date { date ?? createdAt }
 }
 
 /// Et sted valgt i Apple Maps (fx kirken til brylluppet, sommerhuset).

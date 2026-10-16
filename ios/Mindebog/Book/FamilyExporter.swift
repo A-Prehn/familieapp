@@ -287,11 +287,11 @@ final class FamilyExport: ObservableObject {
             let items = (try? await store.gallery(childId: child.id, kind: kind)) ?? []
             let gDir = dir.appendingPathComponent(kind.title, isDirectory: true)
             var gJSON: [[String: Any]] = []
-            for (i, item) in items.sorted(by: { $0.createdAt < $1.createdAt }).enumerated() {
+            for (i, item) in items.sorted(by: { $0.shownDate < $1.shownDate }).enumerated() {
                 let name = String(format: "%02d", i + 1) + (item.caption.isEmpty ? "" : " " + Self.safe(item.caption))
                 var files: [String] = []
                 if let p = item.photo { files.append(try writePhoto(p, to: gDir, name: name)) }
-                gJSON.append(["tekst": item.caption, "beskrivelse": item.note, "dato": Fmt.iso(item.createdAt), "filer": files])
+                gJSON.append(["tekst": item.caption, "beskrivelse": item.note, "dato": Fmt.iso(item.shownDate), "filer": files])
             }
             let key: String
             switch kind {

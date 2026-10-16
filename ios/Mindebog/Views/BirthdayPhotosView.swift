@@ -30,7 +30,7 @@ struct BirthdayPhotosView: View {
         return Array(1...max(currentAge, withPhotos.max() ?? 1)).reversed()
     }
     private var forAge: [GalleryItem] {
-        items.filter { Int($0.caption) == age }.sorted { $0.createdAt < $1.createdAt }
+        items.filter { Int($0.caption) == age }.sorted { $0.shownDate < $1.shownDate }
     }
     private func count(_ a: Int) -> Int { items.filter { Int($0.caption) == a }.count }
 

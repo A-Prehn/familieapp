@@ -34,6 +34,19 @@ enum ImageTools {
         return min(max(ratio, 3.0 / 4.0), 16.0 / 9.0)
     }
 
+    /// Hvornår billedet blev taget (fra billedets EXIF), hvis det står i filen.
+    static func captureDate(_ data: Data) -> Date? {
+        guard let source = CGImageSourceCreateWithData(data as CFData, nil),
+              let props = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any] else { return nil }
+        let exif = props[kCGImagePropertyExifDictionary] as? [CFString: Any]
+        let tiff = props[kCGImagePropertyTIFFDictionary] as? [CFString: Any]
+        guard let raw = (exif?[kCGImagePropertyExifDateTimeOriginal] ?? tiff?[kCGImagePropertyTIFFDateTime]) as? String else { return nil }
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "en_US_POSIX")
+        f.dateFormat = "yyyy:MM:dd HH:mm:ss"
+        return f.date(from: raw)
+    }
+
     /// Miniature i visningsstørrelse. Afkoder kun det, der skal vises (ImageIO nedskalerer under
     /// afkodningen), og husker resultatet — så gitre og tidslinjer ruller glat.
     static func thumbnail(_ data: Data, maxPixel: CGFloat) -> UIImage? {
@@ -92,6 +105,8 @@ struct PhotoField: View {
     var title: String = "Vælg billede"
     /// Vis "Forslag" (de nyeste billeder fra Fotos) — slået fra fx til profilbilleder.
     var suggestions = true
+    /// Kaldes med datoen, billedet blev taget (fra billedet selv), når der vælges et nyt.
+    var onCaptureDate: ((Date) -> Void)? = nil
     @State private var pickerItem: PhotosPickerItem?
     @State private var cropping: CropTarget?
     @State private var showSuggestions = false
@@ -135,6 +150,8 @@ struct PhotoField: View {
             guard let newItem else { return }
             Task {
                 if let raw = try? await newItem.loadTransferable(type: Data.self) {
+                    // Datoen læses før nedskalering (som fjerner billedets oplysninger).
+                    if let taken = ImageTools.captureDate(raw) { onCaptureDate?(taken) }
                     data = ImageTools.resized(raw)
                 }
                 pickerItem = nil

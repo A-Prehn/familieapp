@@ -471,7 +471,7 @@ actor CloudKitStore: Store {
     func gallery(childId: String, kind: GalleryKind) async throws -> [GalleryItem] {
         // Kun den ønskede serie hentes (kind er indekseret), og billederne kommer fra cachen.
         let records = try await childRecords(childId, type: "GalleryItem",
-                                              keys: ["childRef", "kind", "caption", "note"], assetKeys: ["photo"],
+                                              keys: ["childRef", "kind", "caption", "note", "date"], assetKeys: ["photo"],
                                               extraPredicate: NSPredicate(format: "kind == %@", kind.rawValue),
                                               extraMatch: { ($0["kind"] as? String) == kind.rawValue })
         return records
@@ -479,6 +479,7 @@ actor CloudKitStore: Store {
                 GalleryItem(id: r.recordID.recordName,
                             caption: r["caption"] as? String ?? "",
                             note: r["note"] as? String ?? "",
+                            date: r["date"] as? Date,
                             photo: Self.assetData(r["photo"]),
                             createdAt: r.creationDate ?? Date())
             }
@@ -501,6 +502,7 @@ actor CloudKitStore: Store {
         let record = try await db.record(for: CKRecord.ID(recordName: item.id, zoneID: zoneID))
         record["caption"] = item.caption.trimmingCharacters(in: .whitespaces) as CKRecordValue
         record["note"] = item.note.trimmingCharacters(in: .whitespacesAndNewlines) as CKRecordValue
+        record["date"] = item.date as CKRecordValue?
         record["photo"] = item.photo.flatMap { Self.asset(from: $0) }
         _ = try await persist(record, in: db)
     }
@@ -720,7 +722,7 @@ actor CloudKitStore: Store {
         async let diary = all(db: db, zoneID: zoneID, type: "Diary", keys: ["childRef", "date", "text"])
         async let events = all(db: db, zoneID: zoneID, type: "Event", keys: ["title", "date"])
         async let vacations = all(db: db, zoneID: zoneID, type: "Vacation", keys: ["title", "startDate"])
-        async let photos = all(db: db, zoneID: zoneID, type: "GalleryItem", keys: ["childRef", "kind", "caption", "note"])
+        async let photos = all(db: db, zoneID: zoneID, type: "GalleryItem", keys: ["childRef", "kind", "caption", "note", "date"])
         async let interviews = all(db: db, zoneID: zoneID, type: "Interview", keys: ["childRef", "question", "age", "date"])
         async let traditions = all(db: db, zoneID: zoneID, type: "Tradition", keys: ["title", "when"])
         async let letters = all(db: db, zoneID: zoneID, type: "Letter", keys: ["childRef", "title", "writtenAt", "openDate"])
@@ -751,7 +753,7 @@ actor CloudKitStore: Store {
             let caption = r["caption"] as? String ?? ""
             let note = r["note"] as? String ?? ""
             out.append(MemorySummary(id: r.recordID.recordName, kind: .photo, childId: childId(r),
-                                     date: r.creationDate, createdAt: r.creationDate ?? Date(),
+                                     date: (r["date"] as? Date) ?? r.creationDate, createdAt: r.creationDate ?? Date(),
                                      text: [caption, note].filter { !$0.isEmpty }.joined(separator: " · "),
                                      modifiedAt: r.modificationDate ?? .distantPast,
                                      detail: r["kind"] as? String ?? ""))
