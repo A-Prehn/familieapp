@@ -74,10 +74,17 @@ struct MainTabView: View {
 private struct TabSwipe: ViewModifier {
     let tab: MainTab
     @Binding var selection: MainTab
+    /// Områder (fx en vandret rullende række), hvor et swipe ikke må skifte fane.
+    @State private var blocked: [CGRect] = []
 
     func body(content: Content) -> some View {
-        content.simultaneousGesture(
-            DragGesture(minimumDistance: 30).onEnded { value in
+        content
+            .coordinateSpace(name: TabSwipeSpace.name)
+            .onPreferenceChange(NoTabSwipeKey.self) { blocked = $0 }
+            .simultaneousGesture(
+            DragGesture(minimumDistance: 30, coordinateSpace: .named(TabSwipeSpace.name)).onEnded { value in
+                // Startede swipet i en vandret rullende række, er det rulningen — ikke et faneskift.
+                if blocked.contains(where: { $0.contains(value.startLocation) }) { return }
                 let dx = value.translation.width
                 let dy = value.translation.height
                 guard abs(dx) > 80, abs(dx) > abs(dy) * 2 else { return }
@@ -91,8 +98,22 @@ private struct TabSwipe: ViewModifier {
     }
 }
 
+private enum TabSwipeSpace { static let name = "tabSwipe" }
+
+private struct NoTabSwipeKey: PreferenceKey {
+    static var defaultValue: [CGRect] = []
+    static func reduce(value: inout [CGRect], nextValue: () -> [CGRect]) { value.append(contentsOf: nextValue()) }
+}
+
 extension View {
     func tabSwipe(_ tab: MainTab, selection: Binding<MainTab>) -> some View {
         modifier(TabSwipe(tab: tab, selection: selection))
+    }
+
+    /// Markér en vandret rullende række, så swipes i den ikke skifter hovedfane.
+    func noTabSwipe() -> some View {
+        background(GeometryReader { geo in
+            Color.clear.preference(key: NoTabSwipeKey.self, value: [geo.frame(in: .named(TabSwipeSpace.name))])
+        })
     }
 }

@@ -60,6 +60,7 @@ struct FamilyTreeView: View {
                     .frame(width: (layout.size.width + 48) * zoom, height: (layout.size.height + 48) * zoom)
                 }
                 .frame(minHeight: 360)
+                .noTabSwipe()   // panorering i træet må ikke skifte hovedfane
                 .background(Theme.card)
                 .clipShape(RoundedRectangle(cornerRadius: 16))
                 .overlay(RoundedRectangle(cornerRadius: 16).stroke(Theme.sep))

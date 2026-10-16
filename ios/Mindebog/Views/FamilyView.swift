@@ -48,6 +48,7 @@ struct FamilyView: View {
                     }
                     .padding(.horizontal, 2)
                 }
+                .noTabSwipe()
 
                 switch tab {
                 case .events: eventsList
