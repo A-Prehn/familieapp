@@ -315,17 +315,24 @@ struct LetterEditView: View {
         case .date: open = openDate
         case .now: open = nil
         }
-        await performSave(saving: $saving, errorMessage: $saveError, dismiss: dismiss) {
-            var letter = editing ?? Letter(id: newId("letter"), title: "", text: "", author: "",
-                                           writtenAt: Date(), openDate: nil)
-            letter.title = title; letter.text = text; letter.author = author
-            letter.openDate = open; letter.photo = photo
-            if editing == nil {
-                try await state.store.addLetter(childId: child.id, letter)
+        var letter = editing ?? Letter(id: newId("letter"), title: "", text: "", author: "",
+                                       writtenAt: Date(), openDate: nil)
+        letter.title = title; letter.text = text; letter.author = author
+        letter.openDate = open; letter.photo = photo
+        let (store, childId, final, video, isNew) = (state.store, child.id, letter, video, editing == nil)
+        let work: () async throws -> Void = {
+            if isNew {
+                try await store.addLetter(childId: childId, final)
             } else {
-                try await state.store.updateLetter(childId: child.id, letter)
+                try await store.updateLetter(childId: childId, final)
             }
-            try await state.store.setLetterVideo(childId: child.id, id: letter.id, video: video)
+            try await store.setLetterVideo(childId: childId, id: final.id, video: video)
+        }
+        // Et videobrev kan tage tid at uploade: luk med det samme og gem i baggrunden.
+        if case .set = video {
+            performSaveInBackground(label: "brevet", dismiss: dismiss, work)
+        } else {
+            await performSave(saving: $saving, errorMessage: $saveError, dismiss: dismiss, work)
         }
     }
 }

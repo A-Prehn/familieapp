@@ -20,6 +20,8 @@ final class SaveQueue: ObservableObject {
 
     @Published private(set) var running = 0
     @Published private(set) var failed: [Failed] = []
+    /// Gem, der kører i en åben formular (vises som "Gemmer…" i formularen).
+    @Published var foreground = 0
 
     func enqueue(label: String, _ work: @escaping () async throws -> Void) {
         running += 1

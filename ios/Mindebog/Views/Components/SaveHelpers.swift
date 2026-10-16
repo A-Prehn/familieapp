@@ -37,6 +37,8 @@ func performSave(saving: Binding<Bool>, errorMessage: Binding<String?>,
     guard !saving.wrappedValue else { return }
     saving.wrappedValue = true
     errorMessage.wrappedValue = nil
+    SaveQueue.shared.foreground += 1          // viser "Gemmer…" i formularen
+    defer { SaveQueue.shared.foreground -= 1 }
     do {
         try await work()
         dismiss()
@@ -47,10 +49,37 @@ func performSave(saving: Binding<Bool>, errorMessage: Binding<String?>,
     saving.wrappedValue = false
 }
 
+/// "Gemmer…" midt i formularen, mens et gem kører — så man kan se, at der sker noget.
+private struct SavingOverlay: View {
+    @ObservedObject private var queue = SaveQueue.shared
+
+    var body: some View {
+        if queue.foreground > 0 {
+            ZStack {
+                Color.black.opacity(0.12).ignoresSafeArea()
+                VStack(spacing: 12) {
+                    ProgressView().controlSize(.large)
+                    Text("Gemmer…").font(.subheadline.weight(.semibold))
+                    Text("Store billeder og videoer kan tage lidt tid.")
+                        .font(.caption).foregroundStyle(Theme.muted)
+                        .multilineTextAlignment(.center)
+                }
+                .padding(24)
+                .frame(maxWidth: 260)
+                .background(RoundedRectangle(cornerRadius: 18).fill(Theme.card))
+                .shadow(color: .black.opacity(0.12), radius: 16, y: 6)
+            }
+            .transition(.opacity)
+        }
+    }
+}
+
 extension View {
     /// Viser gem-fejlen som en alert.
+    /// Alle formularer bruger denne, så "Gemmer…" vises automatisk overalt.
     func saveErrorAlert(_ message: Binding<String?>) -> some View {
-        alert("Kunne ikke gemme", isPresented: Binding(
+        overlay { SavingOverlay() }
+        .alert("Kunne ikke gemme", isPresented: Binding(
             get: { message.wrappedValue != nil },
             set: { if !$0 { message.wrappedValue = nil } }
         )) {

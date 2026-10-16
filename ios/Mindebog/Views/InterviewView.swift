@@ -298,11 +298,25 @@ struct InterviewAnswerEditView: View {
     }
 
     private func save() async {
-        await performSave(saving: $saving, errorMessage: $saveError, dismiss: dismiss) {
-            var answer = existing ?? InterviewAnswer(id: newId("iv"), age: age, question: question)
-            answer.text = text.trimmingCharacters(in: .whitespacesAndNewlines)
-            if existing == nil { answer.date = Date() }
-            try await state.store.saveInterviewAnswer(childId: child.id, answer, audio: audio, video: video)
+        var answer = existing ?? InterviewAnswer(id: newId("iv"), age: age, question: question)
+        answer.text = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        if existing == nil { answer.date = Date() }
+        let (store, childId, final, audio, video) = (state.store, child.id, answer, audio, video)
+        // Ny video/lyd kan tage tid at uploade: luk med det samme og gem i baggrunden.
+        if hasNewMedia {
+            performSaveInBackground(label: "svaret", dismiss: dismiss) {
+                try await store.saveInterviewAnswer(childId: childId, final, audio: audio, video: video)
+            }
+        } else {
+            await performSave(saving: $saving, errorMessage: $saveError, dismiss: dismiss) {
+                try await store.saveInterviewAnswer(childId: childId, final, audio: audio, video: video)
+            }
         }
+    }
+
+    private var hasNewMedia: Bool {
+        if case .set = video { return true }
+        if case .set = audio { return true }
+        return false
     }
 }

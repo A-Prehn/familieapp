@@ -1141,6 +1141,57 @@ actor CloudKitStore: Store {
         recentSaves[id] = nil
     }
 
+    /// Gemmer én record. Store filer (video) kan tage minutter at uploade, så ventetiden er
+    /// sat op (iCloud giver ellers op efter ca. et minut og melder "netværksfejl"), og
+    /// midlertidige fejl prøves igen op til tre gange — med den ventetid, iCloud selv beder om.
+    private func saveWithRetry(_ record: CKRecord, in db: CKDatabase) async throws -> CKRecord {
+        var attempt = 0
+        while true {
+            do {
+                return try await saveOnce(record, in: db)
+            } catch let error as CKError where attempt < 3 && Self.isRetryable(error) {
+                attempt += 1
+                let wait = error.retryAfterSeconds ?? Double(attempt * 2)
+                try await Task.sleep(for: .seconds(min(wait, 30)))
+            }
+        }
+    }
+
+    private static func isRetryable(_ error: CKError) -> Bool {
+        switch error.code {
+        case .networkFailure, .networkUnavailable, .serviceUnavailable, .requestRateLimited, .zoneBusy:
+            return true
+        default:
+            return false
+        }
+    }
+
+    private func saveOnce(_ record: CKRecord, in db: CKDatabase) async throws -> CKRecord {
+        try await withCheckedThrowingContinuation { continuation in
+            let op = CKModifyRecordsOperation(recordsToSave: [record], recordIDsToDelete: nil)
+            op.savePolicy = .changedKeys
+            op.qualityOfService = .userInitiated
+            let config = CKOperation.Configuration()
+            config.timeoutIntervalForRequest = 120       // pr. netværksforespørgsel
+            config.timeoutIntervalForResource = 30 * 60  // hele uploaden, fx en video på mobilnet
+            op.configuration = config
+            var saved: CKRecord?
+            op.perRecordSaveBlock = { _, result in
+                if case .success(let r) = result { saved = r }
+            }
+            op.modifyRecordsResultBlock = { result in
+                switch result {
+                case .success:
+                    if let saved { continuation.resume(returning: saved) }
+                    else { continuation.resume(throwing: CKError(.internalError)) }
+                case .failure(let error):
+                    continuation.resume(throwing: error)
+                }
+            }
+            db.add(op)
+        }
+    }
+
     /// Sletter en record og husker det, så den ikke dukker op igen i næste søgning.
     private func remove(_ id: CKRecord.ID, in db: CKDatabase) async throws {
         try await remove(id, in: db)
@@ -1335,7 +1386,7 @@ actor CloudKitStore: Store {
     /// Gem en record og slet bagefter de midlertidige billedfiler, den blev uploadet fra.
     private func persist(_ record: CKRecord, in db: CKDatabase) async throws -> CKRecord {
         defer { Self.removeUploadFiles(of: record) }
-        let saved = try await db.save(record)
+        let saved = try await saveWithRetry(record, in: db)
         // Billeder lægges i cachen med det samme (upload-filerne slettes lige om lidt).
         for key in saved.allKeys() where saved[key] is CKAsset || saved[key] is [CKAsset] {
             saved[key] = AssetCache.store(saved, key: key)

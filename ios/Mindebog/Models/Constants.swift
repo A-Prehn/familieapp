@@ -224,6 +224,7 @@ extension Constants {
     /// Det årlige interview: de samme spørgsmål hvert år, så man kan høre barnet vokse.
     /// Nøglen (q1…) gemmes i iCloud, så teksten kan rettes senere uden at miste svar.
     static let interviewQuestions: [InterviewQuestion] = [
+        .init(key: "q10", text: "Sig dit navn, og hvor gammel du er"),   // altid først: navn og alder
         .init(key: "q1", text: "Hvad er det bedste, du ved?"),
         .init(key: "q2", text: "Hvad vil du være, når du bliver stor?"),
         .init(key: "q3", text: "Hvem er din bedste ven?"),
@@ -233,7 +234,6 @@ extension Constants {
         .init(key: "q7", text: "Hvad er du bange for?"),
         .init(key: "q8", text: "Hvad er det sjoveste, du har oplevet i år?"),
         .init(key: "q9", text: "Hvis du måtte ønske dig én ting, hvad så?"),
-        .init(key: "q10", text: "Sig dit navn, og hvor gammel du er"),
     ]
     static func interviewQuestion(_ key: String) -> String {
         interviewQuestions.first { $0.key == key }?.text ?? key
