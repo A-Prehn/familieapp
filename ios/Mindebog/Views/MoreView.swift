@@ -14,9 +14,11 @@ struct MoreView: View {
     @State private var notificationBusy = false
     @State private var remindersOn = Reminders.isEnabled
     @State private var bellyInterval = Reminders.bellyInterval
+    @State private var bellyWeekday = Reminders.bellyWeekday
     @State private var myBirthday: CustomBirthday?
     @State private var birthdayDraft = Calendar.current.date(byAdding: .year, value: -30, to: Date()) ?? Date()
     @State private var birthdayBusy = false
+    @State private var showExport = false
 
     var body: some View {
         List {
@@ -97,11 +99,22 @@ struct MoreView: View {
                     } label: {
                         Label("Mavebillede (barn på vej)", systemImage: "leaf")
                     }
+                    Picker(selection: Binding(
+                        get: { bellyWeekday },
+                        set: { value in
+                            bellyWeekday = value
+                            Reminders.bellyWeekday = value
+                            Task { await rescheduleReminders() }
+                        })) {
+                        ForEach(Reminders.weekdayOptions) { Text($0.label).tag($0.value) }
+                    } label: {
+                        Label("Ugedag", systemImage: "calendar")
+                    }
                 }
             } header: {
                 Text("Påmindelser")
             } footer: {
-                Text("En påmindelse om at tage billeder: for et født barn hver måned på månedsdagen, og for et barn på vej så ofte, som du vælger ovenfor, så I husker mavebilledet.")
+                Text("En påmindelse om at tage billeder: for et født barn hver måned på månedsdagen, og for et barn på vej så ofte og på den ugedag, du vælger ovenfor, så I husker mavebilledet.")
             }
 
             Section {
@@ -127,6 +140,17 @@ struct MoreView: View {
                 Text("Dig")
             } footer: {
                 Text("Navnet bruges i hilsenen på forsiden. Din fødselsdag kommer med i familiens fødselsdage og i widgettens nedtælling.")
+            }
+
+            Section {
+                Button { showExport = true } label: {
+                    Label("Eksportér alt", systemImage: "square.and.arrow.down.on.square")
+                }
+                .disabled(state.familyId == nil)
+            } header: {
+                Text("Dine data")
+            } footer: {
+                Text("Hent alle billeder, videoer, tekster og mindebøger ud i én ZIP-fil — fx som backup, eller hvis I en dag vil stoppe med appen.")
             }
 
             Section("Konto") {
@@ -162,6 +186,7 @@ struct MoreView: View {
                 .presentationDetents([.large])
             }
         }
+        .sheet(isPresented: $showExport) { ExportView() }
         .task { await load() }
     }
 

@@ -29,6 +29,21 @@ enum Reminders {
         set { UserDefaults.standard.set(newValue.rawValue, forKey: bellyIntervalKey) }
     }
 
+    /// Hvilken ugedag mavebilledet påmindes. 0 = samme ugedag som terminen (ny graviditetsuge),
+    /// ellers Calendar-ugedag (1 = søndag, 2 = mandag … 7 = lørdag).
+    private static let bellyWeekdayKey = "mindebog.bellyReminderWeekday"
+    static var bellyWeekday: Int {
+        get { UserDefaults.standard.integer(forKey: bellyWeekdayKey) }
+        set { UserDefaults.standard.set(newValue, forKey: bellyWeekdayKey) }
+    }
+    /// Valgmuligheder i rækkefølge mandag–søndag.
+    struct WeekdayOption: Identifiable { let value: Int; let label: String; var id: Int { value } }
+    static let weekdayOptions: [WeekdayOption] = [
+        .init(value: 0, label: "Når en ny uge starter"), .init(value: 2, label: "Mandag"),
+        .init(value: 3, label: "Tirsdag"), .init(value: 4, label: "Onsdag"),
+        .init(value: 5, label: "Torsdag"), .init(value: 6, label: "Fredag"),
+        .init(value: 7, label: "Lørdag"), .init(value: 1, label: "Søndag")]
+
     static var isEnabled: Bool { UserDefaults.standard.bool(forKey: enabledKey) }
 
     /// Slår til (spørger om tilladelse) og planlægger. Returnerer false hvis brugeren afviste.
@@ -95,12 +110,18 @@ enum Reminders {
             case .biweekly: what = "et nyt mavebillede"
             case .monthly: what = "månedens mavebillede"
             }
+            let weekday = bellyWeekday
             for week in stride(from: 4, through: 41, by: step) where out.count < limit {
-                guard let day = cal.date(byAdding: .day, value: (week - 1) * 7, to: start),
-                      let fire = cal.date(bySettingHour: hour, minute: 0, second: 0, of: day),
+                guard var day = cal.date(byAdding: .day, value: (week - 1) * 7, to: start) else { continue }
+                // Valgt ugedag: ryk frem til den dag inden for samme graviditetsuge (0–6 dage).
+                if weekday != 0 {
+                    let shift = (weekday - cal.component(.weekday, from: day) + 7) % 7
+                    day = cal.date(byAdding: .day, value: shift, to: day) ?? day
+                }
+                guard let fire = cal.date(bySettingHour: hour, minute: 0, second: 0, of: day),
                       fire > now, fire < due else { continue }
                 out.append(request(id: "\(prefix)\(child.id)_w\(week)", fire: fire,
-                                   title: "Uge \(week) i dag 🤰",
+                                   title: weekday == 0 ? "Uge \(week) i dag 🤰" : "Uge \(week) 🤰",
                                    body: "Tid til \(what) af \(child.name) til Maven måned for måned."))
             }
         }
