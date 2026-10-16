@@ -6,6 +6,19 @@ struct GalleryView: View {
     let child: Child
     let kind: GalleryKind
     @State private var items: [GalleryItem] = []
+    /// Serier, der vises med ældste først (standard er nyeste først). Gemt på telefonen.
+    @AppStorage("mindebog.galleryOldestFirst") private var oldestFirstRaw = ""
+
+    private var oldestFirst: Bool { oldestFirstRaw.split(separator: ",").contains(Substring(kind.rawValue)) }
+    private func setOldestFirst(_ on: Bool) {
+        var set = Set(oldestFirstRaw.split(separator: ",").map(String.init))
+        if on { set.insert(kind.rawValue) } else { set.remove(kind.rawValue) }
+        oldestFirstRaw = set.sorted().joined(separator: ",")
+    }
+    /// Billederne i den valgte rækkefølge.
+    private var sorted: [GalleryItem] {
+        items.sorted { oldestFirst ? $0.createdAt < $1.createdAt : $0.createdAt > $1.createdAt }
+    }
     @State private var showAdd = false
     @State private var editing: GalleryItem?
     @State private var lightbox: LightboxState?
@@ -35,14 +48,14 @@ struct GalleryView: View {
                 }
             } else if kind == .belly {
                 // Maven: tidslinje i rækkefølge (første uge øverst), så man kan se maven vokse.
-                TimelineView(items: items,
+                TimelineView(items: sorted,
                              year: { Calendar.current.component(.year, from: $0.createdAt) }) { item in
                     timelineCard(item)
                 }
                 .padding(16)
             } else {
                 LazyVGrid(columns: columns, spacing: 10) {
-                    ForEach(items) { item in
+                    ForEach(sorted) { item in
                         cell(item)
                     }
                 }
@@ -53,6 +66,17 @@ struct GalleryView: View {
         .navigationTitle(kind.title)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
+            ToolbarItem(placement: .topBarLeading) {
+                Menu {
+                    Picker("Rækkefølge", selection: Binding(get: { oldestFirst }, set: { setOldestFirst($0) })) {
+                        Label("Nyeste først", systemImage: "arrow.down").tag(false)
+                        Label("Ældste først", systemImage: "arrow.up").tag(true)
+                    }
+                } label: {
+                    Image(systemName: "arrow.up.arrow.down")
+                }
+                .accessibilityLabel("Rækkefølge")
+            }
             ToolbarItem(placement: .topBarTrailing) {
                 if state.canEdit {
                     if kind == .drawings && DocumentScanner.isAvailable {
@@ -162,7 +186,7 @@ struct GalleryView: View {
     }
 
     private func openLightbox(at item: GalleryItem) {
-        let withPhotos = items.filter { $0.photo != nil }
+        let withPhotos = sorted.filter { $0.photo != nil }
         let photos = withPhotos.compactMap { $0.photo }
         guard !photos.isEmpty else { return }
         let index = withPhotos.firstIndex(where: { $0.id == item.id }) ?? 0
