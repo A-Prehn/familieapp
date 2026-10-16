@@ -15,6 +15,10 @@ struct MoreView: View {
     @State private var remindersOn = Reminders.isEnabled
     @State private var bellyInterval = Reminders.bellyInterval
     @State private var bellyWeekday = Reminders.bellyWeekday
+    @State private var bellyTime: Date = {
+        let m = Reminders.bellyMinutes
+        return Calendar.current.date(bySettingHour: m / 60, minute: m % 60, second: 0, of: Date()) ?? Date()
+    }()
     @State private var myBirthday: CustomBirthday?
     @State private var birthdayDraft = Calendar.current.date(byAdding: .year, value: -30, to: Date()) ?? Date()
     @State private var birthdayBusy = false
@@ -110,11 +114,22 @@ struct MoreView: View {
                     } label: {
                         Label("Ugedag", systemImage: "calendar")
                     }
+                    DatePicker(selection: Binding(
+                        get: { bellyTime },
+                        set: { value in
+                            bellyTime = value
+                            let c = Calendar.current.dateComponents([.hour, .minute], from: value)
+                            Reminders.bellyMinutes = (c.hour ?? 10) * 60 + (c.minute ?? 0)
+                            Task { await rescheduleReminders() }
+                        }), displayedComponents: .hourAndMinute) {
+                        Label("Tidspunkt", systemImage: "clock")
+                    }
+                    .environment(\.locale, Locale(identifier: "da_DK"))
                 }
             } header: {
                 Text("Påmindelser")
             } footer: {
-                Text("En påmindelse om at tage billeder: for et født barn hver måned på månedsdagen, og for et barn på vej så ofte og på den ugedag, du vælger ovenfor, så I husker mavebilledet.")
+                Text("En påmindelse om at tage billeder: for et født barn hver måned på månedsdagen, og for et barn på vej så ofte, på den ugedag og det tidspunkt, du vælger ovenfor, så I husker mavebilledet.")
             }
 
             Section {

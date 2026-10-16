@@ -36,6 +36,12 @@ enum Reminders {
         get { UserDefaults.standard.integer(forKey: bellyWeekdayKey) }
         set { UserDefaults.standard.set(newValue, forKey: bellyWeekdayKey) }
     }
+    /// Klokkeslæt for mavebilledet i minutter efter midnat (standard 10:00).
+    private static let bellyTimeKey = "mindebog.bellyReminderMinutes"
+    static var bellyMinutes: Int {
+        get { (UserDefaults.standard.object(forKey: bellyTimeKey) as? Int) ?? hour * 60 }
+        set { UserDefaults.standard.set(newValue, forKey: bellyTimeKey) }
+    }
     /// Valgmuligheder i rækkefølge mandag–søndag.
     struct WeekdayOption: Identifiable { let value: Int; let label: String; var id: Int { value } }
     static let weekdayOptions: [WeekdayOption] = [
@@ -118,7 +124,8 @@ enum Reminders {
                     let shift = (weekday - cal.component(.weekday, from: day) + 7) % 7
                     day = cal.date(byAdding: .day, value: shift, to: day) ?? day
                 }
-                guard let fire = cal.date(bySettingHour: hour, minute: 0, second: 0, of: day),
+                let minutes = bellyMinutes
+                guard let fire = cal.date(bySettingHour: minutes / 60, minute: minutes % 60, second: 0, of: day),
                       fire > now, fire < due else { continue }
                 out.append(request(id: "\(prefix)\(child.id)_w\(week)", fire: fire,
                                    title: weekday == 0 ? "Uge \(week) i dag 🤰" : "Uge \(week) 🤰",
