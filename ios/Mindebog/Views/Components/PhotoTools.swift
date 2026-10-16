@@ -349,20 +349,23 @@ struct LightboxView: View {
             Color.black.ignoresSafeArea()
             TabView(selection: $index) {
                 ForEach(state.photos.indices, id: \.self) { i in
-                    DataImage(data: state.photos[i], contentMode: .fit)
-                        .overlay(alignment: .bottom) {
-                            if state.captions.indices.contains(i), !state.captions[i].isEmpty {
-                                Text(state.captions[i])
-                                    .font(.callout)
-                                    .foregroundStyle(.white)
-                                    .multilineTextAlignment(.center)
-                                    .padding(.horizontal, 20)
-                                    .padding(.bottom, 56)
-                            }
+                    // Teksten står under billedet på sort baggrund — oven på et lyst billede
+                    // (fx en tegning på hvidt papir) kunne hvid tekst ikke læses.
+                    VStack(spacing: 14) {
+                        DataImage(data: state.photos[i], contentMode: .fit)
+                            // Hold fingeren på billedet: Del, Gem i Fotos, Kopiér — som i Safari.
+                            .contextMenu { photoActions(for: state.photos[i]) }
+                        if state.captions.indices.contains(i), !state.captions[i].isEmpty {
+                            Text(state.captions[i])
+                                .font(.callout)
+                                .foregroundStyle(.white)
+                                .multilineTextAlignment(.center)
+                                .fixedSize(horizontal: false, vertical: true)
+                                .padding(.horizontal, 24)
                         }
-                        // Hold fingeren på billedet: Del, Gem i Fotos, Kopiér — som i Safari.
-                        .contextMenu { photoActions(for: state.photos[i]) }
-                        .tag(i)
+                    }
+                    .padding(.bottom, state.photos.count > 1 ? 44 : 20)   // plads til sideprikkerne
+                    .tag(i)
                 }
             }
             .tabViewStyle(.page(indexDisplayMode: state.photos.count > 1 ? .automatic : .never))
