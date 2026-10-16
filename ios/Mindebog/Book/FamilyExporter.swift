@@ -284,15 +284,15 @@ final class FamilyExport: ObservableObject {
 
         // Det årlige interview — pr. alder en tekstfil og lyd/video-filer
         step("\(child.name): interview…")
-        let answers = (try? await store.interviews(childId: child.id)) ?? []
-        if !answers.isEmpty {
+        let ivAnswers = (try? await store.interviews(childId: child.id)) ?? []
+        if !ivAnswers.isEmpty {
             let ivDir = dir.appendingPathComponent("Det årlige interview", isDirectory: true)
             var ivJSON: [[String: Any]] = []
-            for age in Set(answers.map(\.age)).sorted() {
+            for age in Set(ivAnswers.map { $0.age }).sorted() {
                 let ageName = age == 1 ? "1 år" : "\(age) år"
                 var text = "\(child.name.uppercased()) – \(ageName)\n\n"
                 for q in Constants.interviewQuestions {
-                    guard let a = answers.first(where: { $0.age == age && $0.question == q.key }), a.hasAnswer else { continue }
+                    guard let a = ivAnswers.first(where: { $0.age == age && $0.question == q.key }), a.hasAnswer else { continue }
                     text += "\(q.text)\n"
                     if !a.text.isEmpty { text += "  → \(a.text)\n" }
                     var files: [String] = []
