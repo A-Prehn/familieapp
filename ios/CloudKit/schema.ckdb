@@ -125,7 +125,7 @@ DEFINE SCHEMA
         "___modifiedBy" REFERENCE,
         "___recordID"   REFERENCE QUERYABLE,
         childRef        REFERENCE QUERYABLE,
-        kind            STRING,
+        kind            STRING QUERYABLE,
         caption         STRING,
         note            STRING,
         photo           ASSET,

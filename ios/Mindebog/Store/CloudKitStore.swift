@@ -26,6 +26,7 @@ actor CloudKitStore: Store {
     init(containerIdentifier: String = "iCloud.net.prehn.mindebog") {
         self.container = CKContainer(identifier: containerIdentifier)
         Self.clearUploadDir()   // ingen uploads kører endnu ved oprettelse
+        Task.detached(priority: .background) { AssetCache.prune() }
     }
 
     // MARK: - Auth
@@ -194,7 +195,8 @@ actor CloudKitStore: Store {
 
     func children(familyId: String) async throws -> [Child] {
         let (db, zoneID) = try await locate(familyId)
-        let records = try await all(db: db, zoneID: zoneID, type: "Child")
+        let records = try await all(db: db, zoneID: zoneID, type: "Child",
+                                    keys: ["familyRef", "name", "gender", "birthDate", "dueDate"], assetKeys: ["photo"])
         let kids = records.map { Self.child(from: $0, familyId: familyId) }
             .sorted { $0.name < $1.name }
         for kid in kids { rememberChild(kid.id, zoneName: familyId) }
@@ -253,8 +255,8 @@ actor CloudKitStore: Store {
     func highlights(childId: String) async throws -> [Highlight] {
         // Bevidst uden "video"/"audio" — de hentes først ved afspilning (highlightMedia).
         let records = try await childRecords(childId, type: "Highlight",
-                                              keys: ["childRef", "date", "text", "photos",
-                                                     "videoDuration", "audioDuration"])
+                                              keys: ["childRef", "date", "text", "videoDuration", "audioDuration"],
+                                              assetKeys: ["photos"])
         return records.map { r in
             Highlight(id: r.recordID.recordName,
                       date: r["date"] as? Date,
@@ -334,7 +336,8 @@ actor CloudKitStore: Store {
     // MARK: - Milepæle
 
     func milestones(childId: String) async throws -> [String: MilestoneEntry] {
-        let records = try await childRecords(childId, type: "Milestone")
+        let records = try await childRecords(childId, type: "Milestone",
+                                              keys: ["childRef", "key", "value", "captions", "coverIndex"], assetKeys: ["photo", "photos"])
         var result: [String: MilestoneEntry] = [:]
         for r in records {
             guard let key = r["key"] as? String else { continue }
@@ -419,7 +422,7 @@ actor CloudKitStore: Store {
     // MARK: - Dagbog
 
     func diary(childId: String) async throws -> [DiaryEntry] {
-        let records = try await childRecords(childId, type: "Diary")
+        let records = try await childRecords(childId, type: "Diary", keys: ["childRef", "date", "text"], assetKeys: ["photo"])
         return records.map { r in
             DiaryEntry(id: r.recordID.recordName,
                        date: r["date"] as? Date,
@@ -457,9 +460,11 @@ actor CloudKitStore: Store {
     // MARK: - Gallerier
 
     func gallery(childId: String, kind: GalleryKind) async throws -> [GalleryItem] {
-        let records = try await childRecords(childId, type: "GalleryItem")
+        // Kun den ønskede serie hentes (kind er indekseret), og billederne kommer fra cachen.
+        let records = try await childRecords(childId, type: "GalleryItem",
+                                              keys: ["childRef", "kind", "caption", "note"], assetKeys: ["photo"],
+                                              extraPredicate: NSPredicate(format: "kind == %@", kind.rawValue))
         return records
-            .filter { ($0["kind"] as? String) == kind.rawValue }
             .map { r in
                 GalleryItem(id: r.recordID.recordName,
                             caption: r["caption"] as? String ?? "",
@@ -530,7 +535,8 @@ actor CloudKitStore: Store {
     func letters(childId: String) async throws -> [Letter] {
         // Bevidst uden "video" — den hentes først ved afspilning (letterVideo).
         try await childRecords(childId, type: "Letter",
-                               keys: ["childRef", "title", "text", "author", "writtenAt", "openDate", "photo", "videoDuration"]).map { r in
+                               keys: ["childRef", "title", "text", "author", "writtenAt", "openDate", "videoDuration"],
+                               assetKeys: ["photo"]).map { r in
             Letter(id: r.recordID.recordName,
                    title: r["title"] as? String ?? "",
                    text: r["text"] as? String ?? "",
@@ -576,7 +582,9 @@ actor CloudKitStore: Store {
 
     func events(familyId: String) async throws -> [FamilyEvent] {
         let (db, zoneID) = try await locate(familyId)
-        return try await all(db: db, zoneID: zoneID, type: "Event").map { r in
+        return try await all(db: db, zoneID: zoneID, type: "Event",
+                             keys: ["familyRef", "title", "date", "details", "placeName", "placeAddress", "location", "captions", "coverIndex"],
+                             assetKeys: ["photo", "photos"]).map { r in
             FamilyEvent(id: r.recordID.recordName,
                         title: r["title"] as? String ?? "",
                         date: r["date"] as? Date,
@@ -603,7 +611,9 @@ actor CloudKitStore: Store {
 
     func vacations(familyId: String) async throws -> [Vacation] {
         let (db, zoneID) = try await locate(familyId)
-        return try await all(db: db, zoneID: zoneID, type: "Vacation").map { r in
+        return try await all(db: db, zoneID: zoneID, type: "Vacation",
+                             keys: ["familyRef", "title", "startDate", "endDate", "details", "placeName", "placeAddress", "location", "captions", "coverIndex"],
+                             assetKeys: ["photo", "photos"]).map { r in
             Vacation(id: r.recordID.recordName,
                      title: r["title"] as? String ?? "",
                      startDate: r["startDate"] as? Date,
@@ -871,7 +881,8 @@ actor CloudKitStore: Store {
     func traditions(familyId: String) async throws -> [Tradition] {
         let (db, zoneID) = try await locate(familyId)
         return try await all(db: db, zoneID: zoneID, type: "Tradition",
-                             keys: ["familyRef", "title", "when", "details", "photos", "captions", "coverIndex", "photo", "audioDuration"])
+                             keys: ["familyRef", "title", "when", "details", "captions", "coverIndex", "audioDuration"],
+                             assetKeys: ["photos", "photo"])
         .map { r in
             Tradition(id: r.recordID.recordName,
                       title: r["title"] as? String ?? "",
@@ -936,7 +947,9 @@ actor CloudKitStore: Store {
 
     func persons(familyId: String) async throws -> [Person] {
         let (db, zoneID) = try await locate(familyId)
-        return try await all(db: db, zoneID: zoneID, type: "Person").map { r in
+        return try await all(db: db, zoneID: zoneID, type: "Person",
+                             keys: ["familyRef", "name", "birthDate", "deathDate", "role", "parentIds", "partnerIds", "childId"],
+                             assetKeys: ["photo"]).map { r in
             Person(id: r.recordID.recordName,
                    name: r["name"] as? String ?? "",
                    birthDate: r["birthDate"] as? Date,
@@ -976,6 +989,102 @@ actor CloudKitStore: Store {
     }
 
 
+
+    // MARK: - Billedcache på telefonen
+    // Lister hentes uden billeder (hurtigt). Billederne tages fra en cache på disken, og kun
+    // dem, der mangler eller er ændret (ny modificationDate), hentes fra iCloud — i bundter.
+    // Filnavnet indeholder recordens ændringstidspunkt, så en redigering giver nye filer.
+    private enum AssetCache {
+        static let dir: URL = {
+            let base = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
+            let dir = base.appendingPathComponent("AssetCache", isDirectory: true)
+            try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+            return dir
+        }()
+
+        private static func base(_ record: CKRecord, _ key: String) -> String {
+            let ts = Int((record.modificationDate ?? .distantPast).timeIntervalSince1970)
+            return "\(record.recordID.zoneID.zoneName)__\(record.recordID.recordName)__\(key)__\(ts)"
+        }
+
+        /// Læser et asset-felt fra cachen. `.some(nil)` = vi ved, feltet er tomt; `nil` = ikke i cachen.
+        static func read(_ record: CKRecord, key: String) -> CKRecordValue?? {
+            let b = base(record, key)
+            let fm = FileManager.default
+            if fm.fileExists(atPath: dir.appendingPathComponent(b + "__none").path) { return .some(nil) }
+            let single = dir.appendingPathComponent(b + ".bin")
+            if fm.fileExists(atPath: single.path) { return .some(CKAsset(fileURL: single)) }
+            if let s = try? String(contentsOf: dir.appendingPathComponent(b + "__count"), encoding: .utf8),
+               let n = Int(s.trimmingCharacters(in: .whitespacesAndNewlines)) {
+                let urls = (0..<n).map { dir.appendingPathComponent(b + "__\($0).bin") }
+                guard urls.allSatisfy({ fm.fileExists(atPath: $0.path) }) else { return nil }
+                return .some(urls.map { CKAsset(fileURL: $0) } as CKRecordValue)
+            }
+            return nil
+        }
+
+        /// Lægger feltets asset(s) fra `record` i cachen og returnerer værdien, recorden skal pege på.
+        @discardableResult
+        static func store(_ record: CKRecord, key: String) -> CKRecordValue? {
+            let b = base(record, key)
+            let fm = FileManager.default
+            func copy(_ src: URL, to name: String) -> URL? {
+                let dst = dir.appendingPathComponent(name)
+                try? fm.removeItem(at: dst)
+                return (try? fm.copyItem(at: src, to: dst)) != nil ? dst : nil
+            }
+            if let asset = record[key] as? CKAsset {
+                guard let src = asset.fileURL, let dst = copy(src, to: b + ".bin") else { return record[key] }
+                return CKAsset(fileURL: dst)
+            }
+            if let list = record[key] as? [CKAsset] {
+                var out: [CKAsset] = []
+                for (i, a) in list.enumerated() {
+                    guard let src = a.fileURL, let dst = copy(src, to: b + "__\(i).bin") else { return record[key] }
+                    out.append(CKAsset(fileURL: dst))
+                }
+                try? "\(out.count)".write(to: dir.appendingPathComponent(b + "__count"), atomically: true, encoding: .utf8)
+                return out as CKRecordValue
+            }
+            try? Data().write(to: dir.appendingPathComponent(b + "__none"))
+            return nil
+        }
+
+        /// Rydder filer, der ikke er brugt i 60 dage (gamle versioner af redigerede billeder).
+        static func prune() {
+            let fm = FileManager.default
+            let cutoff = Date().addingTimeInterval(-60 * 86_400)
+            guard let files = try? fm.contentsOfDirectory(at: dir, includingPropertiesForKeys: [.contentAccessDateKey]) else { return }
+            for f in files {
+                let accessed = (try? f.resourceValues(forKeys: [.contentAccessDateKey]))?.contentAccessDate ?? .distantPast
+                if accessed < cutoff { try? fm.removeItem(at: f) }
+            }
+        }
+    }
+
+    /// Udfylder asset-felterne på records hentet uden assets: fra cachen, ellers fra iCloud i bundter.
+    private func fillAssets(_ records: [CKRecord], keys: [String], db: CKDatabase) async -> [CKRecord] {
+        guard !keys.isEmpty, !records.isEmpty else { return records }
+        var missing: [CKRecord] = []
+        for r in records {
+            var complete = true
+            for k in keys {
+                if let cached = AssetCache.read(r, key: k) { r[k] = cached } else { complete = false }
+            }
+            if !complete { missing.append(r) }
+        }
+        var i = 0
+        while i < missing.count {
+            let chunk = Array(missing[i..<min(i + 20, missing.count)])
+            i += 20
+            guard let fetched = try? await db.records(for: chunk.map(\.recordID), desiredKeys: keys) else { continue }
+            for r in chunk {
+                guard let full = try? fetched[r.recordID]?.get() else { continue }
+                for k in keys { r[k] = AssetCache.store(full, key: k) }
+            }
+        }
+        return records
+    }
     // MARK: - Nyligt gemt/slettet
     // iCloud finder først nye poster i søgninger nogle sekunder efter, de er gemt (og viser
     // slettede lidt endnu). Derfor husker appen selv det, den lige har gemt eller slettet,
@@ -1094,9 +1203,11 @@ actor CloudKitStore: Store {
     }
 
     /// Alle records af en type i zonen. `keys` begrænser felterne (fx uden billeder), nil = alle.
+    /// `assetKeys`: billedfelter, der tages fra cachen (så `keys` skal være felterne UDEN billeder).
     private func all(db: CKDatabase, zoneID: CKRecordZone.ID, type: String,
-                     keys: [CKRecord.FieldKey]? = nil) async throws -> [CKRecord] {
-        let query = CKQuery(recordType: type, predicate: NSPredicate(value: true))
+                     keys: [CKRecord.FieldKey]? = nil, assetKeys: [String] = [],
+                     predicate: NSPredicate = NSPredicate(value: true)) async throws -> [CKRecord] {
+        let query = CKQuery(recordType: type, predicate: predicate)
         var results: [CKRecord] = []
         var (matches, cursor) = try await db.records(matching: query, inZoneWith: zoneID,
                                                      desiredKeys: keys, resultsLimit: 200)
@@ -1105,15 +1216,18 @@ actor CloudKitStore: Store {
             (matches, cursor) = try await db.records(continuingMatchFrom: c, desiredKeys: keys, resultsLimit: 200)
             results.append(contentsOf: matches.compactMap { try? $0.1.get() })
         }
-        return merged(results, type: type, zoneID: zoneID)
+        return await fillAssets(merged(results, type: type, zoneID: zoneID), keys: assetKeys, db: db)
     }
 
     /// Et barns records af en type. `keys` begrænser felterne (fx uden video), nil = alle.
     private func childRecords(_ childId: String, type: String,
-                              keys: [CKRecord.FieldKey]? = nil) async throws -> [CKRecord] {
+                              keys: [CKRecord.FieldKey]? = nil, assetKeys: [String] = [],
+                              extraPredicate: NSPredicate? = nil) async throws -> [CKRecord] {
         let (db, zoneID) = try await locateChild(childId)
         let ref = childRef(childId, zoneID)
-        let query = CKQuery(recordType: type, predicate: NSPredicate(format: "childRef == %@", ref))
+        var predicate = NSPredicate(format: "childRef == %@", ref)
+        if let extra = extraPredicate { predicate = NSCompoundPredicate(andPredicateWithSubpredicates: [predicate, extra]) }
+        let query = CKQuery(recordType: type, predicate: predicate)
         var results: [CKRecord] = []
         var (matches, cursor) = try await db.records(matching: query, inZoneWith: zoneID,
                                                      desiredKeys: keys, resultsLimit: 200)
@@ -1122,7 +1236,10 @@ actor CloudKitStore: Store {
             (matches, cursor) = try await db.records(continuingMatchFrom: c, desiredKeys: keys, resultsLimit: 200)
             results.append(contentsOf: matches.compactMap { try? $0.1.get() })
         }
-        return merged(results, type: type, zoneID: zoneID) { ($0["childRef"] as? CKRecord.Reference)?.recordID == ref.recordID }
+        let matched = merged(results, type: type, zoneID: zoneID) { r in
+            (r["childRef"] as? CKRecord.Reference)?.recordID == ref.recordID && (extraPredicate?.evaluate(with: r) ?? true)
+        }
+        return await fillAssets(matched, keys: assetKeys, db: db)
     }
 
     private func familyRef(_ zoneID: CKRecordZone.ID) -> CKRecord.Reference {
@@ -1184,6 +1301,10 @@ actor CloudKitStore: Store {
     private func persist(_ record: CKRecord, in db: CKDatabase) async throws -> CKRecord {
         defer { Self.removeUploadFiles(of: record) }
         let saved = try await db.save(record)
+        // Billeder lægges i cachen med det samme (upload-filerne slettes lige om lidt).
+        for key in saved.allKeys() where saved[key] is CKAsset || saved[key] is [CKAsset] {
+            saved[key] = AssetCache.store(saved, key: key)
+        }
         noteSaved(saved)
         return saved
     }

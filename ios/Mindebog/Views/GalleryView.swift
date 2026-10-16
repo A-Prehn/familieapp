@@ -172,7 +172,13 @@ struct GalleryView: View {
     }
 
     private func load() async {
-        items = (try? await state.store.gallery(childId: child.id, kind: kind)) ?? []
+        // Vis det, der blev vist sidst, med det samme — og hent så det nye fra iCloud.
+        let cacheKey = "gallery_\(child.id)_\(kind.rawValue)"
+        if items.isEmpty, let cached = ScreenCache.load([GalleryItem].self, key: cacheKey) { items = cached }
+        if let fresh = try? await state.store.gallery(childId: child.id, kind: kind) {
+            items = fresh
+            ScreenCache.save(fresh, key: cacheKey)
+        }
     }
 
     /// Scannede tegninger gemmes med det samme; billedteksten er barnets alder (kan rettes bagefter).
