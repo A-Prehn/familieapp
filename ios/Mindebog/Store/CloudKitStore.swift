@@ -463,7 +463,8 @@ actor CloudKitStore: Store {
         // Kun den ønskede serie hentes (kind er indekseret), og billederne kommer fra cachen.
         let records = try await childRecords(childId, type: "GalleryItem",
                                               keys: ["childRef", "kind", "caption", "note"], assetKeys: ["photo"],
-                                              extraPredicate: NSPredicate(format: "kind == %@", kind.rawValue))
+                                              extraPredicate: NSPredicate(format: "kind == %@", kind.rawValue),
+                                              extraMatch: { ($0["kind"] as? String) == kind.rawValue })
         return records
             .map { r in
                 GalleryItem(id: r.recordID.recordName,
@@ -1248,7 +1249,7 @@ actor CloudKitStore: Store {
 
     /// Sletter en record og husker det, så den ikke dukker op igen i næste søgning.
     private func remove(_ id: CKRecord.ID, in db: CKDatabase) async throws {
-        try await remove(id, in: db)
+        _ = try await db.deleteRecord(withID: id)
         noteDeleted(id)
     }
 
@@ -1362,7 +1363,8 @@ actor CloudKitStore: Store {
     /// Et barns records af en type. `keys` begrænser felterne (fx uden video), nil = alle.
     private func childRecords(_ childId: String, type: String,
                               keys: [CKRecord.FieldKey]? = nil, assetKeys: [String] = [],
-                              extraPredicate: NSPredicate? = nil) async throws -> [CKRecord] {
+                              extraPredicate: NSPredicate? = nil,
+                              extraMatch: ((CKRecord) -> Bool)? = nil) async throws -> [CKRecord] {
         let (db, zoneID) = try await locateChild(childId)
         let ref = childRef(childId, zoneID)
         var predicate = NSPredicate(format: "childRef == %@", ref)
@@ -1377,7 +1379,7 @@ actor CloudKitStore: Store {
             results.append(contentsOf: matches.compactMap { try? $0.1.get() })
         }
         let matched = merged(results, type: type, zoneID: zoneID) { r in
-            (r["childRef"] as? CKRecord.Reference)?.recordID == ref.recordID && (extraPredicate?.evaluate(with: r) ?? true)
+            (r["childRef"] as? CKRecord.Reference)?.recordID == ref.recordID && (extraMatch?(r) ?? true)
         }
         return await fillAssets(matched, keys: assetKeys, db: db)
     }
