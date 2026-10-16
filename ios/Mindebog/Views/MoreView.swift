@@ -289,7 +289,7 @@ struct MoreView: View {
                 UserDefaults.standard.set(created.id, forKey: myBirthdayKey(familyId))
                 myBirthday = created
             }
-            await WidgetSync.refresh(store: state.store, familyId: familyId, familyName: family?.name ?? "")
+            await WidgetSync.refresh(store: state.store, familyId: familyId, familyName: family?.name ?? "", force: true)
         } catch {
             state.errorMessage = error.localizedDescription
         }

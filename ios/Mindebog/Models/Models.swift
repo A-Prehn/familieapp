@@ -211,6 +211,8 @@ struct MemorySummary: Identifiable, Hashable, Codable {
     let date: Date?
     let createdAt: Date
     let text: String        // tekst / titel
+    /// Sidst ændret i iCloud — bruges som nøgle i billedcachen for forsidebilledet.
+    var modifiedAt: Date = .distantPast
 }
 
 struct CustomBirthday: Identifiable, Hashable, Codable {

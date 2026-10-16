@@ -705,25 +705,31 @@ actor CloudKitStore: Store {
         var out: [MemorySummary] = []
         func childId(_ r: CKRecord) -> String? { (r["childRef"] as? CKRecord.Reference)?.recordID.recordName }
 
-        for r in try await all(db: db, zoneID: zoneID, type: "Highlight", keys: ["childRef", "date", "text"]) {
+        // De fire opslag kører samtidig.
+        async let highlights = all(db: db, zoneID: zoneID, type: "Highlight", keys: ["childRef", "date", "text"])
+        async let diary = all(db: db, zoneID: zoneID, type: "Diary", keys: ["childRef", "date", "text"])
+        async let events = all(db: db, zoneID: zoneID, type: "Event", keys: ["title", "date"])
+        async let vacations = all(db: db, zoneID: zoneID, type: "Vacation", keys: ["title", "startDate"])
+
+        for r in try await highlights {
             out.append(MemorySummary(id: r.recordID.recordName, kind: .highlight, childId: childId(r),
                                      date: r["date"] as? Date, createdAt: r.creationDate ?? Date(),
-                                     text: r["text"] as? String ?? ""))
+                                     text: r["text"] as? String ?? "", modifiedAt: r.modificationDate ?? .distantPast))
         }
-        for r in try await all(db: db, zoneID: zoneID, type: "Diary", keys: ["childRef", "date", "text"]) {
+        for r in try await diary {
             out.append(MemorySummary(id: r.recordID.recordName, kind: .diary, childId: childId(r),
                                      date: r["date"] as? Date, createdAt: r.creationDate ?? Date(),
-                                     text: r["text"] as? String ?? ""))
+                                     text: r["text"] as? String ?? "", modifiedAt: r.modificationDate ?? .distantPast))
         }
-        for r in try await all(db: db, zoneID: zoneID, type: "Event", keys: ["title", "date"]) {
+        for r in try await events {
             out.append(MemorySummary(id: r.recordID.recordName, kind: .event, childId: nil,
                                      date: r["date"] as? Date, createdAt: r.creationDate ?? Date(),
-                                     text: r["title"] as? String ?? ""))
+                                     text: r["title"] as? String ?? "", modifiedAt: r.modificationDate ?? .distantPast))
         }
-        for r in try await all(db: db, zoneID: zoneID, type: "Vacation", keys: ["title", "startDate"]) {
+        for r in try await vacations {
             out.append(MemorySummary(id: r.recordID.recordName, kind: .vacation, childId: nil,
                                      date: r["startDate"] as? Date, createdAt: r.creationDate ?? Date(),
-                                     text: r["title"] as? String ?? ""))
+                                     text: r["title"] as? String ?? "", modifiedAt: r.modificationDate ?? .distantPast))
         }
         return out
     }
@@ -738,13 +744,26 @@ actor CloudKitStore: Store {
         case .diary: keys = ["photo"]
         case .event, .vacation: keys = ["photos", "photo", "coverIndex"]
         }
+        func cover(_ record: CKRecord) -> Data? {
+            switch memory.kind {
+            case .highlight: return Self.assetsData(record["photos"]).first
+            case .diary: return Self.assetData(record["photo"])
+            case .event, .vacation: return Self.photoSet(from: record).coverPhoto
+            }
+        }
+        // Fra billedcachen, hvis mindet ikke er ændret, siden forsiden sidst blev hentet.
+        if memory.modifiedAt > .distantPast {
+            let cached = CKRecord(recordType: "cover", recordID: id)
+            var complete = true
+            for k in keys {
+                if let v = AssetCache.read(id: id, modified: memory.modifiedAt, key: k) { cached[k] = v } else { complete = false; break }
+            }
+            if complete { return cover(cached) }
+        }
         let results = try await db.records(for: [id], desiredKeys: keys)
         guard let record = try results[id]?.get() else { return nil }
-        switch memory.kind {
-        case .highlight: return Self.assetsData(record["photos"]).first
-        case .diary: return Self.assetData(record["photo"])
-        case .event, .vacation: return Self.photoSet(from: record).coverPhoto
-        }
+        for k in keys { record[k] = AssetCache.store(record, key: k) }
+        return cover(record)
     }
 
     func birthdays(familyId: String) async throws -> [CustomBirthday] {
@@ -1002,16 +1021,28 @@ actor CloudKitStore: Store {
             return dir
         }()
 
+        private static func base(id: CKRecord.ID, modified: Date?, key: String) -> String {
+            let ts = Int((modified ?? .distantPast).timeIntervalSince1970)
+            return "\(id.zoneID.zoneName)__\(id.recordName)__\(key)__\(ts)"
+        }
         private static func base(_ record: CKRecord, _ key: String) -> String {
-            let ts = Int((record.modificationDate ?? .distantPast).timeIntervalSince1970)
-            return "\(record.recordID.zoneID.zoneName)__\(record.recordID.recordName)__\(key)__\(ts)"
+            base(id: record.recordID, modified: record.modificationDate, key: key)
         }
 
         /// Læser et asset-felt fra cachen. `.some(nil)` = vi ved, feltet er tomt; `nil` = ikke i cachen.
         static func read(_ record: CKRecord, key: String) -> CKRecordValue?? {
-            let b = base(record, key)
+            read(id: record.recordID, modified: record.modificationDate, key: key)
+        }
+
+        static func read(id: CKRecord.ID, modified: Date?, key: String) -> CKRecordValue?? {
+            let b = base(id: id, modified: modified, key: key)
             let fm = FileManager.default
             if fm.fileExists(atPath: dir.appendingPathComponent(b + "__none").path) { return .some(nil) }
+            // Små tal (fx coverIndex) gemmes også, så forsidevalget følger med.
+            if let s = try? String(contentsOf: dir.appendingPathComponent(b + "__int"), encoding: .utf8),
+               let n = Int64(s.trimmingCharacters(in: .whitespacesAndNewlines)) {
+                return .some(n as CKRecordValue)
+            }
             let single = dir.appendingPathComponent(b + ".bin")
             if fm.fileExists(atPath: single.path) { return .some(CKAsset(fileURL: single)) }
             if let s = try? String(contentsOf: dir.appendingPathComponent(b + "__count"), encoding: .utf8),
@@ -1045,6 +1076,10 @@ actor CloudKitStore: Store {
                 }
                 try? "\(out.count)".write(to: dir.appendingPathComponent(b + "__count"), atomically: true, encoding: .utf8)
                 return out as CKRecordValue
+            }
+            if let n = record[key] as? Int64 {
+                try? "\(n)".write(to: dir.appendingPathComponent(b + "__int"), atomically: true, encoding: .utf8)
+                return n as CKRecordValue
             }
             try? Data().write(to: dir.appendingPathComponent(b + "__none"))
             return nil

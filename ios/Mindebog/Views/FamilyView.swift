@@ -299,14 +299,23 @@ struct FamilyView: View {
             persons = cached.persons
             traditions = cached.traditions
         }
+        // Alle syv opslag kører samtidig — ventetiden bliver som det langsomste, ikke summen.
         // Behold det viste ved netværksfejl i stedet for at tømme listerne.
-        if let v = try? await state.store.events(familyId: familyId) { events = v }
-        if let v = try? await state.store.vacations(familyId: familyId) { vacations = v }
-        if let v = try? await state.store.children(familyId: familyId) { children = v; ChildPalette.update(v) }
-        if let v = try? await state.store.birthdays(familyId: familyId) { customBirthdays = v }
-        if let v = try? await state.store.persons(familyId: familyId) { persons = v }
-        if let v = try? await state.store.members(familyId: familyId) { members = v }
-        if let v = try? await state.store.traditions(familyId: familyId) { traditions = v }
+        let store = state.store
+        async let eventsTask = store.events(familyId: familyId)
+        async let vacationsTask = store.vacations(familyId: familyId)
+        async let childrenTask = store.children(familyId: familyId)
+        async let birthdaysTask = store.birthdays(familyId: familyId)
+        async let personsTask = store.persons(familyId: familyId)
+        async let membersTask = store.members(familyId: familyId)
+        async let traditionsTask = store.traditions(familyId: familyId)
+        if let v = try? await eventsTask { events = v }
+        if let v = try? await vacationsTask { vacations = v }
+        if let v = try? await childrenTask { children = v; ChildPalette.update(v) }
+        if let v = try? await birthdaysTask { customBirthdays = v }
+        if let v = try? await personsTask { persons = v }
+        if let v = try? await membersTask { members = v }
+        if let v = try? await traditionsTask { traditions = v }
         ScreenCache.save(Cached(events: events, vacations: vacations, children: children, birthdays: customBirthdays,
                                 persons: persons, traditions: traditions),
                          key: cacheKey)

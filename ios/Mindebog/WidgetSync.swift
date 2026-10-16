@@ -4,10 +4,25 @@ import WidgetKit
 // Skriver det widgetten og notifikations-udvidelsen skal bruge til App Group'en:
 // fødselsdage, termin, minder (kun tekst/dato) og barnenavne. Kaldes når Hjem indlæses.
 enum WidgetSync {
-    static func refresh(store: Store, familyId: String, familyName: String) async {
-        guard let children = try? await store.children(familyId: familyId) else { return }
-        let custom = (try? await store.birthdays(familyId: familyId)) ?? []
-        let summaries = (try? await store.memorySummaries(familyId: familyId)) ?? []
+    // Kører kun, når noget er gemt siden sidst, eller der er gået 10 minutter —
+    // ellers koster hver åbning af Hjem tre ekstra opslag i iCloud.
+    private static var lastRun: Date?
+    private static var dirty = true
+    private static let observer: Void = {
+        NotificationCenter.default.addObserver(forName: .storeDidChange, object: nil, queue: nil) { _ in dirty = true }
+    }()
+
+    static func refresh(store: Store, familyId: String, familyName: String, force: Bool = false) async {
+        _ = observer
+        if !force, !dirty, let last = lastRun, Date().timeIntervalSince(last) < 600 { return }
+        dirty = false
+        lastRun = Date()
+        async let childrenTask = store.children(familyId: familyId)
+        async let customTask = store.birthdays(familyId: familyId)
+        async let summariesTask = store.memorySummaries(familyId: familyId)
+        guard let children = try? await childrenTask else { dirty = true; return }
+        let custom = (try? await customTask) ?? []
+        let summaries = (try? await summariesTask) ?? []
 
         var snapshot = WidgetSnapshot()
         snapshot.familyName = familyName

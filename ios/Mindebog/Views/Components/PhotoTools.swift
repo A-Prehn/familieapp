@@ -2,6 +2,7 @@ import SwiftUI
 import PhotosUI
 import Photos
 import UIKit
+import ImageIO
 
 // Skalerer et valgt billede ned (≈ CKAsset-venligt) og gemmer som JPEG.
 enum ImageTools {
@@ -21,21 +22,54 @@ enum ImageTools {
 
     /// Billedets egen form til visning på kort — så intet beskæres væk.
     /// Begrænset til mellem 3:4 (portræt) og 16:9 (landskab), så et meget højt
-    /// billede ikke fylder hele skærmen.
+    /// billede ikke fylder hele skærmen. Læser kun målene — afkoder ikke billedet.
     static func displayAspect(_ data: Data) -> CGFloat {
-        guard let image = UIImage(data: data), image.size.height > 0 else { return 4.0 / 3.0 }
-        let ratio = image.size.width / image.size.height
+        guard let source = CGImageSourceCreateWithData(data as CFData, nil),
+              let props = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any],
+              let w = props[kCGImagePropertyPixelWidth] as? CGFloat,
+              let h = props[kCGImagePropertyPixelHeight] as? CGFloat, h > 0 else { return 4.0 / 3.0 }
+        // EXIF-rotation: ved 90°/270° er bredde og højde byttet om.
+        let orientation = props[kCGImagePropertyOrientation] as? UInt32 ?? 1
+        let ratio = (5...8).contains(orientation) ? h / w : w / h
         return min(max(ratio, 3.0 / 4.0), 16.0 / 9.0)
     }
+
+    /// Miniature i visningsstørrelse. Afkoder kun det, der skal vises (ImageIO nedskalerer under
+    /// afkodningen), og husker resultatet — så gitre og tidslinjer ruller glat.
+    static func thumbnail(_ data: Data, maxPixel: CGFloat) -> UIImage? {
+        let key = "\(data.hashValue)_\(Int(maxPixel))" as NSString
+        if let hit = thumbCache.object(forKey: key) { return hit }
+        let options: [CFString: Any] = [
+            kCGImageSourceCreateThumbnailFromImageAlways: true,
+            kCGImageSourceCreateThumbnailWithTransform: true,
+            kCGImageSourceShouldCacheImmediately: true,
+            kCGImageSourceThumbnailMaxPixelSize: maxPixel,
+        ]
+        guard let source = CGImageSourceCreateWithData(data as CFData, nil),
+              let cg = CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary) else {
+            return UIImage(data: data)
+        }
+        let image = UIImage(cgImage: cg)
+        thumbCache.setObject(image, forKey: key, cost: cg.bytesPerRow * cg.height)
+        return image
+    }
+
+    private static let thumbCache: NSCache<NSString, UIImage> = {
+        let c = NSCache<NSString, UIImage>()
+        c.totalCostLimit = 120 * 1024 * 1024   // ~120 MB afkodede miniaturer
+        return c
+    }()
 }
 
-// Viser billeddata; fylder sin ramme.
+// Viser billeddata; fylder sin ramme. Afkodes som miniature (maxPixel) — nok til kort
+// og gitre på en Retina-skærm. Fuld skærm sætter selv en højere grænse.
 struct DataImage: View {
     let data: Data
     var contentMode: ContentMode = .fill
+    var maxPixel: CGFloat = 800
 
     var body: some View {
-        if let ui = UIImage(data: data) {
+        if let ui = ImageTools.thumbnail(data, maxPixel: maxPixel) {
             Image(uiImage: ui)
                 .resizable()
                 .aspectRatio(contentMode: contentMode)
@@ -352,7 +386,7 @@ struct LightboxView: View {
                     // Teksten står under billedet på sort baggrund — oven på et lyst billede
                     // (fx en tegning på hvidt papir) kunne hvid tekst ikke læses.
                     VStack(spacing: 14) {
-                        DataImage(data: state.photos[i], contentMode: .fit)
+                        DataImage(data: state.photos[i], contentMode: .fit, maxPixel: 2400)
                             // Hold fingeren på billedet: Del, Gem i Fotos, Kopiér — som i Safari.
                             .contextMenu { photoActions(for: state.photos[i]) }
                         if state.captions.indices.contains(i), !state.captions[i].isEmpty {

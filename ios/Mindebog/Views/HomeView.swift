@@ -198,7 +198,10 @@ struct HomeView: View {
         }
 
         let store = state.store
-        guard let loadedKids = try? await store.children(familyId: familyId) else { return }
+        // Børn og minde-oversigten hentes samtidig.
+        async let kidsTask = store.children(familyId: familyId)
+        async let summariesTask = store.memorySummaries(familyId: familyId)
+        guard let loadedKids = try? await kidsTask else { return }
         children = loadedKids
         ChildPalette.update(children)
         Task { await Reminders.schedule(children: loadedKids) }
@@ -207,7 +210,7 @@ struct HomeView: View {
         }
 
         // 1) Let oversigt over alle minder — kun tekst og datoer, ingen billeder.
-        guard let summaries = try? await store.memorySummaries(familyId: familyId) else { return }
+        guard let summaries = try? await summariesTask else { return }
         let names = Dictionary(uniqueKeysWithValues: loadedKids.map { ($0.id, $0) })
 
         func memory(_ s: MemorySummary) -> RecentMemory? {
