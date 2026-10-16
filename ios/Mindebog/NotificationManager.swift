@@ -80,4 +80,26 @@ final class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate {
                                 willPresent notification: UNNotification) async -> UNNotificationPresentationOptions {
         Reminders.isReminder(notification.request.identifier) ? [.banner, .sound] : []
     }
+
+    /// Tryk på en interview-påmindelse: åbn interviewet for barnet med den rigtige alder.
+    func userNotificationCenter(_ center: UNUserNotificationCenter,
+                                didReceive response: UNNotificationResponse) async {
+        let info = response.notification.request.content.userInfo
+        guard let childId = info["interviewChild"] as? String, let age = info["interviewAge"] as? Int else { return }
+        await MainActor.run {
+            // Gemmes også, hvis appen lige er startet og hovedskærmen ikke lytter endnu.
+            DeepLink.pendingInterview = DeepLink.Interview(childId: childId, age: age)
+            NotificationCenter.default.post(name: .openInterview, object: nil)
+        }
+    }
+}
+
+extension Notification.Name {
+    static let openInterview = Notification.Name("mindebog.openInterview")
+}
+
+@MainActor
+enum DeepLink {
+    struct Interview: Equatable { let childId: String; let age: Int }
+    static var pendingInterview: Interview?
 }

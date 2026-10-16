@@ -52,6 +52,62 @@ enum Reminders {
 
     static var isEnabled: Bool { UserDefaults.standard.bool(forKey: enabledKey) }
 
+    // MARK: Det årlige interview
+    // På fødselsdagen kl. 10: "Nohr fylder 10 i dag — tid til det årlige interview".
+    // En uge efter kommer en blid påmindelse mere, hvis interviewet for den alder ikke er påbegyndt.
+    private static let interviewKey = "mindebog.interviewReminder"
+    private static let interviewStartedKey = "mindebog.interviewStarted"   // ["childId_alder", …]
+    static let interviewMinAge = 2
+
+    /// Slået til som standard, når påmindelser er slået til.
+    static var interviewEnabled: Bool {
+        get { UserDefaults.standard.object(forKey: interviewKey) as? Bool ?? true }
+        set { UserDefaults.standard.set(newValue, forKey: interviewKey) }
+    }
+
+    private static func interviewStarted(_ childId: String, _ age: Int) -> Bool {
+        (UserDefaults.standard.stringArray(forKey: interviewStartedKey) ?? []).contains("\(childId)_\(age)")
+    }
+
+    /// Kaldes, når der findes svar for en alder — så kommer opfølgningen ikke.
+    static func markInterviewStarted(childId: String, age: Int) {
+        let key = "\(childId)_\(age)"
+        var list = UserDefaults.standard.stringArray(forKey: interviewStartedKey) ?? []
+        guard !list.contains(key) else { return }
+        list.append(key)
+        UserDefaults.standard.set(list, forKey: interviewStartedKey)
+        UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: ["\(prefix)ivf_\(key)"])
+    }
+
+    /// Fødselsdagspåmindelse og evt. opfølgning for den næste fødselsdag (og en netop overstået).
+    private static func interviewRequests(for child: Child) -> [UNNotificationRequest] {
+        guard interviewEnabled, let birth = child.birthDate else { return [] }
+        let cal = Calendar.current
+        let now = Date()
+        var out: [UNNotificationRequest] = []
+        let currentAge = cal.dateComponents([.year], from: birth, to: now).year ?? 0
+        // Den seneste fødselsdag (for en opfølgning, der stadig ligger ude i fremtiden) og den næste.
+        for age in [currentAge, currentAge + 1] where age >= interviewMinAge {
+            guard let birthday = cal.date(byAdding: .year, value: age, to: birth),
+                  let fire = cal.date(bySettingHour: hour, minute: 0, second: 0, of: birthday) else { continue }
+            let info: [String: Any] = ["interviewChild": child.id, "interviewAge": age]
+            if fire > now {
+                out.append(request(id: "\(prefix)iv_\(child.id)_\(age)", fire: fire,
+                                   title: "\(child.name) fylder \(age) i dag 🎂",
+                                   body: "Tid til det årlige interview. Stil de samme spørgsmål som sidst, og hør hvor meget der er sket.",
+                                   userInfo: info))
+            }
+            if !interviewStarted(child.id, age),
+               let followUp = cal.date(byAdding: .day, value: 7, to: fire), followUp > now {
+                out.append(request(id: "\(prefix)ivf_\(child.id)_\(age)", fire: followUp,
+                                   title: "Har I nået \(child.name)s interview?",
+                                   body: "Der er stadig tid til at optage svarene for \(age) år — det tager kun ti minutter.",
+                                   userInfo: info))
+            }
+        }
+        return out
+    }
+
     /// Slår til (spørger om tilladelse) og planlægger. Returnerer false hvis brugeren afviste.
     static func enable(children: [Child]) async -> Bool {
         let granted = (try? await UNUserNotificationCenter.current()
@@ -74,7 +130,9 @@ enum Reminders {
         // iOS tillader højst 64 planlagte notifikationer pr. app — fordel dem.
         let perChild = max(4, 56 / max(children.count, 1))
         for child in children {
-            for request in requests(for: child, limit: perChild) {
+            // Interviewet først, så det ikke bliver skubbet ud af grænsen på 64.
+            let interview = interviewRequests(for: child)
+            for request in interview + requests(for: child, limit: max(1, perChild - interview.count)) {
                 try? await center.add(request)
             }
         }
@@ -135,11 +193,13 @@ enum Reminders {
         return out
     }
 
-    private static func request(id: String, fire: Date, title: String, body: String) -> UNNotificationRequest {
+    private static func request(id: String, fire: Date, title: String, body: String,
+                                userInfo: [String: Any] = [:]) -> UNNotificationRequest {
         let content = UNMutableNotificationContent()
         content.title = title
         content.body = body
         content.sound = .default
+        content.userInfo = userInfo
         let parts = Calendar.current.dateComponents([.year, .month, .day, .hour, .minute], from: fire)
         let trigger = UNCalendarNotificationTrigger(dateMatching: parts, repeats: false)
         return UNNotificationRequest(identifier: id, content: content, trigger: trigger)

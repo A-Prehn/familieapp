@@ -6,6 +6,8 @@ import AVFoundation
 struct InterviewView: View {
     @EnvironmentObject var state: AppState
     let child: Child
+    /// Alderen, der skal være valgt (fx fra fødselsdagspåmindelsen); ellers barnets alder nu.
+    var initialAge: Int? = nil
 
     enum Mode: String, CaseIterable, Identifiable {
         case year = "Pr. år"
@@ -58,7 +60,7 @@ struct InterviewView: View {
         .refreshable { await load() }
         .reloadOnStoreChange { await load() }
         .task {
-            if !loaded { loaded = true; age = currentAge }
+            if !loaded { loaded = true; age = initialAge ?? currentAge }
             await load()
         }
     }
@@ -161,6 +163,10 @@ struct InterviewView: View {
 
     private func load() async {
         answers = (try? await state.store.interviews(childId: child.id)) ?? []
+        // Er interviewet for en alder påbegyndt, skal opfølgningspåmindelsen ikke komme.
+        for age in Set(answers.filter(\.hasAnswer).map(\.age)) {
+            Reminders.markInterviewStarted(childId: child.id, age: age)
+        }
     }
 }
 

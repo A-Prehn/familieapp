@@ -24,7 +24,9 @@ enum MainTab: Int, CaseIterable, Hashable {
 }
 
 struct MainTabView: View {
+    @EnvironmentObject var state: AppState
     @State private var selection: MainTab = .home
+    @State private var interview: InterviewTarget?
 
     init() {
         // Kun farven sættes — ingen egen UITabBarAppearance, så iOS 26 beholder Liquid Glass.
@@ -51,6 +53,30 @@ struct MainTabView: View {
         }
         // "Gemmer…" og fejl fra gem i baggrunden, lige over fanebjælken.
         .overlay(alignment: .bottom) { SaveQueueBanner().padding(.bottom, 56) }
+        // Tryk på interview-påmindelsen: åbn interviewet for barnet.
+        .sheet(item: $interview) { target in
+            NavigationStack {
+                InterviewView(child: target.child, initialAge: target.age)
+                    .toolbar {
+                        ToolbarItem(placement: .cancellationAction) { Button("Luk") { interview = nil } }
+                    }
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .openInterview)) { _ in Task { await openPendingInterview() } }
+        .task { await openPendingInterview() }
+    }
+
+    struct InterviewTarget: Identifiable {
+        let child: Child
+        let age: Int
+        var id: String { "\(child.id)_\(age)" }
+    }
+
+    private func openPendingInterview() async {
+        guard let link = DeepLink.pendingInterview, let familyId = state.familyId else { return }
+        DeepLink.pendingInterview = nil
+        guard let child = (try? await state.store.children(familyId: familyId))?.first(where: { $0.id == link.childId }) else { return }
+        interview = InterviewTarget(child: child, age: link.age)
     }
 
     // iOS 26's glas-tabbar farver selv ikonerne sort/hvid. Ikonerne tegnes derfor som
