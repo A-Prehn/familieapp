@@ -19,6 +19,7 @@ struct InterviewView: View {
     @State private var editing: EditTarget?
     @State private var selectedQuestion = Constants.interviewQuestions[0].key
     @State private var loaded = false
+    @State private var playing: InterviewPlaybackView?
 
     struct EditTarget: Identifiable {
         let question: String
@@ -53,6 +54,7 @@ struct InterviewView: View {
         .sheet(item: $editing, onDismiss: { Task { await load() } }) { target in
             InterviewAnswerEditView(child: child, question: target.question, age: target.age, existing: target.existing)
         }
+        .fullScreenCover(item: $playing) { $0 }
         .refreshable { await load() }
         .reloadOnStoreChange { await load() }
         .task {
@@ -68,6 +70,19 @@ struct InterviewView: View {
         Section {
             Picker("Alder", selection: $age) {
                 ForEach(ages, id: \.self) { Text($0 == 1 ? "1 år" : "\($0) år").tag($0) }
+            }
+            // Alle svar for den valgte alder, i spørgsmålenes rækkefølge.
+            let forAge = Constants.interviewQuestions.compactMap { q in
+                answers.first { $0.question == q.key && $0.age == age && $0.hasAnswer }
+            }
+            if !forAge.isEmpty {
+                Button {
+                    playing = InterviewPlaybackView(child: child, title: "\(child.name), \(age == 1 ? "1 år" : "\(age) år")",
+                                                    answers: forAge, headline: .question)
+                } label: {
+                    Label("Afspil alle svar (\(forAge.count))", systemImage: "play.circle.fill")
+                        .font(.subheadline.weight(.semibold))
+                }
             }
         } footer: {
             Text("Stil de samme spørgsmål hvert år omkring fødselsdagen. Svar med tekst, en lydoptagelse eller en lille video — så kan I senere høre \(child.name) vokse.")
@@ -129,12 +144,17 @@ struct InterviewView: View {
                 HStack {
                     Text(Constants.interviewQuestion(selectedQuestion))
                     Spacer()
-                    if list.contains(where: { $0.audioDuration != nil }) {
-                        PlayAllButton(child: child, answers: list)
+                    Button {
+                        playing = InterviewPlaybackView(child: child, title: Constants.interviewQuestion(selectedQuestion),
+                                                        answers: list, headline: .age)
+                    } label: {
+                        Label("Afspil alle", systemImage: "play.circle")
                     }
+                    .font(.caption.weight(.semibold))
+                    .textCase(nil)
                 }
             } footer: {
-                Text("Svarene står i rækkefølge efter alder. \"Afspil alle\" spiller lydsvarene efter hinanden.")
+                Text("Svarene står i rækkefølge efter alder. \"Afspil alle\" viser dem efter hinanden — video, lyd og tekst.")
             }
         }
     }
@@ -203,67 +223,6 @@ private struct AnswerRow: View {
         if let url = (try? await state.store.interviewMedia(childId: child.id, id: answer.id))?.video {
             player = VideoPlayerScreen(url: url)
         }
-    }
-}
-
-/// Afspiller alle lydsvar efter hinanden (ældste først) — "hør barnet vokse".
-private struct PlayAllButton: View {
-    @EnvironmentObject var state: AppState
-    let child: Child
-    let answers: [InterviewAnswer]
-    @StateObject private var queue = SequencePlayer()
-    @State private var loading = false
-
-    var body: some View {
-        Button {
-            if queue.isPlaying { queue.stop() } else { Task { await playAll() } }
-        } label: {
-            if loading { ProgressView().controlSize(.small) }
-            else { Label(queue.isPlaying ? "Stop" : "Afspil alle", systemImage: queue.isPlaying ? "stop.fill" : "play.circle") }
-        }
-        .font(.caption.weight(.semibold))
-        .textCase(nil)
-    }
-
-    private func playAll() async {
-        loading = true
-        defer { loading = false }
-        var urls: [URL] = []
-        for a in answers where a.audioDuration != nil {
-            if let url = (try? await state.store.interviewMedia(childId: child.id, id: a.id))?.audio { urls.append(url) }
-        }
-        queue.play(urls)
-    }
-}
-
-/// Spiller flere lydfiler i rækkefølge.
-@MainActor
-final class SequencePlayer: ObservableObject {
-    @Published var isPlaying = false
-    private var player: AVQueuePlayer?
-    private var observer: Any?
-
-    func play(_ urls: [URL]) {
-        guard !urls.isEmpty else { return }
-        try? AVAudioSession.sharedInstance().setCategory(.playback)
-        try? AVAudioSession.sharedInstance().setActive(true)
-        let items = urls.map { AVPlayerItem(url: $0) }
-        let player = AVQueuePlayer(items: items)
-        self.player = player
-        if let last = items.last {
-            observer = NotificationCenter.default.addObserver(forName: .AVPlayerItemDidPlayToEndTime, object: last,
-                                                              queue: .main) { [weak self] _ in
-                Task { @MainActor in self?.isPlaying = false }
-            }
-        }
-        player.play()
-        isPlaying = true
-    }
-
-    func stop() {
-        player?.pause()
-        player?.removeAllItems()
-        isPlaying = false
     }
 }
 
