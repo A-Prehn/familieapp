@@ -204,15 +204,17 @@ struct Letter: Identifiable, Hashable, Codable {
 /// Let oversigt over et minde (uden billeder) — til Hjem, så forsiden ikke skal
 /// hente alle familiens billeder for at finde de få, der vises.
 struct MemorySummary: Identifiable, Hashable, Codable {
-    enum Kind: String, Codable { case highlight, diary, event, vacation }
+    enum Kind: String, Codable { case highlight, diary, event, vacation, photo, interview, tradition, letter }
     let id: String          // record-id
     let kind: Kind
     let childId: String?    // nil for fælles (begivenhed/ferie)
     let date: Date?
     let createdAt: Date
     let text: String        // tekst / titel
-    /// Sidst ændret i iCloud — bruges som nøgle i billedcachen for forsidebilledet.
+    /// Sidst ændret i iCloud — bruges som nøgle i billedcachen og til "Seneste i familien".
     var modifiedAt: Date = .distantPast
+    /// Ekstra oplysning, fx billedseriens type ("belly", "monthly", "drawings").
+    var detail: String = ""
 }
 
 struct CustomBirthday: Identifiable, Hashable, Codable {

@@ -37,7 +37,7 @@ struct HomeView: View {
                         }
                     }
                     if !recent.isEmpty {
-                        memorySection("Seneste minder", recent) { m in "\(m.childName) · \(m.kind)" }
+                        memorySection("Seneste i familien", recent) { m in "\(whenText(m)) · \(m.childName) · \(m.kind)" }
                     }
                 }
             }
@@ -263,18 +263,39 @@ struct HomeView: View {
             case .vacation:
                 return RecentMemory(id: "va_" + s.id, summary: s, childName: "Fælles", kind: "Ferie", symbol: "beach.umbrella",
                                     date: s.date, sortDate: s.date ?? .distantPast, text: s.text, photo: nil)
+            case .photo:
+                guard let id = s.childId, let child = names[id] else { return nil }
+                let (kind, symbol): (String, String) = switch s.detail {
+                case "belly": ("Mavebillede", "leaf")
+                case "drawings": ("Tegning", "paintpalette")
+                default: ("Månedsbillede", "photo.on.rectangle")
+                }
+                return RecentMemory(id: "ph_" + s.id, summary: s, childName: child.name, kind: kind, symbol: symbol,
+                                    date: s.date, sortDate: s.createdAt, text: s.text, photo: nil)
+            case .interview:
+                guard let id = s.childId, let child = names[id] else { return nil }
+                return RecentMemory(id: "iv_" + s.id, summary: s, childName: child.name, kind: "Årligt interview",
+                                    symbol: "bubble.left.and.text.bubble.right",
+                                    date: s.date, sortDate: s.createdAt, text: s.text, photo: nil)
+            case .tradition:
+                return RecentMemory(id: "tr_" + s.id, summary: s, childName: "Fælles", kind: "Tradition", symbol: "sparkles",
+                                    date: nil, sortDate: s.createdAt, text: s.text, photo: nil)
+            case .letter:
+                guard let id = s.childId, let child = names[id] else { return nil }
+                return RecentMemory(id: "le_" + s.id, summary: s, childName: child.name, kind: "Brev", symbol: "envelope",
+                                    date: s.date, sortDate: s.createdAt, text: s.text, photo: nil)
             }
         }
         let all = summaries.compactMap(memory)
 
-        // Seneste minder: kun børnenes (højdepunkter + dagbog), de 5 nyeste.
-        var newRecent = Array(all.filter { $0.summary?.childId != nil }
-            .sorted { $0.sortDate > $1.sortDate }.prefix(5))
+        // Seneste i familien: alt, hvad der er lagt op eller ændret — det nyeste først.
+        var newRecent = Array(all.sorted { changed($0) > changed($1) }.prefix(6))
 
-        // På denne dag: samme dag og måned i et tidligere år — også fælles minder.
+        // På denne dag: samme dag og måned i et tidligere år — kun de klassiske minder.
+        let classic: Set<MemorySummary.Kind> = [.highlight, .diary, .event, .vacation]
         let cal = Calendar.current
         let today = cal.dateComponents([.year, .month, .day], from: Date())
-        var newOnThisDay = all.filter { m in
+        var newOnThisDay = all.filter { classic.contains($0.summary?.kind ?? .highlight) }.filter { m in
             guard let date = m.date else { return false }
             let c = cal.dateComponents([.year, .month, .day], from: date)
             return c.month == today.month && c.day == today.day && (c.year ?? 0) < (today.year ?? 0)
@@ -305,6 +326,25 @@ struct HomeView: View {
         let familyName = (try? await store.families(for: state.user?.id ?? ""))?
             .first { $0.id == familyId }?.name ?? "Vores familie"
         Task { await WidgetSync.refresh(store: store, familyId: familyId, familyName: familyName) }
+    }
+
+    /// Hvornår noget sidst blev lagt op eller ændret (falder tilbage på oprettelsen).
+    private func changed(_ m: RecentMemory) -> Date {
+        guard let s = m.summary else { return m.sortDate }
+        return max(s.modifiedAt, s.createdAt)
+    }
+
+    /// "I dag", "I går", "For 3 dage siden" — til "Seneste i familien".
+    private func whenText(_ m: RecentMemory) -> String {
+        let cal = Calendar.current
+        let date = changed(m)
+        let days = cal.dateComponents([.day], from: cal.startOfDay(for: date), to: cal.startOfDay(for: Date())).day ?? 0
+        switch days {
+        case ..<1: return "I dag"
+        case 1: return "I går"
+        case 2..<7: return "For \(days) dage siden"
+        default: return Fmt.long(date)
+        }
     }
 
     private func yearsAgo(_ date: Date?) -> String {

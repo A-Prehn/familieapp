@@ -710,6 +710,10 @@ actor CloudKitStore: Store {
         async let diary = all(db: db, zoneID: zoneID, type: "Diary", keys: ["childRef", "date", "text"])
         async let events = all(db: db, zoneID: zoneID, type: "Event", keys: ["title", "date"])
         async let vacations = all(db: db, zoneID: zoneID, type: "Vacation", keys: ["title", "startDate"])
+        async let photos = all(db: db, zoneID: zoneID, type: "GalleryItem", keys: ["childRef", "kind", "caption", "note"])
+        async let interviews = all(db: db, zoneID: zoneID, type: "Interview", keys: ["childRef", "question", "age", "date"])
+        async let traditions = all(db: db, zoneID: zoneID, type: "Tradition", keys: ["title", "when"])
+        async let letters = all(db: db, zoneID: zoneID, type: "Letter", keys: ["childRef", "title", "writtenAt", "openDate"])
 
         for r in try await highlights {
             out.append(MemorySummary(id: r.recordID.recordName, kind: .highlight, childId: childId(r),
@@ -731,6 +735,36 @@ actor CloudKitStore: Store {
                                      date: r["startDate"] as? Date, createdAt: r.creationDate ?? Date(),
                                      text: r["title"] as? String ?? "", modifiedAt: r.modificationDate ?? .distantPast))
         }
+        // De nyere typer: kun til "Seneste i familien" — en fejl her må ikke tømme forsiden.
+        for r in (try? await photos) ?? [] {
+            let caption = r["caption"] as? String ?? ""
+            let note = r["note"] as? String ?? ""
+            out.append(MemorySummary(id: r.recordID.recordName, kind: .photo, childId: childId(r),
+                                     date: r.creationDate, createdAt: r.creationDate ?? Date(),
+                                     text: [caption, note].filter { !$0.isEmpty }.joined(separator: " · "),
+                                     modifiedAt: r.modificationDate ?? .distantPast,
+                                     detail: r["kind"] as? String ?? ""))
+        }
+        for r in (try? await interviews) ?? [] {
+            let age = Int(r["age"] as? Int64 ?? 0)
+            out.append(MemorySummary(id: r.recordID.recordName, kind: .interview, childId: childId(r),
+                                     date: r["date"] as? Date, createdAt: r.creationDate ?? Date(),
+                                     text: "\(age == 1 ? "1 år" : "\(age) år"): \(Constants.interviewQuestion(r["question"] as? String ?? ""))",
+                                     modifiedAt: r.modificationDate ?? .distantPast))
+        }
+        for r in (try? await traditions) ?? [] {
+            out.append(MemorySummary(id: r.recordID.recordName, kind: .tradition, childId: nil,
+                                     date: nil, createdAt: r.creationDate ?? Date(),
+                                     text: r["title"] as? String ?? "", modifiedAt: r.modificationDate ?? .distantPast))
+        }
+        for r in (try? await letters) ?? [] {
+            let title = r["title"] as? String ?? ""
+            let sealed = (r["openDate"] as? Date).map { $0 > Date() } ?? false
+            out.append(MemorySummary(id: r.recordID.recordName, kind: .letter, childId: childId(r),
+                                     date: r["writtenAt"] as? Date, createdAt: r.creationDate ?? Date(),
+                                     text: (title.isEmpty ? "Et brev" : title) + (sealed ? " (forseglet)" : ""),
+                                     modifiedAt: r.modificationDate ?? .distantPast))
+        }
         return out
     }
 
@@ -741,14 +775,20 @@ actor CloudKitStore: Store {
         let keys: [CKRecord.FieldKey]
         switch memory.kind {
         case .highlight: keys = ["photos"]
-        case .diary: keys = ["photo"]
-        case .event, .vacation: keys = ["photos", "photo", "coverIndex"]
+        case .diary, .photo: keys = ["photo"]
+        case .event, .vacation, .tradition: keys = ["photos", "photo", "coverIndex"]
+        case .interview: return nil
+        case .letter:
+            // Et forseglet brev viser ikke sit billede, før det må åbnes.
+            if memory.text.hasSuffix("(forseglet)") { return nil }
+            keys = ["photo"]
         }
         func cover(_ record: CKRecord) -> Data? {
             switch memory.kind {
             case .highlight: return Self.assetsData(record["photos"]).first
-            case .diary: return Self.assetData(record["photo"])
-            case .event, .vacation: return Self.photoSet(from: record).coverPhoto
+            case .diary, .photo, .letter: return Self.assetData(record["photo"])
+            case .event, .vacation, .tradition: return Self.photoSet(from: record).coverPhoto
+            case .interview: return nil
             }
         }
         // Fra billedcachen, hvis mindet ikke er ændret, siden forsiden sidst blev hentet.

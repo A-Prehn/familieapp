@@ -266,6 +266,8 @@ actor MemoryStore: Store {
             return eventsByFamily[familyId]?.first { $0.id == memory.id }?.photo
         case .vacation:
             return vacationsByFamily[familyId]?.first { $0.id == memory.id }?.photo
+        case .photo, .interview, .tradition, .letter:
+            return nil
         }
     }
 
