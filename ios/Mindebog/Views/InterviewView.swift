@@ -75,7 +75,7 @@ struct InterviewView: View {
             }
             // Alle svar for den valgte alder, i spørgsmålenes rækkefølge.
             let forAge = Constants.interviewQuestions.compactMap { q in
-                answers.first { $0.question == q.key && $0.age == age && $0.hasAnswer }
+                best(q.key, age).flatMap { $0.hasAnswer ? $0 : nil }
             }
             if !forAge.isEmpty {
                 Button {
@@ -91,7 +91,7 @@ struct InterviewView: View {
         }
         Section {
             ForEach(Constants.interviewQuestions) { q in
-                let a = answers.first { $0.question == q.key && $0.age == age }
+                let a = best(q.key, age)
                 Button {
                     if state.canEdit || a != nil { editing = EditTarget(question: q.key, age: age, existing: a) }
                 } label: {
@@ -130,7 +130,9 @@ struct InterviewView: View {
             }
             .pickerStyle(.menu)
         }
-        let list = answers.filter { $0.question == selectedQuestion && $0.hasAnswer }.sorted { $0.age < $1.age }
+        // Ét svar pr. alder (det bedste), i rækkefølge efter alder.
+        let list = Set(answers.filter { $0.question == selectedQuestion }.map(\.age)).sorted()
+            .compactMap { best(selectedQuestion, $0) }.filter(\.hasAnswer)
         if list.isEmpty {
             Section {
                 Text("Ingen svar på det spørgsmål endnu.").font(.footnote).foregroundStyle(Theme.muted)
@@ -161,12 +163,39 @@ struct InterviewView: View {
         }
     }
 
+    /// Det bedste svar for et spørgsmål og en alder: med video/lyd frem for kun tekst, ellers det nyeste.
+    /// (Der kan være flere, hvis et gem fejlede halvvejs i en tidligere version.)
+    private func best(_ question: String, _ age: Int) -> InterviewAnswer? {
+        answers.filter { $0.question == question && $0.age == age }.max { score($0) < score($1) }
+    }
+
+    private func score(_ a: InterviewAnswer) -> (Int, Date) {
+        ((a.videoDuration != nil ? 4 : 0) + (a.audioDuration != nil ? 2 : 0) + (a.text.isEmpty ? 0 : 1), a.date)
+    }
+
     private func load() async {
         answers = (try? await state.store.interviews(childId: child.id)) ?? []
+        await removeEmptyDuplicates()
         // Er interviewet for en alder påbegyndt, skal opfølgningspåmindelsen ikke komme.
         for age in Set(answers.filter(\.hasAnswer).map(\.age)) {
             Reminders.markInterviewStarted(childId: child.id, age: age)
         }
+    }
+
+    /// Rydder op efter et halvt gemt svar: tomme dubletter slettes, når der findes et svar med indhold.
+    /// Svar med indhold slettes aldrig — de vises bare ikke, hvis der er et bedre.
+    private func removeEmptyDuplicates() async {
+        guard state.canEdit else { return }
+        let groups = Dictionary(grouping: answers) { "\($0.question)_\($0.age)" }
+        var removed: Set<String> = []
+        for (_, group) in groups where group.count > 1 && group.contains(where: \.hasAnswer) {
+            for empty in group where !empty.hasAnswer {
+                if (try? await state.store.deleteInterviewAnswer(childId: child.id, id: empty.id)) != nil {
+                    removed.insert(empty.id)
+                }
+            }
+        }
+        if !removed.isEmpty { answers.removeAll { removed.contains($0.id) } }
     }
 }
 
@@ -304,7 +333,9 @@ struct InterviewAnswerEditView: View {
     }
 
     private func save() async {
-        var answer = existing ?? InterviewAnswer(id: newId("iv"), age: age, question: question)
+        // Fast id pr. spørgsmål og alder: gemmer man igen efter en fejl, opdateres det samme svar
+        // i stedet for at der opstår et nyt ved siden af.
+        var answer = existing ?? InterviewAnswer(id: "iv_\(question)_\(age)", age: age, question: question)
         answer.text = text.trimmingCharacters(in: .whitespacesAndNewlines)
         if existing == nil { answer.date = Date() }
         let (store, childId, final, audio, video) = (state.store, child.id, answer, audio, video)

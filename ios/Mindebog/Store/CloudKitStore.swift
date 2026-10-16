@@ -881,8 +881,22 @@ actor CloudKitStore: Store {
         record["question"] = answer.question as CKRecordValue
         record["text"] = answer.text as CKRecordValue
         record["date"] = answer.date as CKRecordValue
+        // Tekst og video/lyd gemmes i ét hug — så en fejl undervejs ikke efterlader et halvt svar.
+        Self.applyMedia(video, asset: "video", duration: "videoDuration", to: record)
+        Self.applyMedia(audio, asset: "audio", duration: "audioDuration", to: record)
         _ = try await persist(record, in: db)
-        try await setMedia(recordID: recordID, in: db, video: video, audio: audio)
+    }
+
+    private static func applyMedia(_ change: MediaChange, asset key: String, duration durationKey: String, to record: CKRecord) {
+        switch change {
+        case .keep: break
+        case .remove:
+            record[key] = nil
+            record[durationKey] = nil
+        case .set(let url, let seconds):
+            record[key] = uploadAsset(copying: url)
+            record[durationKey] = seconds as CKRecordValue
+        }
     }
 
     func deleteInterviewAnswer(childId: String, id: String) async throws {
