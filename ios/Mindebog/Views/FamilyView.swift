@@ -187,7 +187,8 @@ struct FamilyView: View {
                     HStack(spacing: 14) {
                         VStack(spacing: 0) {
                             if row.days == 0 {
-                                Text("🎉").font(.title3)
+                                Image(systemName: "gift.fill").font(.title3).foregroundStyle(Theme.rose)
+                                Text("i dag").font(.caption2).foregroundStyle(Theme.muted)
                             } else {
                                 Text("\(row.days)").font(.serifTitle(20))
                                 Text(row.days == 1 ? "dag" : "dage")
@@ -200,7 +201,7 @@ struct FamilyView: View {
                         .clipShape(RoundedRectangle(cornerRadius: 10))
 
                         VStack(alignment: .leading, spacing: 2) {
-                            Text("\(row.emoji) \(row.name)").font(.system(size: 15, weight: .medium))
+                            Text(row.name).font(.system(size: 15, weight: .medium))
                             Text("\(dayMonth(row.date)) · fylder \(row.turning)")
                                 .font(.footnote).foregroundStyle(Theme.muted)
                         }
@@ -452,7 +453,6 @@ struct AddBirthdayView: View {
             Form {
                 TextField("Navn (f.eks. Mormor)", text: $name)
                 DatePicker("Fødselsdato", selection: $date, in: ...Date(), displayedComponents: .date)
-                TextField("Emoji (valgfri)", text: $emoji)
                 if editing != nil {
                     Section {
                         Button("Slet fødselsdag", role: .destructive) { confirmDelete = true }
