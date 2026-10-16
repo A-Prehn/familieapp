@@ -113,9 +113,13 @@ struct GalleryView: View {
     // Kort i tidslinjen: uge/måned som overskrift, billedet i portræt (maven fylder i højden).
     private func timelineCard(_ item: GalleryItem) -> some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text(item.caption.isEmpty ? Fmt.long(item.createdAt) : item.caption)
+            // Uge/måned og så kommentaren efter, fx "Uge 24 · Første spark i dag".
+            (Text(item.caption.isEmpty ? Fmt.long(item.createdAt) : item.caption)
                 .font(.serifTitle(16))
                 .foregroundStyle(Theme.text)
+             + Text(item.note.isEmpty ? "" : "  ·  \(item.note)")
+                .font(.system(size: 15))
+                .foregroundStyle(Theme.neutralDark))
             if !item.caption.isEmpty {
                 Text(Fmt.long(item.createdAt)).font(.caption).foregroundStyle(Theme.muted)
             }
@@ -167,10 +171,15 @@ struct GalleryView: View {
                         .accessibilityLabel("Redigér")
                     }
                 }
-            if !item.caption.isEmpty {
-                Text(item.caption)
+            if !item.caption.isEmpty || (kind != .drawings && !item.note.isEmpty) {
+                // Tegninger: beskrivelsen vises kun i fuld skærm. Andre serier: efter måneden.
+                (Text(item.caption)
                     .font(.system(size: 13, weight: .medium))
                     .foregroundStyle(Theme.text)
+                 + Text(kind == .drawings || item.note.isEmpty ? "" : (item.caption.isEmpty ? "" : " · ") + item.note)
+                    .font(.system(size: 12))
+                    .foregroundStyle(Theme.muted))
+                    .lineLimit(3)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(10)
                     .contentShape(Rectangle())
@@ -191,7 +200,7 @@ struct GalleryView: View {
         guard !photos.isEmpty else { return }
         let index = withPhotos.firstIndex(where: { $0.id == item.id }) ?? 0
         // Tegninger: beskrivelsen vises kun her, i fuld skærm.
-        let captions = kind == .drawings ? withPhotos.map { $0.note.isEmpty ? $0.caption : "\($0.caption) · \($0.note)" } : []
+        let captions = withPhotos.map { $0.note.isEmpty ? $0.caption : ($0.caption.isEmpty ? $0.note : "\($0.caption) · \($0.note)") }
         lightbox = LightboxState(photos: photos, index: index, captions: captions)
     }
 
@@ -232,6 +241,14 @@ struct AddGalleryItemView: View {
     var editing: GalleryItem? = nil
     /// Forudfyldt billedtekst ved oprettelse (fx barnets alder til en tegning).
     var defaultCaption = ""
+
+    private var notePlaceholder: String {
+        switch kind {
+        case .belly: return "Fx \"Første spark i dag\""
+        case .monthly: return "Fx \"Har lært at vinke\""
+        case .drawings: return "Fx \"Tegnet til mormors fødselsdag — det er vores hus med regnbue\""
+        }
+    }
     @State private var caption = ""
     @State private var note = ""
     @State private var photo: Data?
@@ -248,15 +265,14 @@ struct AddGalleryItemView: View {
                 Section(kind.captionLabel) {
                     TextField(kind.captionPlaceholder, text: $caption)
                 }
-                if kind == .drawings {
-                    Section {
-                        TextField("Fx \"Tegnet til mormors fødselsdag — det er vores hus med regnbue\"", text: $note, axis: .vertical)
-                            .lineLimit(2...5)
-                    } header: {
-                        Text("Beskrivelse (valgfri)")
-                    } footer: {
-                        Text("Vises, når man trykker på tegningen.")
-                    }
+                Section {
+                    TextField(notePlaceholder, text: $note, axis: .vertical)
+                        .lineLimit(2...5)
+                } header: {
+                    Text(kind == .drawings ? "Beskrivelse (valgfri)" : "Kommentar (valgfri)")
+                } footer: {
+                    Text(kind == .drawings ? "Vises, når man trykker på tegningen."
+                                           : "Vises efter \(kind == .belly ? "ugen" : "måneden") på oversigten.")
                 }
                 Section("Billede") {
                     PhotoField(data: $photo)
