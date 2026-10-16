@@ -47,6 +47,7 @@ enum WidgetSync {
             case .diary: kind = "Dagbog"
             case .event: kind = "Begivenhed"
             case .vacation: kind = "Ferie"
+            case .memory: kind = "Minde"
             default: return nil   // "På denne dag" bruger kun de klassiske minder
             }
             let who = s.childId.flatMap { names[$0] } ?? "Fælles"

@@ -135,6 +135,26 @@ final class FamilyExport: ObservableObject {
             json["traditioner"] = tJSON
         }
 
+        step("Minder…")
+        let freeMemories = (try? await store.memories(familyId: familyId)) ?? []
+        if !freeMemories.isEmpty {
+            let mDir = familyDir.appendingPathComponent("Minder", isDirectory: true)
+            var mJSON: [[String: Any]] = []
+            for m in freeMemories {
+                let name = Self.prefix(m.date) + Self.safe(m.title)
+                let files = try writePhotoSet(m.photos, name: name, in: mDir)
+                let who = m.childIds.compactMap { id in children.first { $0.id == id }?.name }
+                var text = m.title + "\n"
+                if let d = m.date { text += Fmt.long(d) + "\n" }
+                if !who.isEmpty { text += "Handler om: " + who.joined(separator: ", ") + "\n" }
+                if !m.text.isEmpty { text += "\n" + m.text + "\n" }
+                try write(text, to: mDir.appendingPathComponent(name + ".txt"))
+                mJSON.append(["titel": m.title, "dato": m.date.map(Fmt.iso) as Any, "tekst": m.text,
+                              "handler_om": who, "filer": files])
+            }
+            json["minder"] = mJSON
+        }
+
         step("Begivenheder…")
         let events = (try? await store.events(familyId: familyId)) ?? []
         let eventsDir = familyDir.appendingPathComponent("Begivenheder", isDirectory: true)
@@ -263,7 +283,7 @@ final class FamilyExport: ObservableObject {
 
         // Billedserier
         step("\(child.name): billedserier…")
-        for kind in [GalleryKind.belly, .monthly, .drawings] {
+        for kind in [GalleryKind.belly, .monthly, .drawings, .birthday] {
             let items = (try? await store.gallery(childId: child.id, kind: kind)) ?? []
             let gDir = dir.appendingPathComponent(kind.title, isDirectory: true)
             var gJSON: [[String: Any]] = []
@@ -278,6 +298,7 @@ final class FamilyExport: ObservableObject {
             case .belly: key = "mavebilleder"
             case .monthly: key = "månedsbilleder"
             case .drawings: key = "tegninger"
+            case .birthday: key = "fødselsdage"
             }
             out[key] = gJSON
         }

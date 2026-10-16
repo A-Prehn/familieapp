@@ -63,6 +63,9 @@ struct ChildDetailView: View {
                         NavigationLink { GalleryView(child: child, kind: .drawings) } label: {
                             tile("Tegninger", "paintpalette", Theme.tint)
                         }
+                        NavigationLink { BirthdayPhotosView(child: child) } label: {
+                            tile("Fødselsdage", "gift", Theme.rose)
+                        }
                     }
                 }
                 .buttonStyle(.plain)

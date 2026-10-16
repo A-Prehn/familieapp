@@ -4,6 +4,7 @@ struct FamilyView: View {
     @EnvironmentObject var state: AppState
 
     enum Tab: String, CaseIterable, Identifiable {
+        case memories = "Minder"
         case events = "Begivenheder"
         case vacations = "Ferier"
         case birthdays = "Fødselsdage"
@@ -21,6 +22,8 @@ struct FamilyView: View {
     @State private var editingPerson: Person?
     @State private var members: [AppUser] = []
     @State private var traditions: [Tradition] = []
+    @State private var memories: [FamilyMemory] = []
+    @State private var editingMemory: FamilyMemory?
     @State private var editingTradition: Tradition?
     @State private var activeSheet: Tab?
     @State private var editingEvent: FamilyEvent?
@@ -51,6 +54,8 @@ struct FamilyView: View {
                 .noTabSwipe()
 
                 switch tab {
+                case .memories: MemoriesView(memories: memories, children: children, onEdit: { editingMemory = $0 },
+                                             onAdd: { activeSheet = .memories }, onLightbox: { lightbox = $0 })
                 case .events: eventsList
                 case .vacations: vacationsList
                 case .birthdays: birthdaysList
@@ -72,6 +77,7 @@ struct FamilyView: View {
         }
         .sheet(item: $activeSheet, onDismiss: { Task { await load() } }) { which in
             switch which {
+            case .memories: MemoryEditView(familyId: state.familyId ?? "", children: children)
             case .events: AddEventView(familyId: state.familyId ?? "")
             case .vacations: AddVacationView(familyId: state.familyId ?? "")
             case .birthdays: AddBirthdayView(familyId: state.familyId ?? "")
@@ -88,6 +94,9 @@ struct FamilyView: View {
         }
         .sheet(item: $editingBirthday, onDismiss: { Task { await load() } }) { birthday in
             AddBirthdayView(familyId: state.familyId ?? "", editing: birthday)
+        }
+        .sheet(item: $editingMemory, onDismiss: { Task { await load() } }) { m in
+            MemoryEditView(familyId: state.familyId ?? "", children: children, editing: m)
         }
         .sheet(item: $editingTradition, onDismiss: { Task { await load() } }) { t in
             TraditionEditView(familyId: state.familyId ?? "", editing: t)
@@ -284,6 +293,7 @@ struct FamilyView: View {
         var birthdays: [CustomBirthday]
         var persons: [Person] = []
         var traditions: [Tradition] = []
+        var memories: [FamilyMemory] = []
     }
 
     private func load() async {
@@ -298,6 +308,7 @@ struct FamilyView: View {
             customBirthdays = cached.birthdays
             persons = cached.persons
             traditions = cached.traditions
+            memories = cached.memories
         }
         // Alle syv opslag kører samtidig — ventetiden bliver som det langsomste, ikke summen.
         // Behold det viste ved netværksfejl i stedet for at tømme listerne.
@@ -309,6 +320,7 @@ struct FamilyView: View {
         async let personsTask = store.persons(familyId: familyId)
         async let membersTask = store.members(familyId: familyId)
         async let traditionsTask = store.traditions(familyId: familyId)
+        async let memoriesTask = store.memories(familyId: familyId)
         if let v = try? await eventsTask { events = v }
         if let v = try? await vacationsTask { vacations = v }
         if let v = try? await childrenTask { children = v; ChildPalette.update(v) }
@@ -316,8 +328,9 @@ struct FamilyView: View {
         if let v = try? await personsTask { persons = v }
         if let v = try? await membersTask { members = v }
         if let v = try? await traditionsTask { traditions = v }
+        if let v = try? await memoriesTask { memories = v }
         ScreenCache.save(Cached(events: events, vacations: vacations, children: children, birthdays: customBirthdays,
-                                persons: persons, traditions: traditions),
+                                persons: persons, traditions: traditions, memories: memories),
                          key: cacheKey)
     }
 }

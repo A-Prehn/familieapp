@@ -247,6 +247,7 @@ struct AddGalleryItemView: View {
         case .belly: return "Fx \"Første spark i dag\""
         case .monthly: return "Fx \"Har lært at vinke\""
         case .drawings: return "Fx \"Tegnet til mormors fødselsdag — det er vores hus med regnbue\""
+        case .birthday: return "Fx \"Pakker op med mormor\""
         }
     }
     @State private var caption = ""
@@ -272,7 +273,8 @@ struct AddGalleryItemView: View {
                     Text(kind == .drawings ? "Beskrivelse (valgfri)" : "Kommentar (valgfri)")
                 } footer: {
                     Text(kind == .drawings ? "Vises, når man trykker på tegningen."
-                                           : "Vises efter \(kind == .belly ? "ugen" : "måneden") på oversigten.")
+                         : kind == .birthday ? "Vises, når man trykker på billedet. Alderen bestemmer, hvilken fødselsdag billedet hører til."
+                         : "Vises efter \(kind == .belly ? "ugen" : "måneden") på oversigten.")
                 }
                 Section("Billede") {
                     PhotoField(data: $photo)

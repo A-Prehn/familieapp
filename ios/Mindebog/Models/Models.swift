@@ -113,12 +113,14 @@ enum GalleryKind: String, Codable, Hashable {
     case belly      // Maven måned for måned
     case monthly    // Måned for måned
     case drawings   // Tegninger (scannet med kameraet)
+    case birthday   // Fødselsdage (billedteksten er alderen, fx "5")
 
     var title: String {
         switch self {
         case .belly: return "Maven måned for måned"
         case .monthly: return "Måned for måned"
         case .drawings: return "Tegninger"
+        case .birthday: return "Fødselsdage"
         }
     }
     var captionLabel: String {
@@ -126,6 +128,7 @@ enum GalleryKind: String, Codable, Hashable {
         case .belly: return "Uge/måned"
         case .monthly: return "Måned"
         case .drawings: return "Titel"
+        case .birthday: return "Alder"
         }
     }
     var captionPlaceholder: String {
@@ -133,6 +136,7 @@ enum GalleryKind: String, Codable, Hashable {
         case .belly: return "F.eks. Uge 24"
         case .monthly: return "F.eks. 3 måneder"
         case .drawings: return "F.eks. Vores hus"
+        case .birthday: return "F.eks. 5"
         }
     }
 }
@@ -204,7 +208,7 @@ struct Letter: Identifiable, Hashable, Codable {
 /// Let oversigt over et minde (uden billeder) — til Hjem, så forsiden ikke skal
 /// hente alle familiens billeder for at finde de få, der vises.
 struct MemorySummary: Identifiable, Hashable, Codable {
-    enum Kind: String, Codable { case highlight, diary, event, vacation, photo, interview, tradition, letter }
+    enum Kind: String, Codable { case highlight, diary, event, vacation, photo, interview, tradition, letter, memory }
     let id: String          // record-id
     let kind: Kind
     let childId: String?    // nil for fælles (begivenhed/ferie)
@@ -278,4 +282,17 @@ struct FamilyParticipant: Identifiable, Hashable {
     let access: Access
     let pending: Bool       // inviteret, men har ikke åbnet invitationen endnu
     let isMe: Bool
+}
+
+/// Et frit minde under Fælles: ikke en begivenhed eller ferie, bare noget, man vil gemme
+/// og dele — fx "Mormors 80-års tale" eller "Første gang vi så havet".
+struct FamilyMemory: Identifiable, Hashable, Codable {
+    let id: String
+    var title: String
+    var date: Date? = nil
+    var text: String = ""
+    var photos: PhotoSet = PhotoSet()
+    /// Hvilke børn mindet handler om (tomt = hele familien).
+    var childIds: [String] = []
+    var photo: Data? { photos.coverPhoto }
 }

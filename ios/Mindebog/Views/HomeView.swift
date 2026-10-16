@@ -69,6 +69,7 @@ struct HomeView: View {
             case .vacation: AddVacationView(familyId: familyId)
             case .birthday: AddBirthdayView(familyId: familyId)
             case .tradition: TraditionEditView(familyId: familyId)
+            case .memory: MemoryEditView(familyId: familyId, children: children)
             default: EmptyView()
             }
         }
@@ -268,6 +269,7 @@ struct HomeView: View {
                 let (kind, symbol): (String, String) = switch s.detail {
                 case "belly": ("Mavebillede", "leaf")
                 case "drawings": ("Tegning", "paintpalette")
+                case "birthday": ("Fødselsdag", "gift")
                 default: ("Månedsbillede", "photo.on.rectangle")
                 }
                 return RecentMemory(id: "ph_" + s.id, summary: s, childName: child.name, kind: kind, symbol: symbol,
@@ -284,6 +286,9 @@ struct HomeView: View {
                 guard let id = s.childId, let child = names[id] else { return nil }
                 return RecentMemory(id: "le_" + s.id, summary: s, childName: child.name, kind: "Brev", symbol: "envelope",
                                     date: s.date, sortDate: s.createdAt, text: s.text, photo: nil)
+            case .memory:
+                return RecentMemory(id: "me_" + s.id, summary: s, childName: "Fælles", kind: "Minde", symbol: "heart.text.square",
+                                    date: s.date, sortDate: s.date ?? s.createdAt, text: s.text, photo: nil)
             }
         }
         let all = summaries.compactMap(memory)
@@ -292,7 +297,7 @@ struct HomeView: View {
         var newRecent = Array(all.sorted { changed($0) > changed($1) }.prefix(5))
 
         // På denne dag: samme dag og måned i et tidligere år — kun de klassiske minder.
-        let classic: Set<MemorySummary.Kind> = [.highlight, .diary, .event, .vacation]
+        let classic: Set<MemorySummary.Kind> = [.highlight, .diary, .event, .vacation, .memory]
         let cal = Calendar.current
         let today = cal.dateComponents([.year, .month, .day], from: Date())
         var newOnThisDay = all.filter { classic.contains($0.summary?.kind ?? .highlight) }.filter { m in

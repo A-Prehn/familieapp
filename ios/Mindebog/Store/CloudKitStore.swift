@@ -724,6 +724,7 @@ actor CloudKitStore: Store {
         async let interviews = all(db: db, zoneID: zoneID, type: "Interview", keys: ["childRef", "question", "age", "date"])
         async let traditions = all(db: db, zoneID: zoneID, type: "Tradition", keys: ["title", "when"])
         async let letters = all(db: db, zoneID: zoneID, type: "Letter", keys: ["childRef", "title", "writtenAt", "openDate"])
+        async let freeMemories = all(db: db, zoneID: zoneID, type: "Memory", keys: ["title", "date"])
 
         for r in try await highlights {
             out.append(MemorySummary(id: r.recordID.recordName, kind: .highlight, childId: childId(r),
@@ -767,6 +768,11 @@ actor CloudKitStore: Store {
                                      date: nil, createdAt: r.creationDate ?? Date(),
                                      text: r["title"] as? String ?? "", modifiedAt: r.modificationDate ?? .distantPast))
         }
+        for r in (try? await freeMemories) ?? [] {
+            out.append(MemorySummary(id: r.recordID.recordName, kind: .memory, childId: nil,
+                                     date: r["date"] as? Date, createdAt: r.creationDate ?? Date(),
+                                     text: r["title"] as? String ?? "", modifiedAt: r.modificationDate ?? .distantPast))
+        }
         for r in (try? await letters) ?? [] {
             let title = r["title"] as? String ?? ""
             let sealed = (r["openDate"] as? Date).map { $0 > Date() } ?? false
@@ -786,7 +792,7 @@ actor CloudKitStore: Store {
         switch memory.kind {
         case .highlight: keys = ["photos"]
         case .diary, .photo: keys = ["photo"]
-        case .event, .vacation, .tradition: keys = ["photos", "photo", "coverIndex"]
+        case .event, .vacation, .tradition, .memory: keys = ["photos", "photo", "coverIndex"]
         case .interview: return nil
         case .letter:
             // Et forseglet brev viser ikke sit billede, før det må åbnes.
@@ -797,7 +803,7 @@ actor CloudKitStore: Store {
             switch memory.kind {
             case .highlight: return Self.assetsData(record["photos"]).first
             case .diary, .photo, .letter: return Self.assetData(record["photo"])
-            case .event, .vacation, .tradition: return Self.photoSet(from: record).coverPhoto
+            case .event, .vacation, .tradition, .memory: return Self.photoSet(from: record).coverPhoto
             case .interview: return nil
             }
         }
@@ -1024,6 +1030,46 @@ actor CloudKitStore: Store {
         guard let until, until > (current ?? .distantPast) else { return }
         record["premiumUntil"] = until as CKRecordValue
         _ = try await persist(record, in: db)
+    }
+
+    // MARK: - Minder
+
+    func memories(familyId: String) async throws -> [FamilyMemory] {
+        let (db, zoneID) = try await locate(familyId)
+        return try await all(db: db, zoneID: zoneID, type: "Memory",
+                             keys: ["familyRef", "title", "date", "text", "childIds", "captions", "coverIndex"],
+                             assetKeys: ["photos", "photo"]).map { r in
+            FamilyMemory(id: r.recordID.recordName,
+                         title: r["title"] as? String ?? "",
+                         date: r["date"] as? Date,
+                         text: r["text"] as? String ?? "",
+                         photos: Self.photoSet(from: r),
+                         childIds: r["childIds"] as? [String] ?? [])
+        }
+        .sorted { ($0.date ?? .distantPast) > ($1.date ?? .distantPast) }
+    }
+
+    func saveMemory(familyId: String, _ memory: FamilyMemory) async throws {
+        let (db, zoneID) = try await locate(familyId)
+        let recordID = CKRecord.ID(recordName: memory.id, zoneID: zoneID)
+        let record: CKRecord
+        if let existing = try? await db.records(for: [recordID], desiredKeys: ["title"])[recordID]?.get() {
+            record = existing
+        } else {
+            record = CKRecord(recordType: "Memory", recordID: recordID)
+            record["familyRef"] = familyRef(zoneID)
+        }
+        record["title"] = memory.title.trimmingCharacters(in: .whitespaces) as CKRecordValue
+        record["date"] = memory.date as CKRecordValue?
+        record["text"] = memory.text as CKRecordValue
+        record["childIds"] = memory.childIds.isEmpty ? nil : memory.childIds as CKRecordValue
+        Self.setPhotos(memory.photos, on: record)
+        _ = try await persist(record, in: db)
+    }
+
+    func deleteMemory(familyId: String, id: String) async throws {
+        let (db, zoneID) = try await locate(familyId)
+        try await remove(CKRecord.ID(recordName: id, zoneID: zoneID), in: db)
     }
 
     // MARK: - Familietræ

@@ -266,7 +266,7 @@ actor MemoryStore: Store {
             return eventsByFamily[familyId]?.first { $0.id == memory.id }?.photo
         case .vacation:
             return vacationsByFamily[familyId]?.first { $0.id == memory.id }?.photo
-        case .photo, .interview, .tradition, .letter:
+        case .photo, .interview, .tradition, .letter, .memory:
             return nil
         }
     }
@@ -365,7 +365,7 @@ actor MemoryStore: Store {
     }
 
     func updateGalleryItem(childId: String, _ item: GalleryItem) async throws {
-        for kind in [GalleryKind.belly, .monthly, .drawings] {
+        for kind in [GalleryKind.belly, .monthly, .drawings, .birthday] {
             if let i = galleryByChild[childId]?[kind]?.firstIndex(where: { $0.id == item.id }) {
                 galleryByChild[childId]?[kind]?[i] = item
                 return
@@ -375,7 +375,7 @@ actor MemoryStore: Store {
     }
 
     func deleteGalleryItem(childId: String, id: String) async throws {
-        for kind in [GalleryKind.belly, .monthly, .drawings] {
+        for kind in [GalleryKind.belly, .monthly, .drawings, .birthday] {
             galleryByChild[childId]?[kind]?.removeAll { $0.id == id }
         }
     }
@@ -441,6 +441,16 @@ actor MemoryStore: Store {
         guard let until, until > (premiumByFamily[familyId] ?? .distantPast) else { return }
         premiumByFamily[familyId] = until
     }
+
+    // MARK: Minder (kun i hukommelsen)
+    private var memoriesByFamily: [String: [FamilyMemory]] = [:]
+    func memories(familyId: String) async throws -> [FamilyMemory] { memoriesByFamily[familyId] ?? [] }
+    func saveMemory(familyId: String, _ memory: FamilyMemory) async throws {
+        var list = memoriesByFamily[familyId] ?? []
+        if let i = list.firstIndex(where: { $0.id == memory.id }) { list[i] = memory } else { list.append(memory) }
+        memoriesByFamily[familyId] = list
+    }
+    func deleteMemory(familyId: String, id: String) async throws { memoriesByFamily[familyId]?.removeAll { $0.id == id } }
     // MARK: Familietræ
     func persons(familyId: String) async throws -> [Person] {
         personsByFamily[familyId] ?? []

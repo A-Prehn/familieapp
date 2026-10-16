@@ -3,7 +3,7 @@ import SwiftUI
 /// Hurtigknapperne på Hjem. Man vælger selv op til fire og deres rækkefølge (gemt på telefonen).
 enum HomeAction: String, CaseIterable, Identifiable {
     case highlight, diary, monthly, belly, drawing, voice    // for et barn
-    case event, vacation, birthday, tradition               // for hele familien
+    case event, vacation, birthday, tradition, memory       // for hele familien
 
     var id: String { rawValue }
 
@@ -30,6 +30,7 @@ enum HomeAction: String, CaseIterable, Identifiable {
         case .vacation: return "Ferie"
         case .birthday: return "Fødselsdag"
         case .tradition: return "Tradition"
+        case .memory: return "Minde"
         }
     }
 
@@ -45,13 +46,14 @@ enum HomeAction: String, CaseIterable, Identifiable {
         case .vacation: return "beach.umbrella"
         case .birthday: return "gift"
         case .tradition: return "sparkles"
+        case .memory: return "heart.text.square"
         }
     }
 
     var color: Color {
         switch self {
         case .highlight, .voice: return Theme.rose
-        case .diary, .tradition: return Theme.neutralDark
+        case .diary, .tradition, .memory: return Theme.neutralDark
         case .monthly, .event, .drawing: return Theme.tint
         case .belly, .vacation, .birthday: return Theme.green
         }
