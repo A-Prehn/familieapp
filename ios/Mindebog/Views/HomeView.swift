@@ -289,7 +289,7 @@ struct HomeView: View {
         let all = summaries.compactMap(memory)
 
         // Seneste i familien: alt, hvad der er lagt op eller ændret — det nyeste først.
-        var newRecent = Array(all.sorted { changed($0) > changed($1) }.prefix(6))
+        var newRecent = Array(all.sorted { changed($0) > changed($1) }.prefix(5))
 
         // På denne dag: samme dag og måned i et tidligere år — kun de klassiske minder.
         let classic: Set<MemorySummary.Kind> = [.highlight, .diary, .event, .vacation]
