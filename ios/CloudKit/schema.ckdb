@@ -127,6 +127,7 @@ DEFINE SCHEMA
         childRef        REFERENCE QUERYABLE,
         kind            STRING,
         caption         STRING,
+        note            STRING,
         photo           ASSET,
         GRANT WRITE TO "_creator",
         GRANT CREATE TO "_icloud",

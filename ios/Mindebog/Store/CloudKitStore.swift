@@ -328,7 +328,7 @@ actor CloudKitStore: Store {
 
     func deleteHighlight(childId: String, id: String) async throws {
         let (db, zoneID) = try await locateChild(childId)
-        _ = try await db.deleteRecord(withID: CKRecord.ID(recordName: id, zoneID: zoneID))
+        try await remove(CKRecord.ID(recordName: id, zoneID: zoneID), in: db)
     }
 
     // MARK: - Milepæle
@@ -348,7 +348,7 @@ actor CloudKitStore: Store {
         let recordID = CKRecord.ID(recordName: "ms_\(childId)_\(key)", zoneID: zoneID)
         let cleanValue = value?.trimmingCharacters(in: .whitespaces)
         if (cleanValue?.isEmpty ?? true) && photos.isEmpty {
-            _ = try? await db.deleteRecord(withID: recordID)
+            try? await remove(recordID, in: db)
             return
         }
         let record = (try? await db.record(for: recordID)) ?? CKRecord(recordType: "Milestone", recordID: recordID)
@@ -406,7 +406,7 @@ actor CloudKitStore: Store {
         let recordID = CKRecord.ID(recordName: "ans_\(childId)_\(hash)", zoneID: zoneID)
         let trimmed = answer.trimmingCharacters(in: .whitespacesAndNewlines)
         if trimmed.isEmpty {
-            _ = try? await db.deleteRecord(withID: recordID)
+            try? await remove(recordID, in: db)
             return
         }
         let record = (try? await db.record(for: recordID)) ?? CKRecord(recordType: "Answer", recordID: recordID)
@@ -451,7 +451,7 @@ actor CloudKitStore: Store {
 
     func deleteDiary(childId: String, id: String) async throws {
         let (db, zoneID) = try await locateChild(childId)
-        _ = try await db.deleteRecord(withID: CKRecord.ID(recordName: id, zoneID: zoneID))
+        try await remove(CKRecord.ID(recordName: id, zoneID: zoneID), in: db)
     }
 
     // MARK: - Gallerier
@@ -463,6 +463,7 @@ actor CloudKitStore: Store {
             .map { r in
                 GalleryItem(id: r.recordID.recordName,
                             caption: r["caption"] as? String ?? "",
+                            note: r["note"] as? String ?? "",
                             photo: Self.assetData(r["photo"]),
                             createdAt: r.creationDate ?? Date())
             }
@@ -484,13 +485,14 @@ actor CloudKitStore: Store {
         let (db, zoneID) = try await locateChild(childId)
         let record = try await db.record(for: CKRecord.ID(recordName: item.id, zoneID: zoneID))
         record["caption"] = item.caption.trimmingCharacters(in: .whitespaces) as CKRecordValue
+        record["note"] = item.note.trimmingCharacters(in: .whitespacesAndNewlines) as CKRecordValue
         record["photo"] = item.photo.flatMap { Self.asset(from: $0) }
         _ = try await persist(record, in: db)
     }
 
     func deleteGalleryItem(childId: String, id: String) async throws {
         let (db, zoneID) = try await locateChild(childId)
-        _ = try await db.deleteRecord(withID: CKRecord.ID(recordName: id, zoneID: zoneID))
+        try await remove(CKRecord.ID(recordName: id, zoneID: zoneID), in: db)
     }
 
     // MARK: - Vækst
@@ -520,7 +522,7 @@ actor CloudKitStore: Store {
 
     func deleteMeasurement(childId: String, id: String) async throws {
         let (db, zoneID) = try await locateChild(childId)
-        _ = try await db.deleteRecord(withID: CKRecord.ID(recordName: id, zoneID: zoneID))
+        try await remove(CKRecord.ID(recordName: id, zoneID: zoneID), in: db)
     }
 
     // MARK: - Breve til barnet
@@ -558,7 +560,7 @@ actor CloudKitStore: Store {
 
     func deleteLetter(childId: String, id: String) async throws {
         let (db, zoneID) = try await locateChild(childId)
-        _ = try await db.deleteRecord(withID: CKRecord.ID(recordName: id, zoneID: zoneID))
+        try await remove(CKRecord.ID(recordName: id, zoneID: zoneID), in: db)
     }
 
     private static func fill(_ record: CKRecord, with letter: Letter) {
@@ -642,7 +644,7 @@ actor CloudKitStore: Store {
 
     func deleteEvent(familyId: String, id: String) async throws {
         let (db, zoneID) = try await locate(familyId)
-        _ = try await db.deleteRecord(withID: CKRecord.ID(recordName: id, zoneID: zoneID))
+        try await remove(CKRecord.ID(recordName: id, zoneID: zoneID), in: db)
     }
 
     func updateVacation(familyId: String, _ vacation: Vacation) async throws -> Vacation {
@@ -660,7 +662,7 @@ actor CloudKitStore: Store {
 
     func deleteVacation(familyId: String, id: String) async throws {
         let (db, zoneID) = try await locate(familyId)
-        _ = try await db.deleteRecord(withID: CKRecord.ID(recordName: id, zoneID: zoneID))
+        try await remove(CKRecord.ID(recordName: id, zoneID: zoneID), in: db)
     }
 
     // Sted: navn + adresse som tekst, koordinat som CloudKit LOCATION. nil fjerner stedet.
@@ -770,7 +772,7 @@ actor CloudKitStore: Store {
 
     func deleteBirthday(familyId: String, id: String) async throws {
         let (db, zoneID) = try await locate(familyId)
-        _ = try await db.deleteRecord(withID: CKRecord.ID(recordName: id, zoneID: zoneID))
+        try await remove(CKRecord.ID(recordName: id, zoneID: zoneID), in: db)
     }
 
     // MARK: - Video/lyd på en vilkårlig record (højdepunkt, brev, interview, tradition)
@@ -856,7 +858,7 @@ actor CloudKitStore: Store {
 
     func deleteInterviewAnswer(childId: String, id: String) async throws {
         let (db, zoneID) = try await locateChild(childId)
-        _ = try await db.deleteRecord(withID: CKRecord.ID(recordName: id, zoneID: zoneID))
+        try await remove(CKRecord.ID(recordName: id, zoneID: zoneID), in: db)
     }
 
     func interviewMedia(childId: String, id: String) async throws -> (video: URL?, audio: URL?) {
@@ -901,7 +903,7 @@ actor CloudKitStore: Store {
 
     func deleteTradition(familyId: String, id: String) async throws {
         let (db, zoneID) = try await locate(familyId)
-        _ = try await db.deleteRecord(withID: CKRecord.ID(recordName: id, zoneID: zoneID))
+        try await remove(CKRecord.ID(recordName: id, zoneID: zoneID), in: db)
     }
 
     func traditionAudio(familyId: String, id: String) async throws -> URL? {
@@ -970,9 +972,61 @@ actor CloudKitStore: Store {
 
     func deletePerson(familyId: String, id: String) async throws {
         let (db, zoneID) = try await locate(familyId)
-        _ = try await db.deleteRecord(withID: CKRecord.ID(recordName: id, zoneID: zoneID))
+        try await remove(CKRecord.ID(recordName: id, zoneID: zoneID), in: db)
     }
 
+
+    // MARK: - Nyligt gemt/slettet
+    // iCloud finder først nye poster i søgninger nogle sekunder efter, de er gemt (og viser
+    // slettede lidt endnu). Derfor husker appen selv det, den lige har gemt eller slettet,
+    // i to minutter og lægger det oven i søgeresultaterne — så lister er rigtige med det samme.
+    private let recentLock = NSLock()
+    private var recentSaves: [CKRecord.ID: (record: CKRecord, at: Date)] = [:]
+    private var recentDeletes: [CKRecord.ID: Date] = [:]
+    private static let recentWindow: TimeInterval = 120
+
+    private func noteSaved(_ record: CKRecord) {
+        recentLock.lock(); defer { recentLock.unlock() }
+        recentSaves[record.recordID] = (record, Date())
+        recentDeletes[record.recordID] = nil
+    }
+
+    private func noteDeleted(_ id: CKRecord.ID) {
+        recentLock.lock(); defer { recentLock.unlock() }
+        recentDeletes[id] = Date()
+        recentSaves[id] = nil
+    }
+
+    /// Sletter en record og husker det, så den ikke dukker op igen i næste søgning.
+    private func remove(_ id: CKRecord.ID, in db: CKDatabase) async throws {
+        try await remove(id, in: db)
+        noteDeleted(id)
+    }
+
+    /// Lægger nyligt gemte records oven i et søgeresultat og fjerner nyligt slettede.
+    private func merged(_ results: [CKRecord], type: String, zoneID: CKRecordZone.ID,
+                        matching: (CKRecord) -> Bool = { _ in true }) -> [CKRecord] {
+        recentLock.lock(); defer { recentLock.unlock() }
+        let cutoff = Date().addingTimeInterval(-Self.recentWindow)
+        recentSaves = recentSaves.filter { $0.value.at > cutoff }
+        recentDeletes = recentDeletes.filter { $0.value > cutoff }
+        guard !recentSaves.isEmpty || !recentDeletes.isEmpty else { return results }
+        var out = results.filter { recentDeletes[$0.recordID] == nil }
+        var seen = Set(out.map(\.recordID))
+        for (id, entry) in recentSaves
+        where entry.record.recordType == type && id.zoneID == zoneID && matching(entry.record) {
+            if let i = out.firstIndex(where: { $0.recordID == id }) {
+                // Søgningen kan give en ældre version end den, vi lige gemte.
+                if (out[i].modificationDate ?? .distantPast) < (entry.record.modificationDate ?? .distantFuture) {
+                    out[i] = entry.record
+                }
+            } else if !seen.contains(id) {
+                out.append(entry.record)
+                seen.insert(id)
+            }
+        }
+        return out
+    }
     // MARK: - Hjælpere
 
     // Zone-placeringer gemmes på enheden, så opstart ikke skal slå alle zoner op
@@ -1051,7 +1105,7 @@ actor CloudKitStore: Store {
             (matches, cursor) = try await db.records(continuingMatchFrom: c, desiredKeys: keys, resultsLimit: 200)
             results.append(contentsOf: matches.compactMap { try? $0.1.get() })
         }
-        return results
+        return merged(results, type: type, zoneID: zoneID)
     }
 
     /// Et barns records af en type. `keys` begrænser felterne (fx uden video), nil = alle.
@@ -1068,7 +1122,7 @@ actor CloudKitStore: Store {
             (matches, cursor) = try await db.records(continuingMatchFrom: c, desiredKeys: keys, resultsLimit: 200)
             results.append(contentsOf: matches.compactMap { try? $0.1.get() })
         }
-        return results
+        return merged(results, type: type, zoneID: zoneID) { ($0["childRef"] as? CKRecord.Reference)?.recordID == ref.recordID }
     }
 
     private func familyRef(_ zoneID: CKRecordZone.ID) -> CKRecord.Reference {
@@ -1129,7 +1183,9 @@ actor CloudKitStore: Store {
     /// Gem en record og slet bagefter de midlertidige billedfiler, den blev uploadet fra.
     private func persist(_ record: CKRecord, in db: CKDatabase) async throws -> CKRecord {
         defer { Self.removeUploadFiles(of: record) }
-        return try await db.save(record)
+        let saved = try await db.save(record)
+        noteSaved(saved)
+        return saved
     }
 
     private static func removeUploadFiles(of record: CKRecord) {

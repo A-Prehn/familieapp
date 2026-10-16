@@ -49,6 +49,8 @@ struct MainTabView: View {
                 .tabItem { tabLabel("Mere", "gearshape", .more) }
                 .tag(MainTab.more)
         }
+        // "Gemmer…" og fejl fra gem i baggrunden, lige over fanebjælken.
+        .overlay(alignment: .bottom) { SaveQueueBanner().padding(.bottom, 56) }
     }
 
     // iOS 26's glas-tabbar farver selv ikonerne sort/hvid. Ikonerne tegnes derfor som

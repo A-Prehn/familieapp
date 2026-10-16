@@ -39,6 +39,7 @@ struct DiaryView: View {
         .fullScreenCover(item: $lightbox) { LightboxView(state: $0) }
         .refreshable { await load() }
         .task { await load() }
+        .reloadOnStoreChange { await load() }
     }
 
     // Tryk på opslaget = redigér; tryk på billedet = fuld skærm.
@@ -117,16 +118,20 @@ struct AddDiaryView: View {
                 ToolbarItem(placement: .cancellationAction) { Button("Annullér") { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Gem") {
-                        Task {
-                            await performSave(saving: $saving, errorMessage: $saveError, dismiss: dismiss) {
-                                if var entry = editing {
-                                    entry.date = date; entry.text = text; entry.photo = photo
-                                    try await state.store.updateDiary(childId: childId, entry)
-                                } else {
-                                    for id in [childId] + alsoFor.map(\.id) where !savedFor.contains(id) {
-                                        _ = try await state.store.addDiary(childId: id, date: date, text: text, photo: photo)
-                                        savedFor.insert(id)
-                                    }
+                        if var entry = editing {
+                            entry.date = date; entry.text = text; entry.photo = photo
+                            let updated = entry
+                            Task {
+                                await performSave(saving: $saving, errorMessage: $saveError, dismiss: dismiss) {
+                                    try await state.store.updateDiary(childId: childId, updated)
+                                }
+                            }
+                        } else {
+                            // Nyt indlæg: luk med det samme, gem i baggrunden.
+                            let (store, ids, date, text, photo) = (state.store, [childId] + alsoFor.map(\.id), date, text, photo)
+                            performSaveInBackground(label: "dagbogsindlægget", dismiss: dismiss) {
+                                for id in ids {
+                                    _ = try await store.addDiary(childId: id, date: date, text: text, photo: photo)
                                 }
                             }
                         }

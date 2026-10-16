@@ -271,7 +271,7 @@ final class FamilyExport: ObservableObject {
                 let name = String(format: "%02d", i + 1) + (item.caption.isEmpty ? "" : " " + Self.safe(item.caption))
                 var files: [String] = []
                 if let p = item.photo { files.append(try writePhoto(p, to: gDir, name: name)) }
-                gJSON.append(["tekst": item.caption, "dato": Fmt.iso(item.createdAt), "filer": files])
+                gJSON.append(["tekst": item.caption, "beskrivelse": item.note, "dato": Fmt.iso(item.createdAt), "filer": files])
             }
             let key: String
             switch kind {

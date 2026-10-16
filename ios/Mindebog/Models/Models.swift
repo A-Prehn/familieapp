@@ -140,6 +140,8 @@ enum GalleryKind: String, Codable, Hashable {
 struct GalleryItem: Identifiable, Hashable, Codable {
     let id: String
     var caption: String
+    /// Lille beskrivelse (fx til tegninger) — vises kun i fuldskærmsvisningen.
+    var note: String = ""
     var photo: Data?
     var createdAt: Date
 }

@@ -177,9 +177,9 @@ struct TraditionEditView: View {
 
     private func save() async {
         draft.title = draft.title.trimmingCharacters(in: .whitespaces)
-        let t = draft
-        await performSave(saving: $saving, errorMessage: $saveError, dismiss: dismiss) {
-            try await state.store.saveTradition(familyId: familyId, t, audio: audio)
+        let (store, familyId, t, audio) = (state.store, familyId, draft, audio)
+        performSaveInBackground(label: "traditionen", dismiss: dismiss) {
+            try await store.saveTradition(familyId: familyId, t, audio: audio)
         }
     }
 }

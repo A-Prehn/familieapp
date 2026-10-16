@@ -54,6 +54,7 @@ struct InterviewView: View {
             InterviewAnswerEditView(child: child, question: target.question, age: target.age, existing: target.existing)
         }
         .refreshable { await load() }
+        .reloadOnStoreChange { await load() }
         .task {
             if !loaded { loaded = true; age = currentAge }
             await load()

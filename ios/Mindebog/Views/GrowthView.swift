@@ -72,6 +72,7 @@ struct GrowthView: View {
         }
         .refreshable { await load() }
         .task { await load() }
+        .reloadOnStoreChange { await load() }
     }
 
     // MARK: Graf

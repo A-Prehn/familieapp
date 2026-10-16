@@ -40,6 +40,7 @@ func performSave(saving: Binding<Bool>, errorMessage: Binding<String?>,
     do {
         try await work()
         dismiss()
+        NotificationCenter.default.post(name: .storeDidChange, object: nil)
     } catch {
         errorMessage.wrappedValue = SaveError.message(for: error)
     }

@@ -78,6 +78,7 @@ struct VaccinesView: View {
         }
         .refreshable { await load() }
         .task { await load() }
+        .reloadOnStoreChange { await load() }
     }
 
     private func row(_ v: VaccineDef) -> some View {

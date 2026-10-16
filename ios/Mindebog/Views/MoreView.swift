@@ -238,6 +238,7 @@ struct MoreView: View {
         .sheet(isPresented: $showExport) { ExportView() }
         .sheet(item: $paywall) { PaywallView(reason: $0) }
         .task { await load() }
+        .reloadOnStoreChange { await load() }
     }
 
     private func load() async {

@@ -27,6 +27,7 @@ struct MilestonesView: View {
         .fullScreenCover(item: $lightbox) { LightboxView(state: $0) }
         .refreshable { await load() }
         .task { await load() }
+        .reloadOnStoreChange { await load() }
     }
 
     private func tile(_ def: MilestoneDef) -> some View {

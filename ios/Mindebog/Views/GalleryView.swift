@@ -83,6 +83,7 @@ struct GalleryView: View {
         .fullScreenCover(item: $lightbox) { LightboxView(state: $0) }
         .refreshable { await load() }
         .task { await load() }
+        .reloadOnStoreChange { await load() }
     }
 
     // Kort i tidslinjen: uge/måned som overskrift, billedet i portræt (maven fylder i højden).
@@ -165,7 +166,9 @@ struct GalleryView: View {
         let photos = withPhotos.compactMap { $0.photo }
         guard !photos.isEmpty else { return }
         let index = withPhotos.firstIndex(where: { $0.id == item.id }) ?? 0
-        lightbox = LightboxState(photos: photos, index: index)
+        // Tegninger: beskrivelsen vises kun her, i fuld skærm.
+        let captions = kind == .drawings ? withPhotos.map { $0.note.isEmpty ? $0.caption : "\($0.caption) · \($0.note)" } : []
+        lightbox = LightboxState(photos: photos, index: index, captions: captions)
     }
 
     private func load() async {
@@ -200,6 +203,7 @@ struct AddGalleryItemView: View {
     /// Forudfyldt billedtekst ved oprettelse (fx barnets alder til en tegning).
     var defaultCaption = ""
     @State private var caption = ""
+    @State private var note = ""
     @State private var photo: Data?
     @State private var saving = false
     @State private var saveError: String?
@@ -213,6 +217,16 @@ struct AddGalleryItemView: View {
                 ForChildrenNote(names: forNames)
                 Section(kind.captionLabel) {
                     TextField(kind.captionPlaceholder, text: $caption)
+                }
+                if kind == .drawings {
+                    Section {
+                        TextField("Fx \"Tegnet til mormors fødselsdag — det er vores hus med regnbue\"", text: $note, axis: .vertical)
+                            .lineLimit(2...5)
+                    } header: {
+                        Text("Beskrivelse (valgfri)")
+                    } footer: {
+                        Text("Vises, når man trykker på tegningen.")
+                    }
                 }
                 Section("Billede") {
                     PhotoField(data: $photo)
@@ -229,22 +243,27 @@ struct AddGalleryItemView: View {
                 ToolbarItem(placement: .cancellationAction) { Button("Annullér") { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Gem") {
-                        Task {
-                            await performSave(saving: $saving, errorMessage: $saveError, dismiss: dismiss) {
-                                if var item = editing {
-                                    item.caption = caption; item.photo = photo
-                                    try await state.store.updateGalleryItem(childId: childId, item)
-                                    return
+                        if var item = editing {
+                            item.caption = caption; item.photo = photo; item.note = note
+                            let updated = item
+                            Task {
+                                await performSave(saving: $saving, errorMessage: $saveError, dismiss: dismiss) {
+                                    try await state.store.updateGalleryItem(childId: childId, updated)
                                 }
-                                if !savedFor.contains(childId) {
-                                    _ = try await state.store.addGalleryItem(childId: childId, kind: kind, caption: caption, photo: photo)
-                                    savedFor.insert(childId)
+                            }
+                        } else {
+                            // Nyt foto: luk med det samme, upload i baggrunden.
+                            let (store, childId, kind, caption, note, photo, others) = (state.store, childId, kind, caption, note, photo, alsoFor)
+                            performSaveInBackground(label: "fotoet", dismiss: dismiss) {
+                                var created = try await store.addGalleryItem(childId: childId, kind: kind, caption: caption, photo: photo)
+                                if !note.isEmpty {
+                                    created.note = note
+                                    try await store.updateGalleryItem(childId: childId, created)
                                 }
                                 // Øvrige børn: "Maven måned for måned" hvis barnet er på vej, ellers "Måned for måned".
-                                for other in alsoFor where !savedFor.contains(other.id) {
-                                    _ = try await state.store.addGalleryItem(childId: other.id, kind: other.onTheWay ? .belly : .monthly,
-                                                                             caption: caption, photo: photo)
-                                    savedFor.insert(other.id)
+                                for other in others {
+                                    _ = try await store.addGalleryItem(childId: other.id, kind: other.onTheWay ? .belly : .monthly,
+                                                                       caption: caption, photo: photo)
                                 }
                             }
                         }
@@ -267,7 +286,7 @@ struct AddGalleryItemView: View {
             .onAppear {
                 guard !loaded else { return }
                 loaded = true
-                if let item = editing { caption = item.caption; photo = item.photo }
+                if let item = editing { caption = item.caption; photo = item.photo; note = item.note }
                 else if caption.isEmpty { caption = defaultCaption }
             }
         }

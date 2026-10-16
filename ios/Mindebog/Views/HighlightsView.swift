@@ -44,6 +44,7 @@ struct HighlightsView: View {
         .fullScreenCover(item: $playingVideo) { $0 }
         .refreshable { await load() }
         .task { await load() }
+        .reloadOnStoreChange { await load() }
     }
 
     // Video/lyd hentes først, når man trykker afspil.
@@ -195,20 +196,24 @@ struct AddHighlightView: View {
                 ToolbarItem(placement: .cancellationAction) { Button("Annullér") { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Gem") {
-                        Task {
-                            await performSave(saving: $saving, errorMessage: $saveError, dismiss: dismiss) {
-                                if var highlight = editing {
-                                    highlight.date = date; highlight.text = text; highlight.photos = photos
-                                    try await state.store.updateHighlight(childId: childId, highlight)
-                                    try await state.store.setHighlightMedia(childId: childId, id: highlight.id,
+                        if var highlight = editing {
+                            highlight.date = date; highlight.text = text; highlight.photos = photos
+                            let (updated, video, audio) = (highlight, video, audio)
+                            Task {
+                                await performSave(saving: $saving, errorMessage: $saveError, dismiss: dismiss) {
+                                    try await state.store.updateHighlight(childId: childId, updated)
+                                    try await state.store.setHighlightMedia(childId: childId, id: updated.id,
                                                                             video: video, audio: audio)
-                                } else {
-                                    for id in [childId] + alsoFor.map(\.id) where !savedFor.contains(id) {
-                                        let created = try await state.store.addHighlight(childId: id, date: date, text: text, photos: photos)
-                                        try await state.store.setHighlightMedia(childId: id, id: created.id,
-                                                                                video: video, audio: audio)
-                                        savedFor.insert(id)
-                                    }
+                                }
+                            }
+                        } else {
+                            // Nyt højdepunkt: luk med det samme, upload billeder/video i baggrunden.
+                            let (store, ids, date, text, photos, video, audio) =
+                                (state.store, [childId] + alsoFor.map(\.id), date, text, photos, video, audio)
+                            performSaveInBackground(label: "højdepunktet", dismiss: dismiss) {
+                                for id in ids {
+                                    let created = try await store.addHighlight(childId: id, date: date, text: text, photos: photos)
+                                    try await store.setHighlightMedia(childId: id, id: created.id, video: video, audio: audio)
                                 }
                             }
                         }

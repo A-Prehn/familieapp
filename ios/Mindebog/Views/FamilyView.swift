@@ -99,6 +99,7 @@ struct FamilyView: View {
         .fullScreenCover(item: $lightbox) { LightboxView(state: $0) }
         .refreshable { await load() }
         .task { await load() }
+        .reloadOnStoreChange { await load() }
     }
 
     // MARK: Begivenheder
@@ -357,14 +358,19 @@ struct AddEventView: View {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Gem") {
                         Task {
-                            await performSave(saving: $saving, errorMessage: $saveError, dismiss: dismiss) {
-                                if var event = editing {
-                                    event.title = title; event.date = date; event.details = details
-                                    event.photos = photos; event.place = place
-                                    _ = try await state.store.updateEvent(familyId: familyId, event)
-                                } else {
-                                    _ = try await state.store.addEvent(familyId: familyId, title: title, date: date,
-                                                                       details: details, photos: photos, place: place)
+                            if var event = editing {
+                                event.title = title; event.date = date; event.details = details
+                                event.photos = photos; event.place = place
+                                let updated = event
+                                await performSave(saving: $saving, errorMessage: $saveError, dismiss: dismiss) {
+                                    _ = try await state.store.updateEvent(familyId: familyId, updated)
+                                }
+                            } else {
+                                let (store, familyId, title, date, details, photos, place) =
+                                    (state.store, familyId, title, date, details, photos, place)
+                                performSaveInBackground(label: "begivenheden", dismiss: dismiss) {
+                                    _ = try await store.addEvent(familyId: familyId, title: title, date: date,
+                                                                 details: details, photos: photos, place: place)
                                 }
                             }
                         }
@@ -439,15 +445,19 @@ struct AddVacationView: View {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Gem") {
                         Task {
-                            await performSave(saving: $saving, errorMessage: $saveError, dismiss: dismiss) {
-                                if var vacation = editing {
-                                    vacation.title = title; vacation.startDate = start; vacation.endDate = end
-                                    vacation.details = details; vacation.photos = photos; vacation.place = place
-                                    _ = try await state.store.updateVacation(familyId: familyId, vacation)
-                                } else {
-                                    _ = try await state.store.addVacation(familyId: familyId, title: title,
-                                                                          start: start, end: end,
-                                                                          details: details, photos: photos, place: place)
+                            if var vacation = editing {
+                                vacation.title = title; vacation.startDate = start; vacation.endDate = end
+                                vacation.details = details; vacation.photos = photos; vacation.place = place
+                                let updated = vacation
+                                await performSave(saving: $saving, errorMessage: $saveError, dismiss: dismiss) {
+                                    _ = try await state.store.updateVacation(familyId: familyId, updated)
+                                }
+                            } else {
+                                let (store, familyId, title, start, end, details, photos, place) =
+                                    (state.store, familyId, title, start, end, details, photos, place)
+                                performSaveInBackground(label: "ferien", dismiss: dismiss) {
+                                    _ = try await store.addVacation(familyId: familyId, title: title, start: start, end: end,
+                                                                    details: details, photos: photos, place: place)
                                 }
                             }
                         }

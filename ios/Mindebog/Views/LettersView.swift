@@ -47,6 +47,7 @@ struct LettersView: View {
         }
         .refreshable { await load() }
         .task { await load() }
+        .reloadOnStoreChange { await load() }
     }
 
     private func card(_ letter: Letter) -> some View {

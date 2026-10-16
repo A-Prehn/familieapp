@@ -47,6 +47,7 @@ struct ChildrenView: View {
         }
         .refreshable { await load() }
         .task { await load() }
+        .reloadOnStoreChange { await load() }
     }
 
     private struct Cached: Codable { var family: Family?; var children: [Child] }

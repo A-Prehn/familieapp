@@ -51,6 +51,7 @@ struct VoiceArchiveView: View {
         }
         .refreshable { await load() }
         .task { await load() }
+        .reloadOnStoreChange { await load() }
     }
 
     private func load() async {

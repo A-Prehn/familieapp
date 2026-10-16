@@ -41,6 +41,7 @@ struct AboutMeView: View {
         }
         .refreshable { await load() }
         .task { await load() }
+        .reloadOnStoreChange { await load() }
     }
 
     private func row(_ question: String) -> some View {
