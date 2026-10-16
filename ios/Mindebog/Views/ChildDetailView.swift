@@ -45,13 +45,22 @@ struct ChildDetailView: View {
                     NavigationLink { LettersView(child: child) } label: {
                         tile("Breve til dig", "envelope", Theme.neutralDark)
                     }
-                    // Vækst og vaccinationer giver først mening, når barnet er født.
+                    // Vækst, vaccinationer, interview, stemme og tegninger giver først mening, når barnet er født.
                     if !child.onTheWay {
                         NavigationLink { GrowthView(child: child) } label: {
                             tile("Vækst", "chart.line.uptrend.xyaxis", Theme.tint)
                         }
                         NavigationLink { VaccinesView(child: child) } label: {
                             tile("Vaccinationer", "syringe", Theme.green)
+                        }
+                        NavigationLink { InterviewView(child: child) } label: {
+                            tile("Det årlige interview", "bubble.left.and.text.bubble.right", Theme.rose)
+                        }
+                        NavigationLink { VoiceArchiveView(child: child) } label: {
+                            tile("Stemmearkiv", "waveform", Theme.neutralDark)
+                        }
+                        NavigationLink { GalleryView(child: child, kind: .drawings) } label: {
+                            tile("Tegninger", "paintpalette", Theme.tint)
                         }
                     }
                 }

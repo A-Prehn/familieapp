@@ -9,14 +9,30 @@ struct GalleryView: View {
     @State private var showAdd = false
     @State private var editing: GalleryItem?
     @State private var lightbox: LightboxState?
+    @State private var scanning = false
+    @State private var scanError: String?
 
     private let columns = [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)]
 
     var body: some View {
         ScrollView {
             if items.isEmpty {
-                ContentUnavailableView("Ingen fotos endnu", systemImage: "photo.on.rectangle")
+                if kind == .drawings {
+                    ContentUnavailableView {
+                        Label("Ingen tegninger endnu", systemImage: "paintpalette")
+                    } description: {
+                        Text("Scan en tegning med kameraet — appen finder selv kanterne og retter den op. Alderen sættes automatisk.")
+                    } actions: {
+                        if state.canEdit && DocumentScanner.isAvailable {
+                            Button { scanning = true } label: { Label("Scan tegning", systemImage: "doc.viewfinder") }
+                                .buttonStyle(.borderedProminent)
+                        }
+                    }
                     .padding(.top, 60)
+                } else {
+                    ContentUnavailableView("Ingen fotos endnu", systemImage: "photo.on.rectangle")
+                        .padding(.top, 60)
+                }
             } else if kind == .belly {
                 // Maven: tidslinje i rækkefølge (første uge øverst), så man kan se maven vokse.
                 TimelineView(items: items,
@@ -38,11 +54,28 @@ struct GalleryView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
-                if state.canEdit { Button { showAdd = true } label: { Image(systemName: "plus") } }
+                if state.canEdit {
+                    if kind == .drawings && DocumentScanner.isAvailable {
+                        Menu {
+                            Button { scanning = true } label: { Label("Scan med kameraet", systemImage: "doc.viewfinder") }
+                            Button { showAdd = true } label: { Label("Vælg billede", systemImage: "photo") }
+                        } label: { Image(systemName: "plus") }
+                    } else {
+                        Button { showAdd = true } label: { Image(systemName: "plus") }
+                    }
+                }
             }
         }
+        .fullScreenCover(isPresented: $scanning) {
+            DocumentScanner { pages in
+                guard !pages.isEmpty else { return }
+                Task { await saveScans(pages) }
+            }
+            .ignoresSafeArea()
+        }
+        .saveErrorAlert($scanError)
         .sheet(isPresented: $showAdd, onDismiss: { Task { await load() } }) {
-            AddGalleryItemView(childId: child.id, kind: kind)
+            AddGalleryItemView(childId: child.id, kind: kind, defaultCaption: kind == .drawings ? ChildAge.short(child) : "")
         }
         .sheet(item: $editing, onDismiss: { Task { await load() } }) { item in
             AddGalleryItemView(childId: child.id, kind: kind, editing: item)
@@ -138,6 +171,19 @@ struct GalleryView: View {
     private func load() async {
         items = (try? await state.store.gallery(childId: child.id, kind: kind)) ?? []
     }
+
+    /// Scannede tegninger gemmes med det samme; billedteksten er barnets alder (kan rettes bagefter).
+    private func saveScans(_ pages: [Data]) async {
+        let caption = ChildAge.short(child)
+        do {
+            for page in pages {
+                _ = try await state.store.addGalleryItem(childId: child.id, kind: .drawings, caption: caption, photo: page)
+            }
+        } catch {
+            scanError = "Kunne ikke gemme tegningen: \(error.localizedDescription)"
+        }
+        await load()
+    }
 }
 
 struct AddGalleryItemView: View {
@@ -151,6 +197,8 @@ struct AddGalleryItemView: View {
     let kind: GalleryKind
     /// Sat ved redigering; nil ved oprettelse.
     var editing: GalleryItem? = nil
+    /// Forudfyldt billedtekst ved oprettelse (fx barnets alder til en tegning).
+    var defaultCaption = ""
     @State private var caption = ""
     @State private var photo: Data?
     @State private var saving = false
@@ -217,9 +265,10 @@ struct AddGalleryItemView: View {
                 Text("Fotoet slettes for hele familien.")
             }
             .onAppear {
-                guard !loaded, let item = editing else { return }
+                guard !loaded else { return }
                 loaded = true
-                caption = item.caption; photo = item.photo
+                if let item = editing { caption = item.caption; photo = item.photo }
+                else if caption.isEmpty { caption = defaultCaption }
             }
         }
     }

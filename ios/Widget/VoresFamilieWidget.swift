@@ -94,6 +94,31 @@ struct BirthdaysView: View {
 
     var body: some View {
         let list = upcoming(entry.snapshot, now: entry.date)
+        switch family {
+        case .accessoryRectangular:
+            VStack(alignment: .leading, spacing: 1) {
+                Label("Næste fødselsdag", systemImage: "gift").font(.caption2.weight(.semibold))
+                if let b = list.first {
+                    Text(b.days == 0 ? "\(b.name) i dag!" : "\(b.name) om \(b.days) \(b.days == 1 ? "dag" : "dage")")
+                        .font(.headline).lineLimit(1)
+                    Text("fylder \(b.turning)").font(.caption2)
+                } else {
+                    Text("Ingen fødselsdage endnu").font(.caption)
+                }
+            }
+            .containerBackground(for: .widget) { Color.clear }
+        case .accessoryInline:
+            if let b = list.first {
+                Label(b.days == 0 ? "\(b.name) har fødselsdag i dag" : "\(b.name) om \(b.days) dage", systemImage: "gift")
+            } else {
+                Label("Fødselsdage", systemImage: "gift")
+            }
+        default:
+            homeScreen(list)
+        }
+    }
+
+    private func homeScreen(_ list: [UpcomingBirthday]) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             Label("Fødselsdage", systemImage: "gift")
                 .font(.caption2.weight(.semibold))
@@ -157,17 +182,58 @@ struct BirthdaysWidget: Widget {
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: "birthdays", provider: FamilyProvider()) { BirthdaysView(entry: $0) }
             .configurationDisplayName("Fødselsdage")
-            .description("Nedtælling til de næste fødselsdage i familien.")
-            .supportedFamilies([.systemSmall, .systemMedium, .systemLarge])
+            .description("Nedtælling til de næste fødselsdage i familien — også på låseskærmen.")
+            .supportedFamilies([.systemSmall, .systemMedium, .systemLarge, .accessoryRectangular, .accessoryInline])
     }
 }
 
 // MARK: - Termin
 
 struct DueView: View {
+    @Environment(\.widgetFamily) private var family
     let entry: FamilyEntry
 
     var body: some View {
+        let due = entry.snapshot.due.min(by: { $0.dueDate < $1.dueDate })
+        let days = due.map { max(0, daysUntil($0.dueDate, from: entry.date)) }
+        switch family {
+        case .accessoryCircular:
+            // Låseskærm, lille cirkel: dage til termin.
+            ZStack {
+                AccessoryWidgetBackground()
+                if let days {
+                    VStack(spacing: -2) {
+                        Text("\(days)").font(.system(size: 22, weight: .semibold, design: .serif))
+                        Text("dage").font(.system(size: 9))
+                    }
+                } else {
+                    Image(systemName: "heart")
+                }
+            }
+            .containerBackground(for: .widget) { Color.clear }
+        case .accessoryRectangular:
+            VStack(alignment: .leading, spacing: 1) {
+                Label("Termin", systemImage: "heart").font(.caption2.weight(.semibold))
+                if let due, let days {
+                    Text(days == 1 ? "1 dag til termin" : "\(days) dage til termin").font(.headline)
+                    Text("\(due.name) · uge \(max(1, 40 - Int((Double(days) / 7).rounded(.up)) + 1))").font(.caption2)
+                } else {
+                    Text("Intet barn på vej").font(.caption)
+                }
+            }
+            .containerBackground(for: .widget) { Color.clear }
+        case .accessoryInline:
+            if let due, let days {
+                Label("\(days) dage til termin · \(due.name)", systemImage: "heart")
+            } else {
+                Label("Vores familie", systemImage: "heart")
+            }
+        default:
+            homeScreen
+        }
+    }
+
+    private var homeScreen: some View {
         VStack(alignment: .leading, spacing: 4) {
             Label("Termin", systemImage: "heart")
                 .font(.caption2.weight(.semibold)).foregroundStyle(WTheme.muted)
@@ -191,8 +257,97 @@ struct DueWidget: Widget {
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: "due", provider: FamilyProvider()) { DueView(entry: $0) }
             .configurationDisplayName("Termin")
-            .description("Dage til termin for barnet på vej.")
-            .supportedFamilies([.systemSmall])
+            .description("Dage til termin for barnet på vej — også på låseskærmen.")
+            .supportedFamilies([.systemSmall, .accessoryCircular, .accessoryRectangular, .accessoryInline])
+    }
+}
+
+// MARK: - I dag (låseskærm + lille widget)
+
+/// "Theo er 6 måneder i dag", "Uge 31 i dag" eller næste mærkedag.
+struct TodayView: View {
+    @Environment(\.widgetFamily) private var family
+    let entry: FamilyEntry
+
+    struct Line { let title: String; let detail: String; let today: Bool }
+
+    private var line: Line? {
+        let cal = Calendar.current
+        let now = cal.startOfDay(for: entry.date)
+        var next: (date: Date, line: Line)?
+        for c in entry.snapshot.children {
+            if let birth = c.birthDate {
+                // Månedsdag: samme dag i måneden som fødslen (sidste dag, hvis måneden er kortere).
+                let months = cal.dateComponents([.month], from: birth, to: now).month ?? 0
+                for n in [months, months + 1] where n > 0 {
+                    guard let d = cal.date(byAdding: .month, value: n, to: birth) else { continue }
+                    let day = cal.startOfDay(for: d)
+                    let age: String
+                    if n % 12 == 0 { age = n == 12 ? "1 år" : "\(n / 12) år" }
+                    else if n > 12 { age = "\(n / 12) år og \(n % 12) mdr." }
+                    else { age = n == 1 ? "1 måned" : "\(n) måneder" }
+                    if day == now { return Line(title: "\(c.name) er \(age) i dag", detail: "Tag månedens billede 📸", today: true) }
+                    if day > now, next == nil || day < next!.date {
+                        let days = daysUntil(day, from: now)
+                        next = (day, Line(title: "\(c.name) bliver \(age)", detail: days == 1 ? "i morgen" : "om \(days) dage", today: false))
+                    }
+                }
+            } else if let due = c.dueDate, due > now, let start = cal.date(byAdding: .day, value: -280, to: due) {
+                let days = cal.dateComponents([.day], from: cal.startOfDay(for: start), to: now).day ?? 0
+                let week = days / 7 + 1
+                if days % 7 == 0 { return Line(title: "Uge \(week) i dag", detail: "\(c.name) · \(daysUntil(due, from: now)) dage til termin", today: true) }
+                let nextWeek = cal.date(byAdding: .day, value: (week) * 7, to: start) ?? now
+                if next == nil || nextWeek < next!.date {
+                    next = (nextWeek, Line(title: "Uge \(week) · \(c.name)", detail: "\(daysUntil(due, from: now)) dage til termin", today: false))
+                }
+            }
+        }
+        return next?.line
+    }
+
+    var body: some View {
+        switch family {
+        case .accessoryRectangular:
+            VStack(alignment: .leading, spacing: 1) {
+                if let line {
+                    Label(line.today ? "I dag" : "Snart", systemImage: line.today ? "sparkles" : "calendar")
+                        .font(.caption2.weight(.semibold))
+                    Text(line.title).font(.headline).lineLimit(1)
+                    Text(line.detail).font(.caption2).lineLimit(1)
+                } else {
+                    Label("Vores familie", systemImage: "heart").font(.caption2.weight(.semibold))
+                    Text(DailyQuotes.today(entry.date)).font(.caption2).lineLimit(2)
+                }
+            }
+            .containerBackground(for: .widget) { Color.clear }
+        case .accessoryInline:
+            if let line { Label(line.title, systemImage: line.today ? "sparkles" : "calendar") }
+            else { Label("Vores familie", systemImage: "heart") }
+        default:
+            VStack(alignment: .leading, spacing: 6) {
+                Label(line?.today == true ? "I dag" : "Snart", systemImage: line?.today == true ? "sparkles" : "calendar")
+                    .font(.caption2.weight(.semibold)).foregroundStyle(WTheme.muted)
+                Spacer(minLength: 0)
+                if let line {
+                    Text(line.title).font(WTheme.serif(17)).foregroundStyle(WTheme.text).minimumScaleFactor(0.8)
+                    Text(line.detail).font(.caption).foregroundStyle(line.today ? WTheme.rose : WTheme.muted)
+                } else {
+                    Text(DailyQuotes.today(entry.date))
+                        .font(WTheme.serif(13, .regular).italic()).foregroundStyle(WTheme.accent).lineLimit(4)
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+            .containerBackground(WTheme.bg, for: .widget)
+        }
+    }
+}
+
+struct TodayWidget: Widget {
+    var body: some WidgetConfiguration {
+        StaticConfiguration(kind: "today", provider: FamilyProvider()) { TodayView(entry: $0) }
+            .configurationDisplayName("I dag")
+            .description("\"Theo er 6 måneder i dag\" — månedsdage og graviditetsuger, også på låseskærmen.")
+            .supportedFamilies([.systemSmall, .accessoryRectangular, .accessoryInline])
     }
 }
 
@@ -275,6 +430,7 @@ struct VoresFamilieWidgets: WidgetBundle {
     var body: some Widget {
         BirthdaysWidget()
         DueWidget()
+        TodayWidget()
         OnThisDayWidget()
         QuoteWidget()
     }

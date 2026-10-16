@@ -1,0 +1,345 @@
+import SwiftUI
+import AVFoundation
+
+// Det årlige interview: de samme 10 spørgsmål hver fødselsdag, besvaret som tekst, lyd eller video.
+// Fanen "I år" udfylder ét års svar; "Gennem årene" afspiller alle svar på ét spørgsmål i rækkefølge.
+struct InterviewView: View {
+    @EnvironmentObject var state: AppState
+    let child: Child
+
+    enum Mode: String, CaseIterable, Identifiable {
+        case year = "Pr. år"
+        case question = "Gennem årene"
+        var id: String { rawValue }
+    }
+
+    @State private var mode: Mode = .year
+    @State private var answers: [InterviewAnswer] = []
+    @State private var age: Int = 0
+    @State private var editing: EditTarget?
+    @State private var selectedQuestion = Constants.interviewQuestions[0].key
+    @State private var loaded = false
+
+    struct EditTarget: Identifiable {
+        let question: String
+        let age: Int
+        let existing: InterviewAnswer?
+        var id: String { "\(question)_\(age)" }
+    }
+
+    /// Barnets alder i hele år lige nu.
+    private var currentAge: Int {
+        guard let birth = child.birthDate else { return 0 }
+        return max(0, Calendar.current.dateComponents([.year], from: birth, to: Date()).year ?? 0)
+    }
+    private var ages: [Int] { Array(0...max(currentAge, answers.map(\.age).max() ?? 0)) }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            Picker("", selection: $mode) {
+                ForEach(Mode.allCases) { Text($0.rawValue).tag($0) }
+            }
+            .pickerStyle(.segmented)
+            .padding(16)
+
+            List {
+                if mode == .year { yearSection } else { questionSection }
+            }
+            .scrollContentBackground(.hidden)
+        }
+        .background(Theme.bg.ignoresSafeArea())
+        .navigationTitle("Det årlige interview")
+        .navigationBarTitleDisplayMode(.inline)
+        .sheet(item: $editing, onDismiss: { Task { await load() } }) { target in
+            InterviewAnswerEditView(child: child, question: target.question, age: target.age, existing: target.existing)
+        }
+        .refreshable { await load() }
+        .task {
+            if !loaded { loaded = true; age = currentAge }
+            await load()
+        }
+    }
+
+    // MARK: Pr. år
+
+    @ViewBuilder
+    private var yearSection: some View {
+        Section {
+            Picker("Alder", selection: $age) {
+                ForEach(ages, id: \.self) { Text($0 == 1 ? "1 år" : "\($0) år").tag($0) }
+            }
+        } footer: {
+            Text("Stil de samme spørgsmål hvert år omkring fødselsdagen. Svar med tekst, en lydoptagelse eller en lille video — så kan I senere høre \(child.name) vokse.")
+        }
+        Section {
+            ForEach(Constants.interviewQuestions) { q in
+                let a = answers.first { $0.question == q.key && $0.age == age }
+                Button {
+                    if state.canEdit || a != nil { editing = EditTarget(question: q.key, age: age, existing: a) }
+                } label: {
+                    HStack(spacing: 12) {
+                        Image(systemName: a?.hasAnswer == true ? "checkmark.circle.fill" : "circle")
+                            .font(.title3)
+                            .foregroundStyle(a?.hasAnswer == true ? Theme.green : Theme.muted)
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text(q.text).font(.subheadline.weight(.medium)).foregroundStyle(Theme.text)
+                            if let a, a.hasAnswer {
+                                HStack(spacing: 8) {
+                                    if !a.text.isEmpty { Text(a.text).lineLimit(1) }
+                                    if let d = a.audioDuration { Label(MediaFiles.format(d), systemImage: "waveform") }
+                                    if let d = a.videoDuration { Label(MediaFiles.format(d), systemImage: "video") }
+                                }
+                                .font(.caption).foregroundStyle(Theme.muted)
+                            }
+                        }
+                        Spacer()
+                    }
+                    .padding(.vertical, 2)
+                }
+            }
+        } header: {
+            Text(age == 1 ? "1 år" : "\(age) år")
+        }
+    }
+
+    // MARK: Gennem årene
+
+    @ViewBuilder
+    private var questionSection: some View {
+        Section {
+            Picker("Spørgsmål", selection: $selectedQuestion) {
+                ForEach(Constants.interviewQuestions) { Text($0.text).tag($0.key) }
+            }
+            .pickerStyle(.menu)
+        }
+        let list = answers.filter { $0.question == selectedQuestion && $0.hasAnswer }.sorted { $0.age < $1.age }
+        if list.isEmpty {
+            Section {
+                Text("Ingen svar på det spørgsmål endnu.").font(.footnote).foregroundStyle(Theme.muted)
+            }
+        } else {
+            Section {
+                ForEach(list) { a in
+                    AnswerRow(child: child, answer: a) {
+                        editing = EditTarget(question: a.question, age: a.age, existing: a)
+                    }
+                }
+            } header: {
+                HStack {
+                    Text(Constants.interviewQuestion(selectedQuestion))
+                    Spacer()
+                    if list.contains(where: { $0.audioDuration != nil }) {
+                        PlayAllButton(child: child, answers: list)
+                    }
+                }
+            } footer: {
+                Text("Svarene står i rækkefølge efter alder. \"Afspil alle\" spiller lydsvarene efter hinanden.")
+            }
+        }
+    }
+
+    private func load() async {
+        answers = (try? await state.store.interviews(childId: child.id)) ?? []
+    }
+}
+
+/// Ét svar i "Gennem årene": alder, tekst og afspil-knapper.
+private struct AnswerRow: View {
+    @EnvironmentObject var state: AppState
+    let child: Child
+    let answer: InterviewAnswer
+    var onEdit: () -> Void
+    @StateObject private var playback = AudioPlayback()
+    @State private var loading = false
+    @State private var player: VideoPlayerScreen?
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 12) {
+            Text(answer.age == 1 ? "1 år" : "\(answer.age) år")
+                .font(.serifTitle(15)).foregroundStyle(Theme.neutralDark)
+                .frame(width: 44, alignment: .leading)
+            VStack(alignment: .leading, spacing: 6) {
+                if !answer.text.isEmpty {
+                    Text(answer.text).font(.subheadline).foregroundStyle(Theme.text)
+                }
+                HStack(spacing: 14) {
+                    if let d = answer.audioDuration {
+                        Button { Task { await playAudio() } } label: {
+                            Label(playback.isPlaying ? "Stop" : "Lyd \(MediaFiles.format(d))",
+                                  systemImage: playback.isPlaying ? "stop.fill" : "play.fill")
+                        }
+                    }
+                    if let d = answer.videoDuration {
+                        Button { Task { await playVideo() } } label: {
+                            Label("Video \(MediaFiles.format(d))", systemImage: "video")
+                        }
+                    }
+                    if loading { ProgressView().controlSize(.small) }
+                }
+                .font(.caption.weight(.medium))
+                .buttonStyle(.borderless)
+                Text(Fmt.long(answer.date)).font(.caption2).foregroundStyle(Theme.muted)
+            }
+            Spacer()
+        }
+        .contentShape(Rectangle())
+        .onTapGesture { if state.canEdit { onEdit() } }
+        .fullScreenCover(item: $player) { $0 }
+    }
+
+    private func playAudio() async {
+        if playback.isPlaying { playback.stop(); return }
+        loading = true
+        defer { loading = false }
+        if let url = (try? await state.store.interviewMedia(childId: child.id, id: answer.id))?.audio {
+            playback.toggle(url: url)
+        }
+    }
+
+    private func playVideo() async {
+        loading = true
+        defer { loading = false }
+        if let url = (try? await state.store.interviewMedia(childId: child.id, id: answer.id))?.video {
+            player = VideoPlayerScreen(url: url)
+        }
+    }
+}
+
+/// Afspiller alle lydsvar efter hinanden (ældste først) — "hør barnet vokse".
+private struct PlayAllButton: View {
+    @EnvironmentObject var state: AppState
+    let child: Child
+    let answers: [InterviewAnswer]
+    @StateObject private var queue = SequencePlayer()
+    @State private var loading = false
+
+    var body: some View {
+        Button {
+            if queue.isPlaying { queue.stop() } else { Task { await playAll() } }
+        } label: {
+            if loading { ProgressView().controlSize(.small) }
+            else { Label(queue.isPlaying ? "Stop" : "Afspil alle", systemImage: queue.isPlaying ? "stop.fill" : "play.circle") }
+        }
+        .font(.caption.weight(.semibold))
+        .textCase(nil)
+    }
+
+    private func playAll() async {
+        loading = true
+        defer { loading = false }
+        var urls: [URL] = []
+        for a in answers where a.audioDuration != nil {
+            if let url = (try? await state.store.interviewMedia(childId: child.id, id: a.id))?.audio { urls.append(url) }
+        }
+        queue.play(urls)
+    }
+}
+
+/// Spiller flere lydfiler i rækkefølge.
+@MainActor
+final class SequencePlayer: ObservableObject {
+    @Published var isPlaying = false
+    private var player: AVQueuePlayer?
+    private var observer: Any?
+
+    func play(_ urls: [URL]) {
+        guard !urls.isEmpty else { return }
+        try? AVAudioSession.sharedInstance().setCategory(.playback)
+        try? AVAudioSession.sharedInstance().setActive(true)
+        let items = urls.map { AVPlayerItem(url: $0) }
+        let player = AVQueuePlayer(items: items)
+        self.player = player
+        if let last = items.last {
+            observer = NotificationCenter.default.addObserver(forName: .AVPlayerItemDidPlayToEndTime, object: last,
+                                                              queue: .main) { [weak self] _ in
+                Task { @MainActor in self?.isPlaying = false }
+            }
+        }
+        player.play()
+        isPlaying = true
+    }
+
+    func stop() {
+        player?.pause()
+        player?.removeAllItems()
+        isPlaying = false
+    }
+}
+
+/// Besvar ét spørgsmål for ét år: tekst, lydoptagelse og/eller video.
+struct InterviewAnswerEditView: View {
+    @EnvironmentObject var state: AppState
+    @Environment(\.dismiss) private var dismiss
+    let child: Child
+    let question: String
+    let age: Int
+    let existing: InterviewAnswer?
+
+    @State private var text = ""
+    @State private var audio: MediaChange = .keep
+    @State private var video: MediaChange = .keep
+    @State private var saving = false
+    @State private var saveError: String?
+    @State private var confirmDelete = false
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    Text(Constants.interviewQuestion(question))
+                        .font(.serifTitle(18)).foregroundStyle(Theme.text)
+                    Text(age == 1 ? "\(child.name), 1 år" : "\(child.name), \(age) år")
+                        .font(.footnote).foregroundStyle(Theme.muted)
+                }
+                Section("Svar") {
+                    TextField("Skriv svaret, hvis I vil", text: $text, axis: .vertical)
+                        .lineLimit(2...6)
+                }
+                Section {
+                    MediaField(video: $video, audio: $audio,
+                               existingVideo: existing?.videoDuration, existingAudio: existing?.audioDuration,
+                               videoLabel: "Vælg video", audioLabel: "Optag svaret")
+                } header: {
+                    Text("Lyd og video")
+                } footer: {
+                    Text("Det sjoveste er at høre stemmen. Optag svaret direkte her, eller vælg en video fra Fotos.")
+                }
+                if existing != nil && state.canEdit {
+                    Section {
+                        Button("Slet svaret", role: .destructive) { confirmDelete = true }
+                    }
+                }
+            }
+            .navigationTitle("Svar")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) { Button("Annullér") { dismiss() } }
+                if state.canEdit {
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button("Gem") { Task { await save() } }.disabled(saving)
+                    }
+                }
+            }
+            .saveErrorAlert($saveError)
+            .confirmationDialog("Slet svaret?", isPresented: $confirmDelete, titleVisibility: .visible) {
+                Button("Slet", role: .destructive) {
+                    Task {
+                        await performSave(saving: $saving, errorMessage: $saveError, dismiss: dismiss) {
+                            if let id = existing?.id { try await state.store.deleteInterviewAnswer(childId: child.id, id: id) }
+                        }
+                    }
+                }
+            }
+            .onAppear { text = existing?.text ?? "" }
+        }
+    }
+
+    private func save() async {
+        await performSave(saving: $saving, errorMessage: $saveError, dismiss: dismiss) {
+            var answer = existing ?? InterviewAnswer(id: newId("iv"), age: age, question: question)
+            answer.text = text.trimmingCharacters(in: .whitespacesAndNewlines)
+            if existing == nil { answer.date = Date() }
+            try await state.store.saveInterviewAnswer(childId: child.id, answer, audio: audio, video: video)
+        }
+    }
+}

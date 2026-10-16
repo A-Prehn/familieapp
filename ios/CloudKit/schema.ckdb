@@ -210,6 +210,8 @@ DEFINE SCHEMA
         writtenAt       TIMESTAMP,
         openDate        TIMESTAMP,
         photo           ASSET,
+        video           ASSET,
+        videoDuration   DOUBLE,
         GRANT WRITE TO "_creator",
         GRANT CREATE TO "_icloud",
         GRANT READ TO "_world"
@@ -262,6 +264,49 @@ DEFINE SCHEMA
         parentIds       LIST<STRING>,
         partnerIds      LIST<STRING>,
         childId         STRING,
+        GRANT WRITE TO "_creator",
+        GRANT CREATE TO "_icloud",
+        GRANT READ TO "_world"
+    );
+
+    RECORD TYPE Interview (
+        "___createTime" TIMESTAMP,
+        "___createdBy"  REFERENCE,
+        "___etag"       STRING,
+        "___modTime"    TIMESTAMP,
+        "___modifiedBy" REFERENCE,
+        "___recordID"   REFERENCE QUERYABLE,
+        childRef        REFERENCE QUERYABLE,
+        age             INT64,
+        question        STRING,
+        text            STRING,
+        date            TIMESTAMP,
+        audio           ASSET,
+        audioDuration   DOUBLE,
+        video           ASSET,
+        videoDuration   DOUBLE,
+        GRANT WRITE TO "_creator",
+        GRANT CREATE TO "_icloud",
+        GRANT READ TO "_world"
+    );
+
+    RECORD TYPE Tradition (
+        "___createTime" TIMESTAMP,
+        "___createdBy"  REFERENCE,
+        "___etag"       STRING,
+        "___modTime"    TIMESTAMP,
+        "___modifiedBy" REFERENCE,
+        "___recordID"   REFERENCE QUERYABLE,
+        familyRef       REFERENCE QUERYABLE,
+        title           STRING,
+        "when"          STRING,
+        details         STRING,
+        photos          LIST<ASSET>,
+        captions        LIST<STRING>,
+        coverIndex      INT64,
+        photo           ASSET,
+        audio           ASSET,
+        audioDuration   DOUBLE,
         GRANT WRITE TO "_creator",
         GRANT CREATE TO "_icloud",
         GRANT READ TO "_world"

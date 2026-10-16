@@ -112,23 +112,27 @@ struct DiaryEntry: Identifiable, Hashable, Codable {
 enum GalleryKind: String, Codable, Hashable {
     case belly      // Maven måned for måned
     case monthly    // Måned for måned
+    case drawings   // Tegninger (scannet med kameraet)
 
     var title: String {
         switch self {
         case .belly: return "Maven måned for måned"
         case .monthly: return "Måned for måned"
+        case .drawings: return "Tegninger"
         }
     }
     var captionLabel: String {
         switch self {
         case .belly: return "Uge/måned"
         case .monthly: return "Måned"
+        case .drawings: return "Titel"
         }
     }
     var captionPlaceholder: String {
         switch self {
         case .belly: return "F.eks. Uge 24"
         case .monthly: return "F.eks. 3 måneder"
+        case .drawings: return "F.eks. Vores hus"
         }
     }
 }
@@ -189,6 +193,8 @@ struct Letter: Identifiable, Hashable, Codable {
     var writtenAt: Date
     var openDate: Date?         // nil = kan læses med det samme
     var photo: Data? = nil
+    /// Videobrev: varighed i sekunder, hvis der er en video (filen hentes først ved afspilning).
+    var videoDuration: Double? = nil
 
     var isSealed: Bool { openDate.map { $0 > Date() } ?? false }
 }
@@ -229,3 +235,27 @@ struct Person: Identifiable, Hashable, Codable {
     var partnerIds: [String] = []
     var childId: String? = nil
 }
+
+/// Et svar i det årlige interview: samme spørgsmål hvert år, som tekst, lyd eller video.
+struct InterviewAnswer: Identifiable, Hashable, Codable {
+    let id: String
+    var age: Int                 // alder i år ved interviewet
+    var question: String         // nøgle fra Constants.interviewQuestions
+    var text: String = ""
+    var date: Date = Date()
+    var audioDuration: Double? = nil
+    var videoDuration: Double? = nil
+    var hasAnswer: Bool { !text.isEmpty || audioDuration != nil || videoDuration != nil }
+}
+
+/// En familietradition: juleaften, fødselsdagssangen, mormors boller …
+struct Tradition: Identifiable, Hashable, Codable {
+    let id: String
+    var title: String
+    var when: String = ""        // fx "Juleaften", "Hver fødselsdag"
+    var details: String = ""
+    var photos: PhotoSet = PhotoSet()
+    var audioDuration: Double? = nil
+    var photo: Data? { photos.coverPhoto }
+}
+

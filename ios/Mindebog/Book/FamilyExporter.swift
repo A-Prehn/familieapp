@@ -115,6 +115,26 @@ final class FamilyExport: ObservableObject {
             json["familietræ"] = treeJSON
         }
 
+        step("Traditioner…")
+        let traditions = (try? await store.traditions(familyId: familyId)) ?? []
+        if !traditions.isEmpty {
+            let tDir = familyDir.appendingPathComponent("Traditioner", isDirectory: true)
+            var tJSON: [[String: Any]] = []
+            for t in traditions {
+                let name = Self.safe(t.title)
+                var files = try writePhotoSet(t.photos, name: name, in: tDir)
+                if t.audioDuration != nil, let u = try? await store.traditionAudio(familyId: familyId, id: t.id) {
+                    files.append(try copy(u, to: tDir, name: name + " (lyd)"))
+                }
+                var text = t.title + "\n"
+                if !t.when.isEmpty { text += "Hvornår: \(t.when)\n" }
+                if !t.details.isEmpty { text += "\n" + t.details + "\n" }
+                try write(text, to: tDir.appendingPathComponent(name + ".txt"))
+                tJSON.append(["titel": t.title, "hvornår": t.when, "beskrivelse": t.details, "filer": files])
+            }
+            json["traditioner"] = tJSON
+        }
+
         step("Begivenheder…")
         let events = (try? await store.events(familyId: familyId)) ?? []
         let eventsDir = familyDir.appendingPathComponent("Begivenheder", isDirectory: true)
@@ -243,7 +263,7 @@ final class FamilyExport: ObservableObject {
 
         // Billedserier
         step("\(child.name): billedserier…")
-        for kind in [GalleryKind.belly, .monthly] {
+        for kind in [GalleryKind.belly, .monthly, .drawings] {
             let items = (try? await store.gallery(childId: child.id, kind: kind)) ?? []
             let gDir = dir.appendingPathComponent(kind.title, isDirectory: true)
             var gJSON: [[String: Any]] = []
@@ -251,9 +271,44 @@ final class FamilyExport: ObservableObject {
                 let name = String(format: "%02d", i + 1) + (item.caption.isEmpty ? "" : " " + Self.safe(item.caption))
                 var files: [String] = []
                 if let p = item.photo { files.append(try writePhoto(p, to: gDir, name: name)) }
-                gJSON.append(["tekst": item.caption, "filer": files])
+                gJSON.append(["tekst": item.caption, "dato": Fmt.iso(item.createdAt), "filer": files])
             }
-            out[kind == .belly ? "mavebilleder" : "månedsbilleder"] = gJSON
+            let key: String
+            switch kind {
+            case .belly: key = "mavebilleder"
+            case .monthly: key = "månedsbilleder"
+            case .drawings: key = "tegninger"
+            }
+            out[key] = gJSON
+        }
+
+        // Det årlige interview — pr. alder en tekstfil og lyd/video-filer
+        step("\(child.name): interview…")
+        let answers = (try? await store.interviews(childId: child.id)) ?? []
+        if !answers.isEmpty {
+            let ivDir = dir.appendingPathComponent("Det årlige interview", isDirectory: true)
+            var ivJSON: [[String: Any]] = []
+            for age in Set(answers.map(\.age)).sorted() {
+                let ageName = age == 1 ? "1 år" : "\(age) år"
+                var text = "\(child.name.uppercased()) – \(ageName)\n\n"
+                for q in Constants.interviewQuestions {
+                    guard let a = answers.first(where: { $0.age == age && $0.question == q.key }), a.hasAnswer else { continue }
+                    text += "\(q.text)\n"
+                    if !a.text.isEmpty { text += "  → \(a.text)\n" }
+                    var files: [String] = []
+                    if a.audioDuration != nil || a.videoDuration != nil,
+                       let media = try? await store.interviewMedia(childId: child.id, id: a.id) {
+                        let base = "\(ageName) – \(Self.safe(q.text))"
+                        if let u = media.audio { files.append(try copy(u, to: ivDir, name: base + " (lyd)")) }
+                        if let u = media.video { files.append(try copy(u, to: ivDir, name: base + " (video)")) }
+                    }
+                    if !files.isEmpty { text += "  (\(files.map { ($0 as NSString).lastPathComponent }.joined(separator: ", ")))\n" }
+                    text += "\n"
+                    ivJSON.append(["alder": age, "spørgsmål": q.text, "svar": a.text, "dato": Fmt.iso(a.date), "filer": files])
+                }
+                try write(text, to: ivDir.appendingPathComponent("\(ageName).txt"))
+            }
+            out["interview"] = ivJSON
         }
 
         // Målinger
@@ -284,6 +339,9 @@ final class FamilyExport: ObservableObject {
             let name = Self.prefix(l.writtenAt) + Self.safe(title)
             var files: [String] = []
             if let p = l.photo { files.append(try writePhoto(p, to: lDir, name: name)) }
+            if l.videoDuration != nil, let v = try? await store.letterVideo(childId: child.id, id: l.id) {
+                files.append(try copy(v, to: lDir, name: name + " (videobrev)"))
+            }
             var text = "\(title)\nSkrevet af \(l.author), \(Fmt.long(l.writtenAt))\n"
             if let open = l.openDate { text += "Må åbnes: \(Fmt.long(open))\n" }
             text += "\n\(l.text)\n"

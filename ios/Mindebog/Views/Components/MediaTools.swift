@@ -195,6 +195,11 @@ struct MediaField: View {
     /// Varighed af eksisterende medier (ved redigering), så vi kan vise dem.
     var existingVideo: Double?
     var existingAudio: Double?
+    /// Skjul den ene del, fx kun video til et videobrev eller kun lyd til en tradition.
+    var showVideo = true
+    var showAudio = true
+    var videoLabel = "Vælg video"
+    var audioLabel = "Optag lydnote"
 
     @State private var videoItem: PhotosPickerItem?
     @State private var working = false
@@ -205,6 +210,7 @@ struct MediaField: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             // Video
+            if showVideo {
             HStack {
                 if let d = videoDuration {
                     Label("Video \(MediaFiles.format(d))", systemImage: "play.rectangle")
@@ -212,14 +218,16 @@ struct MediaField: View {
                     Button("Fjern", role: .destructive) { video = .remove }
                 } else {
                     PhotosPicker(selection: $videoItem, matching: .videos) {
-                        Label(working ? "Forbereder video…" : "Vælg video", systemImage: "video.badge.plus")
+                        Label(working ? "Forbereder video…" : videoLabel, systemImage: "video.badge.plus")
                     }
                     .disabled(working)
                 }
             }
             .buttonStyle(.borderless)
+            }
 
             // Lydnote
+            if showAudio {
             HStack {
                 if recorder.isRecording {
                     Button { if let r = recorder.stop() { audio = .set(r.0, r.1) } } label: {
@@ -239,11 +247,12 @@ struct MediaField: View {
                     Button("Fjern", role: .destructive) { audio = .remove }
                 } else {
                     Button { Task { await recorder.start() } } label: {
-                        Label("Optag lydnote", systemImage: "mic")
+                        Label(audioLabel, systemImage: "mic")
                     }
                 }
             }
             .buttonStyle(.borderless)
+            }
 
             if recorder.permissionDenied {
                 Text("Giv adgang til mikrofonen i Indstillinger → Vores familie.")

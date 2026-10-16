@@ -61,6 +61,22 @@ protocol Store {
     func updateLetter(childId: String, _ letter: Letter) async throws
     func deleteLetter(childId: String, id: String) async throws
 
+    // Videobrev
+    func setLetterVideo(childId: String, id: String, video: MediaChange) async throws
+    func letterVideo(childId: String, id: String) async throws -> URL?
+
+    // Det årlige interview
+    func interviews(childId: String) async throws -> [InterviewAnswer]
+    func saveInterviewAnswer(childId: String, _ answer: InterviewAnswer, audio: MediaChange, video: MediaChange) async throws
+    func deleteInterviewAnswer(childId: String, id: String) async throws
+    func interviewMedia(childId: String, id: String) async throws -> (video: URL?, audio: URL?)
+
+    // Traditioner (pr. familie)
+    func traditions(familyId: String) async throws -> [Tradition]
+    func saveTradition(familyId: String, _ tradition: Tradition, audio: MediaChange) async throws
+    func deleteTradition(familyId: String, id: String) async throws
+    func traditionAudio(familyId: String, id: String) async throws -> URL?
+
     // Pr. familie
     func events(familyId: String) async throws -> [FamilyEvent]
     func addEvent(familyId: String, title: String, date: Date?, details: String,

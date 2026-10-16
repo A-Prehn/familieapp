@@ -8,6 +8,7 @@ struct FamilyView: View {
         case vacations = "Ferier"
         case birthdays = "Fødselsdage"
         case tree = "Stamtræ"
+        case traditions = "Traditioner"
         var id: String { rawValue }
     }
 
@@ -19,6 +20,8 @@ struct FamilyView: View {
     @State private var persons: [Person] = []
     @State private var editingPerson: Person?
     @State private var members: [AppUser] = []
+    @State private var traditions: [Tradition] = []
+    @State private var editingTradition: Tradition?
     @State private var activeSheet: Tab?
     @State private var editingEvent: FamilyEvent?
     @State private var editingVacation: Vacation?
@@ -28,10 +31,23 @@ struct FamilyView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 16) {
-                Picker("", selection: $tab) {
-                    ForEach(Tab.allCases) { Text($0.rawValue).tag($0) }
+                // Fem faner er for mange til et segmenteret felt på en iPhone — brug chips, der kan rulles.
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        ForEach(Tab.allCases) { t in
+                            Button { withAnimation(.easeInOut(duration: 0.15)) { tab = t } } label: {
+                                Text(t.rawValue)
+                                    .font(.system(size: 14, weight: .semibold))
+                                    .padding(.horizontal, 14).padding(.vertical, 8)
+                                    .background(Capsule().fill(tab == t ? Theme.text : Theme.card))
+                                    .overlay(Capsule().stroke(tab == t ? Theme.text : Theme.sep))
+                                    .foregroundStyle(tab == t ? Theme.bg : Theme.text)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                    .padding(.horizontal, 2)
                 }
-                .pickerStyle(.segmented)
 
                 switch tab {
                 case .events: eventsList
@@ -39,6 +55,8 @@ struct FamilyView: View {
                 case .birthdays: birthdaysList
                 case .tree: FamilyTreeView(persons: persons, children: children,
                                            onEdit: { editingPerson = $0 }, onAdd: { activeSheet = .tree })
+                case .traditions: TraditionsView(traditions: traditions, onEdit: { editingTradition = $0 },
+                                                 onAdd: { activeSheet = .traditions }, onLightbox: { lightbox = $0 })
                 }
             }
             .padding(16)
@@ -58,6 +76,7 @@ struct FamilyView: View {
             case .birthdays: AddBirthdayView(familyId: state.familyId ?? "")
             case .tree: PersonEditView(familyId: state.familyId ?? "", persons: persons, children: children,
                                        members: members, birthdays: customBirthdays)
+            case .traditions: TraditionEditView(familyId: state.familyId ?? "")
             }
         }
         .sheet(item: $editingEvent, onDismiss: { Task { await load() } }) { event in
@@ -68,6 +87,9 @@ struct FamilyView: View {
         }
         .sheet(item: $editingBirthday, onDismiss: { Task { await load() } }) { birthday in
             AddBirthdayView(familyId: state.familyId ?? "", editing: birthday)
+        }
+        .sheet(item: $editingTradition, onDismiss: { Task { await load() } }) { t in
+            TraditionEditView(familyId: state.familyId ?? "", editing: t)
         }
         .sheet(item: $editingPerson, onDismiss: { Task { await load() } }) { person in
             PersonEditView(familyId: state.familyId ?? "", persons: persons, children: children,
@@ -259,6 +281,7 @@ struct FamilyView: View {
         var children: [Child]
         var birthdays: [CustomBirthday]
         var persons: [Person] = []
+        var traditions: [Tradition] = []
     }
 
     private func load() async {
@@ -272,6 +295,7 @@ struct FamilyView: View {
             ChildPalette.update(children)
             customBirthdays = cached.birthdays
             persons = cached.persons
+            traditions = cached.traditions
         }
         // Behold det viste ved netværksfejl i stedet for at tømme listerne.
         if let v = try? await state.store.events(familyId: familyId) { events = v }
@@ -280,7 +304,9 @@ struct FamilyView: View {
         if let v = try? await state.store.birthdays(familyId: familyId) { customBirthdays = v }
         if let v = try? await state.store.persons(familyId: familyId) { persons = v }
         if let v = try? await state.store.members(familyId: familyId) { members = v }
-        ScreenCache.save(Cached(events: events, vacations: vacations, children: children, birthdays: customBirthdays, persons: persons),
+        if let v = try? await state.store.traditions(familyId: familyId) { traditions = v }
+        ScreenCache.save(Cached(events: events, vacations: vacations, children: children, birthdays: customBirthdays,
+                                persons: persons, traditions: traditions),
                          key: cacheKey)
     }
 }

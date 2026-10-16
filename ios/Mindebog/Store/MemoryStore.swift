@@ -363,7 +363,7 @@ actor MemoryStore: Store {
     }
 
     func updateGalleryItem(childId: String, _ item: GalleryItem) async throws {
-        for kind in [GalleryKind.belly, .monthly] {
+        for kind in [GalleryKind.belly, .monthly, .drawings] {
             if let i = galleryByChild[childId]?[kind]?.firstIndex(where: { $0.id == item.id }) {
                 galleryByChild[childId]?[kind]?[i] = item
                 return
@@ -373,7 +373,7 @@ actor MemoryStore: Store {
     }
 
     func deleteGalleryItem(childId: String, id: String) async throws {
-        for kind in [GalleryKind.belly, .monthly] {
+        for kind in [GalleryKind.belly, .monthly, .drawings] {
             galleryByChild[childId]?[kind]?.removeAll { $0.id == id }
         }
     }
@@ -387,6 +387,50 @@ actor MemoryStore: Store {
         birthdaysByFamily[familyId]?.removeAll { $0.id == id }
     }
 
+
+    // MARK: Videobrev, interview, traditioner (kun i hukommelsen)
+    private var letterVideos: [String: URL] = [:]
+    private var interviewsByChild: [String: [InterviewAnswer]] = [:]
+    private var mediaByRecord: [String: (video: URL?, audio: URL?)] = [:]
+    private var traditionsByFamily: [String: [Tradition]] = [:]
+
+    func setLetterVideo(childId: String, id: String, video: MediaChange) async throws {
+        if case .set(let url, let d) = video {
+            letterVideos[id] = url
+            if let i = lettersByChild[childId]?.firstIndex(where: { $0.id == id }) { lettersByChild[childId]?[i].videoDuration = d }
+        } else if case .remove = video {
+            letterVideos[id] = nil
+            if let i = lettersByChild[childId]?.firstIndex(where: { $0.id == id }) { lettersByChild[childId]?[i].videoDuration = nil }
+        }
+    }
+    func letterVideo(childId: String, id: String) async throws -> URL? { letterVideos[id] }
+
+    func interviews(childId: String) async throws -> [InterviewAnswer] { interviewsByChild[childId] ?? [] }
+    func saveInterviewAnswer(childId: String, _ answer: InterviewAnswer, audio: MediaChange, video: MediaChange) async throws {
+        var a = answer
+        var m = mediaByRecord[answer.id] ?? (nil, nil)
+        if case .set(let url, let d) = audio { m.audio = url; a.audioDuration = d } else if case .remove = audio { m.audio = nil; a.audioDuration = nil }
+        if case .set(let url, let d) = video { m.video = url; a.videoDuration = d } else if case .remove = video { m.video = nil; a.videoDuration = nil }
+        mediaByRecord[answer.id] = m
+        var list = interviewsByChild[childId] ?? []
+        if let i = list.firstIndex(where: { $0.id == a.id }) { list[i] = a } else { list.append(a) }
+        interviewsByChild[childId] = list
+    }
+    func deleteInterviewAnswer(childId: String, id: String) async throws { interviewsByChild[childId]?.removeAll { $0.id == id } }
+    func interviewMedia(childId: String, id: String) async throws -> (video: URL?, audio: URL?) { mediaByRecord[id] ?? (nil, nil) }
+
+    func traditions(familyId: String) async throws -> [Tradition] { traditionsByFamily[familyId] ?? [] }
+    func saveTradition(familyId: String, _ tradition: Tradition, audio: MediaChange) async throws {
+        var t = tradition
+        var m = mediaByRecord[t.id] ?? (nil, nil)
+        if case .set(let url, let d) = audio { m.audio = url; t.audioDuration = d } else if case .remove = audio { m.audio = nil; t.audioDuration = nil }
+        mediaByRecord[t.id] = m
+        var list = traditionsByFamily[familyId] ?? []
+        if let i = list.firstIndex(where: { $0.id == t.id }) { list[i] = t } else { list.append(t) }
+        traditionsByFamily[familyId] = list
+    }
+    func deleteTradition(familyId: String, id: String) async throws { traditionsByFamily[familyId]?.removeAll { $0.id == id } }
+    func traditionAudio(familyId: String, id: String) async throws -> URL? { mediaByRecord[id]?.audio }
     // MARK: Familietræ
     func persons(familyId: String) async throws -> [Person] {
         personsByFamily[familyId] ?? []

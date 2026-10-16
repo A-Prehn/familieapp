@@ -43,7 +43,7 @@ struct LettersView: View {
             LetterEditView(child: child, editing: letter)
         }
         .sheet(item: $reading) { letter in
-            LetterReadView(letter: letter)
+            LetterReadView(child: child, letter: letter)
         }
         .refreshable { await load() }
         .task { await load() }
@@ -65,8 +65,12 @@ struct LettersView: View {
                 if letter.isSealed, let open = letter.openDate {
                     Label("Forseglet · åbnes \(Fmt.long(open))", systemImage: "lock")
                         .font(.footnote).foregroundStyle(Theme.neutralDark)
-                } else {
+                } else if !letter.text.isEmpty {
                     Text(letter.text).font(.footnote).foregroundStyle(Theme.muted).lineLimit(2)
+                }
+                if let d = letter.videoDuration {
+                    Label("Videobrev · \(MediaFiles.format(d))", systemImage: "video")
+                        .font(.caption).foregroundStyle(Theme.rose)
                 }
             }
             Spacer(minLength: 0)
@@ -94,8 +98,13 @@ struct LettersView: View {
 
 /// Et åbnet brev, læst i ro og mag.
 struct LetterReadView: View {
+    @EnvironmentObject var state: AppState
+    let child: Child
     let letter: Letter
     @Environment(\.dismiss) private var dismiss
+    @State private var loadingVideo = false
+    @State private var player: VideoPlayerScreen?
+    @State private var videoError: String?
 
     var body: some View {
         NavigationStack {
@@ -105,6 +114,33 @@ struct LetterReadView: View {
                         .font(.serifTitle(24))
                     Text("Skrevet af \(letter.author) · \(Fmt.long(letter.writtenAt))")
                         .font(.footnote).foregroundStyle(Theme.muted)
+                    if let d = letter.videoDuration {
+                        Button {
+                            Task { await playVideo() }
+                        } label: {
+                            HStack(spacing: 12) {
+                                Circle().fill(Theme.rose.opacity(0.15)).frame(width: 44, height: 44)
+                                    .overlay(Group {
+                                        if loadingVideo { ProgressView() }
+                                        else { Image(systemName: "play.fill").foregroundStyle(Theme.rose) }
+                                    })
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text("Afspil videobrev").font(.subheadline.weight(.semibold)).foregroundStyle(Theme.text)
+                                    Text(MediaFiles.format(d)).font(.caption).foregroundStyle(Theme.muted)
+                                }
+                                Spacer()
+                            }
+                            .padding(12)
+                            .background(Theme.card)
+                            .clipShape(RoundedRectangle(cornerRadius: 12))
+                            .overlay(RoundedRectangle(cornerRadius: 12).stroke(Theme.sep))
+                        }
+                        .buttonStyle(.plain)
+                        .disabled(loadingVideo)
+                        if let videoError {
+                            Text(videoError).font(.footnote).foregroundStyle(Theme.rose)
+                        }
+                    }
                     if let photo = letter.photo {
                         DataImage(data: photo, contentMode: .fit)
                             .clipShape(RoundedRectangle(cornerRadius: 10))
@@ -121,6 +157,18 @@ struct LetterReadView: View {
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) { Button("Luk") { dismiss() } }
             }
+            .fullScreenCover(item: $player) { $0 }
+        }
+    }
+
+    private func playVideo() async {
+        loadingVideo = true
+        defer { loadingVideo = false }
+        videoError = nil
+        if let url = try? await state.store.letterVideo(childId: child.id, id: letter.id) {
+            player = VideoPlayerScreen(url: url)
+        } else {
+            videoError = "Kunne ikke hente videoen. Tjek forbindelsen, og prøv igen."
         }
     }
 }
@@ -145,10 +193,21 @@ struct LetterEditView: View {
     @State private var opening: Opening = .eighteen
     @State private var openDate = Date()
     @State private var photo: Data?
+    @State private var video: MediaChange = .keep
     @State private var saving = false
     @State private var saveError: String?
     @State private var loaded = false
     @State private var confirmDelete = false
+
+    /// Er der tekst eller video? Et videobrev må godt stå uden tekst.
+    private var hasContent: Bool {
+        if !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { return true }
+        switch video {
+        case .keep: return editing?.videoDuration != nil
+        case .remove: return false
+        case .set: return true
+        }
+    }
 
     /// 18-års dagen ud fra fødselsdato — eller termin, hvis barnet er på vej.
     private var eighteenth: Date? {
@@ -166,6 +225,14 @@ struct LetterEditView: View {
                 Section("Brevet") {
                     TextField("Kære \(child.name) …", text: $text, axis: .vertical)
                         .lineLimit(8...30)
+                }
+                Section {
+                    MediaField(video: $video, audio: .constant(.keep), existingVideo: editing?.videoDuration,
+                               showAudio: false, videoLabel: "Vælg videobrev")
+                } header: {
+                    Text("Videobrev (valgfrit)")
+                } footer: {
+                    Text("Optag en hilsen i Fotos-appen og vælg den her. Maks 3 min. Videoen forsegles sammen med brevet.")
                 }
                 Section {
                     Picker("Åbnes", selection: $opening) {
@@ -201,7 +268,7 @@ struct LetterEditView: View {
                 ToolbarItem(placement: .cancellationAction) { Button("Annullér") { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Gem") { Task { await save() } }
-                        .disabled(saving || text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                        .disabled(saving || !hasContent)
                 }
             }
             .saveErrorAlert($saveError)
@@ -254,6 +321,7 @@ struct LetterEditView: View {
             } else {
                 try await state.store.updateLetter(childId: child.id, letter)
             }
+            try await state.store.setLetterVideo(childId: child.id, id: letter.id, video: video)
         }
     }
 }

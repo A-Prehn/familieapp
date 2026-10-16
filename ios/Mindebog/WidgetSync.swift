@@ -12,6 +12,7 @@ enum WidgetSync {
         var snapshot = WidgetSnapshot()
         snapshot.familyName = familyName
 
+        snapshot.children = children.map { .init(name: $0.name, birthDate: $0.birthDate, dueDate: $0.dueDate) }
         for child in children {
             if let birth = child.birthDate {
                 let emoji = child.gender == .girl ? "👧" : (child.gender == .boy ? "👦" : "🧒")

@@ -56,8 +56,11 @@ struct CropTarget: Identifiable {
 struct PhotoField: View {
     @Binding var data: Data?
     var title: String = "Vælg billede"
+    /// Vis "Forslag" (de nyeste billeder fra Fotos) — slået fra fx til profilbilleder.
+    var suggestions = true
     @State private var pickerItem: PhotosPickerItem?
     @State private var cropping: CropTarget?
+    @State private var showSuggestions = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -71,6 +74,12 @@ struct PhotoField: View {
                     Label(data == nil ? title : "Vælg et andet", systemImage: "photo")
                 }
                 .buttonStyle(.borderless)
+                if suggestions && data == nil {
+                    Button { showSuggestions = true } label: {
+                        Label("Forslag", systemImage: "sparkles")
+                    }
+                    .buttonStyle(.borderless)
+                }
                 if let data, let image = UIImage(data: data) {
                     Button { cropping = CropTarget(image: image) } label: {
                         Label("Beskær", systemImage: "crop")
@@ -84,6 +93,9 @@ struct PhotoField: View {
         }
         .fullScreenCover(item: $cropping) { target in
             CropView(image: target.image) { data = $0 }
+        }
+        .sheet(isPresented: $showSuggestions) {
+            PhotoSuggestionsView(allowMultiple: false) { picked in data = picked.first }
         }
         .onChange(of: pickerItem) { _, newItem in
             guard let newItem else { return }
@@ -102,6 +114,7 @@ struct MultiPhotoField: View {
     @Binding var photos: [Data]
     @State private var pickerItem: PhotosPickerItem?
     @State private var cropping: CropTarget?
+    @State private var showSuggestions = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -142,8 +155,13 @@ struct MultiPhotoField: View {
                         }
                 }
             }
-            PhotosPicker(selection: $pickerItem, matching: .images) {
-                Label("Tilføj billede", systemImage: "photo.badge.plus")
+            HStack(spacing: 16) {
+                PhotosPicker(selection: $pickerItem, matching: .images) {
+                    Label("Tilføj billede", systemImage: "photo.badge.plus")
+                }
+                Button { showSuggestions = true } label: {
+                    Label("Forslag", systemImage: "sparkles")
+                }
             }
             .buttonStyle(.borderless)
         }
@@ -151,6 +169,9 @@ struct MultiPhotoField: View {
             CropView(image: target.image) { cropped in
                 if photos.indices.contains(target.index) { photos[target.index] = cropped }
             }
+        }
+        .sheet(isPresented: $showSuggestions) {
+            PhotoSuggestionsView { photos.append(contentsOf: $0) }
         }
         .onChange(of: pickerItem) { _, newItem in
             guard let newItem else { return }

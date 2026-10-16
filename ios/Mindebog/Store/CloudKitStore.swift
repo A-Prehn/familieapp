@@ -526,14 +526,17 @@ actor CloudKitStore: Store {
     // MARK: - Breve til barnet
 
     func letters(childId: String) async throws -> [Letter] {
-        try await childRecords(childId, type: "Letter").map { r in
+        // Bevidst uden "video" — den hentes først ved afspilning (letterVideo).
+        try await childRecords(childId, type: "Letter",
+                               keys: ["childRef", "title", "text", "author", "writtenAt", "openDate", "photo", "videoDuration"]).map { r in
             Letter(id: r.recordID.recordName,
                    title: r["title"] as? String ?? "",
                    text: r["text"] as? String ?? "",
                    author: r["author"] as? String ?? "",
                    writtenAt: r["writtenAt"] as? Date ?? r.creationDate ?? Date(),
                    openDate: r["openDate"] as? Date,
-                   photo: Self.assetData(r["photo"]))
+                   photo: Self.assetData(r["photo"]),
+                   videoDuration: r["videoDuration"] as? Double)
         }
         .sorted { $0.writtenAt > $1.writtenAt }
     }
@@ -768,6 +771,142 @@ actor CloudKitStore: Store {
     func deleteBirthday(familyId: String, id: String) async throws {
         let (db, zoneID) = try await locate(familyId)
         _ = try await db.deleteRecord(withID: CKRecord.ID(recordName: id, zoneID: zoneID))
+    }
+
+    // MARK: - Video/lyd på en vilkårlig record (højdepunkt, brev, interview, tradition)
+
+    /// Sætter/fjerner video- og lydfelter på en record uden at hente de andre felter.
+    private func setMedia(recordID: CKRecord.ID, in db: CKDatabase, video: MediaChange, audio: MediaChange) async throws {
+        if case .keep = video, case .keep = audio { return }
+        let results = try await db.records(for: [recordID], desiredKeys: ["videoDuration", "audioDuration"])
+        guard let record = try results[recordID]?.get() else { throw StoreError.notFound }
+        func apply(_ change: MediaChange, asset key: String, duration durationKey: String) {
+            switch change {
+            case .keep: break
+            case .remove:
+                record[key] = nil
+                record[durationKey] = nil
+            case .set(let url, let seconds):
+                record[key] = Self.uploadAsset(copying: url)
+                record[durationKey] = seconds as CKRecordValue
+            }
+        }
+        apply(video, asset: "video", duration: "videoDuration")
+        apply(audio, asset: "audio", duration: "audioDuration")
+        _ = try await persist(record, in: db)
+    }
+
+    /// Henter video/lyd til lokale filer, klar til afspilning.
+    private func media(recordID: CKRecord.ID, in db: CKDatabase) async throws -> (video: URL?, audio: URL?) {
+        let results = try await db.records(for: [recordID], desiredKeys: ["video", "audio"])
+        guard let record = try results[recordID]?.get() else { return (nil, nil) }
+        let id = recordID.recordName
+        func local(_ key: String, ext: String) -> URL? {
+            guard let source = (record[key] as? CKAsset)?.fileURL else { return nil }
+            let target = MediaFiles.dir.appendingPathComponent("\(id)-\(key).\(ext)")
+            try? FileManager.default.removeItem(at: target)
+            return (try? FileManager.default.copyItem(at: source, to: target)) != nil ? target : nil
+        }
+        return (local("video", ext: "mp4"), local("audio", ext: "m4a"))
+    }
+
+    func setLetterVideo(childId: String, id: String, video: MediaChange) async throws {
+        let (db, zoneID) = try await locateChild(childId)
+        try await setMedia(recordID: CKRecord.ID(recordName: id, zoneID: zoneID), in: db, video: video, audio: .keep)
+    }
+
+    func letterVideo(childId: String, id: String) async throws -> URL? {
+        let (db, zoneID) = try await locateChild(childId)
+        return try await media(recordID: CKRecord.ID(recordName: id, zoneID: zoneID), in: db).video
+    }
+
+    // MARK: - Det årlige interview
+
+    func interviews(childId: String) async throws -> [InterviewAnswer] {
+        try await childRecords(childId, type: "Interview",
+                               keys: ["childRef", "age", "question", "text", "date", "audioDuration", "videoDuration"])
+        .map { r in
+            InterviewAnswer(id: r.recordID.recordName,
+                            age: Int(r["age"] as? Int64 ?? 0),
+                            question: r["question"] as? String ?? "",
+                            text: r["text"] as? String ?? "",
+                            date: r["date"] as? Date ?? r.creationDate ?? Date(),
+                            audioDuration: r["audioDuration"] as? Double,
+                            videoDuration: r["videoDuration"] as? Double)
+        }
+    }
+
+    func saveInterviewAnswer(childId: String, _ answer: InterviewAnswer, audio: MediaChange, video: MediaChange) async throws {
+        let (db, zoneID) = try await locateChild(childId)
+        let recordID = CKRecord.ID(recordName: answer.id, zoneID: zoneID)
+        let record: CKRecord
+        if let existing = try? await db.records(for: [recordID], desiredKeys: ["age"])[recordID]?.get() {
+            record = existing
+        } else {
+            record = CKRecord(recordType: "Interview", recordID: recordID)
+            record["childRef"] = childRef(childId, zoneID)
+        }
+        record["age"] = Int64(answer.age) as CKRecordValue
+        record["question"] = answer.question as CKRecordValue
+        record["text"] = answer.text as CKRecordValue
+        record["date"] = answer.date as CKRecordValue
+        _ = try await persist(record, in: db)
+        try await setMedia(recordID: recordID, in: db, video: video, audio: audio)
+    }
+
+    func deleteInterviewAnswer(childId: String, id: String) async throws {
+        let (db, zoneID) = try await locateChild(childId)
+        _ = try await db.deleteRecord(withID: CKRecord.ID(recordName: id, zoneID: zoneID))
+    }
+
+    func interviewMedia(childId: String, id: String) async throws -> (video: URL?, audio: URL?) {
+        let (db, zoneID) = try await locateChild(childId)
+        return try await media(recordID: CKRecord.ID(recordName: id, zoneID: zoneID), in: db)
+    }
+
+    // MARK: - Traditioner
+
+    func traditions(familyId: String) async throws -> [Tradition] {
+        let (db, zoneID) = try await locate(familyId)
+        return try await all(db: db, zoneID: zoneID, type: "Tradition",
+                             keys: ["familyRef", "title", "when", "details", "photos", "captions", "coverIndex", "photo", "audioDuration"])
+        .map { r in
+            Tradition(id: r.recordID.recordName,
+                      title: r["title"] as? String ?? "",
+                      when: r["when"] as? String ?? "",
+                      details: r["details"] as? String ?? "",
+                      photos: Self.photoSet(from: r),
+                      audioDuration: r["audioDuration"] as? Double)
+        }
+        .sorted { $0.title < $1.title }
+    }
+
+    func saveTradition(familyId: String, _ tradition: Tradition, audio: MediaChange) async throws {
+        let (db, zoneID) = try await locate(familyId)
+        let recordID = CKRecord.ID(recordName: tradition.id, zoneID: zoneID)
+        let record: CKRecord
+        if let existing = try? await db.records(for: [recordID], desiredKeys: ["title"])[recordID]?.get() {
+            record = existing
+        } else {
+            record = CKRecord(recordType: "Tradition", recordID: recordID)
+            record["familyRef"] = familyRef(zoneID)
+        }
+        record["title"] = tradition.title.trimmingCharacters(in: .whitespaces) as CKRecordValue
+        record["when"] = tradition.when as CKRecordValue
+        record["details"] = tradition.details as CKRecordValue
+        Self.setPhotos(tradition.photos, on: record)
+        _ = try await persist(record, in: db)
+        try await setMedia(recordID: recordID, in: db, video: .keep, audio: audio)
+    }
+
+    func deleteTradition(familyId: String, id: String) async throws {
+        let (db, zoneID) = try await locate(familyId)
+        _ = try await db.deleteRecord(withID: CKRecord.ID(recordName: id, zoneID: zoneID))
+    }
+
+    func traditionAudio(familyId: String, id: String) async throws -> URL? {
+        let (db, zoneID) = try await locate(familyId)
+        return try await media(recordID: CKRecord.ID(recordName: id, zoneID: zoneID), in: db).audio
     }
 
     // MARK: - Familietræ

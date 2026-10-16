@@ -28,9 +28,16 @@ struct WidgetSnapshot: Codable {
         var date: Date
     }
 
+    struct ChildInfo: Codable, Hashable {
+        var name: String
+        var birthDate: Date?
+        var dueDate: Date?
+    }
+
     var familyName: String = "Vores familie"
     var birthdays: [Birthday] = []
     var due: [Due] = []
+    var children: [ChildInfo] = []   // til "I dag"-kortet (månedsdag, graviditetsuge)
     var memories: [Memory] = []    // kun tekst og dato — widgetten finder selv "På denne dag"
     var updatedAt: Date = Date()
 
