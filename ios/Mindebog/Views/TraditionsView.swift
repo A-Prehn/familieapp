@@ -140,7 +140,10 @@ struct TraditionEditView: View {
                 }
                 Section {
                     MediaField(video: .constant(.keep), audio: $audio, existingAudio: editing?.audioDuration,
-                               showVideo: false, audioLabel: "Optag (fx sangen)")
+                               showVideo: false, audioLabel: "Optag (fx sangen)",
+                               loadExisting: editing.map { t in
+                                   { (video: nil, audio: try? await state.store.traditionAudio(familyId: familyId, id: t.id)) }
+                               })
                 } header: {
                     Text("Lyd")
                 } footer: {

@@ -229,7 +229,10 @@ struct LetterEditView: View {
                 }
                 Section {
                     MediaField(video: $video, audio: .constant(.keep), existingVideo: editing?.videoDuration,
-                               showAudio: false, videoLabel: "Vælg videobrev")
+                               showAudio: false, videoLabel: "Vælg videobrev",
+                               loadExisting: editing.map { l in
+                                   { (video: try? await state.store.letterVideo(childId: child.id, id: l.id), audio: nil) }
+                               })
                 } header: {
                     Text("Videobrev (valgfrit)")
                 } footer: {

@@ -200,8 +200,12 @@ struct MediaField: View {
     var showAudio = true
     var videoLabel = "Vælg video"
     var audioLabel = "Optag lydnote"
+    /// Henter allerede gemt video/lyd fra iCloud, så de kan afspilles i formularen.
+    var loadExisting: (() async -> (video: URL?, audio: URL?))? = nil
 
     @EnvironmentObject private var state: AppState
+    @State private var player: VideoPlayerScreen?
+    @State private var loadingMedia = false
     @State private var videoItem: PhotosPickerItem?
     @State private var paywall: PaywallReason?
     @State private var working = false
@@ -216,7 +220,14 @@ struct MediaField: View {
             if showVideo {
             HStack {
                 if let d = videoDuration {
-                    Label("Video \(MediaFiles.format(d))", systemImage: "play.rectangle")
+                    // Tryk for at se videoen — både en ny optagelse og en, der allerede er gemt.
+                    Button { Task { await playVideo() } } label: {
+                        HStack(spacing: 8) {
+                            Label("Se video \(MediaFiles.format(d))", systemImage: "play.rectangle.fill")
+                            if loadingMedia { ProgressView().controlSize(.small) }
+                        }
+                    }
+                    .disabled(loadingMedia || !canPlayVideo)
                     Spacer()
                     Button("Fjern", role: .destructive) { video = .remove }
                 } else if state.isPremium {
@@ -260,6 +271,15 @@ struct MediaField: View {
                             Label(playback.isPlaying ? "Stop" : "Lydnote \(MediaFiles.format(d))",
                                   systemImage: playback.isPlaying ? "stop.fill" : "play.fill")
                         }
+                    } else if loadExisting != nil {
+                        Button { Task { await playAudio() } } label: {
+                            HStack(spacing: 8) {
+                                Label(playback.isPlaying ? "Stop" : "Lydnote \(MediaFiles.format(d))",
+                                      systemImage: playback.isPlaying ? "stop.fill" : "play.fill")
+                                if loadingMedia { ProgressView().controlSize(.small) }
+                            }
+                        }
+                        .disabled(loadingMedia)
                     } else {
                         Label("Lydnote \(MediaFiles.format(d))", systemImage: "waveform")
                     }
@@ -283,6 +303,7 @@ struct MediaField: View {
             }
         }
         .sheet(item: $paywall) { PaywallView(reason: $0) }
+        .fullScreenCover(item: $player) { $0 }
         .fullScreenCover(isPresented: $recording) {
             VideoRecorder { url in
                 recording = false
@@ -321,6 +342,30 @@ struct MediaField: View {
             return
         }
         await prepareVideo(movie.url)
+    }
+
+    /// En ny video kan altid afspilles; en gemt kun, hvis formularen ved, hvordan den hentes.
+    private var canPlayVideo: Bool {
+        if case .set = video { return true }
+        return loadExisting != nil
+    }
+
+    private func playVideo() async {
+        if case .set(let url, _) = video { player = VideoPlayerScreen(url: url); return }
+        guard let loadExisting else { return }
+        loadingMedia = true
+        defer { loadingMedia = false }
+        if let url = await loadExisting().video { player = VideoPlayerScreen(url: url) }
+        else { message = "Kunne ikke hente videoen. Tjek forbindelsen, og prøv igen." }
+    }
+
+    private func playAudio() async {
+        if playback.isPlaying { playback.stop(); return }
+        guard let loadExisting else { return }
+        loadingMedia = true
+        defer { loadingMedia = false }
+        if let url = await loadExisting().audio { playback.toggle(url: url) }
+        else { message = "Kunne ikke hente lydnoten. Tjek forbindelsen, og prøv igen." }
     }
 
     /// Fælles for video fra Fotos og video optaget med kameraet: tjek længde og komprimér.

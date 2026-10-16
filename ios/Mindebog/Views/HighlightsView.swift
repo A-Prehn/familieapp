@@ -178,7 +178,10 @@ struct AddHighlightView: View {
                 }
                 Section {
                     MediaField(video: $video, audio: $audio,
-                               existingVideo: editing?.videoDuration, existingAudio: editing?.audioDuration)
+                               existingVideo: editing?.videoDuration, existingAudio: editing?.audioDuration,
+                               loadExisting: editing.map { h in
+                                   { (try? await state.store.highlightMedia(childId: childId, id: h.id)) ?? (nil, nil) }
+                               })
                 } header: {
                     Text("Video og lyd")
                 } footer: {

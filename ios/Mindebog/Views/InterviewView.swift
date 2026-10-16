@@ -299,11 +299,14 @@ struct InterviewAnswerEditView: View {
                 Section {
                     MediaField(video: $video, audio: $audio,
                                existingVideo: existing?.videoDuration, existingAudio: existing?.audioDuration,
-                               videoLabel: "Vælg video", audioLabel: "Optag svaret")
+                               videoLabel: "Vælg video", audioLabel: "Optag svaret",
+                               loadExisting: existing.map { a in
+                                   { (try? await state.store.interviewMedia(childId: child.id, id: a.id)) ?? (nil, nil) }
+                               })
                 } header: {
                     Text("Lyd og video")
                 } footer: {
-                    Text("Det sjoveste er at høre stemmen. Optag svaret direkte her, eller vælg en video fra Fotos.")
+                    Text("Det sjoveste er at høre stemmen. Optag lyd eller video direkte her, eller vælg en video fra Fotos. Tryk på en gemt video for at se den.")
                 }
                 if existing != nil && state.canEdit {
                     Section {
