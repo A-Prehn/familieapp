@@ -8,9 +8,12 @@ struct HomeView: View {
     @State private var onThisDay: [RecentMemory] = []
     @State private var recent: [RecentMemory] = []
     @State private var quickAdd: QuickAdd?
-    @State private var chooseChildFor: QuickAdd.Kind?
+    @State private var chooseChildFor: HomeAction?
     @State private var pendingAdd: QuickAdd?
-    @State private var showAddEvent = false
+    @State private var familyAdd: HomeAction?
+    @State private var showActionsEditor = false
+    @State private var noChildMessage: String?
+    @AppStorage(HomeAction.storageKey) private var homeActionsRaw = ""
     @State private var lightbox: LightboxState?
 
     var body: some View {
@@ -51,18 +54,36 @@ struct HomeView: View {
             switch item.kind {
             case .highlight: AddHighlightView(childId: first.id, alsoFor: others, forNames: names)
             case .diary: AddDiaryView(childId: first.id, alsoFor: others, forNames: names)
+            case .monthly: AddGalleryItemView(childId: first.id, alsoFor: others, forNames: names, kind: .monthly)
+            case .belly: AddGalleryItemView(childId: first.id, kind: .belly)
+            case .drawing: AddGalleryItemView(childId: first.id, kind: .drawings, defaultCaption: ChildAge.short(first))
+            case .voice: RecordVoiceView(child: first)
+            default: EmptyView()
             }
         }
-        // Begivenhed hører til hele familien (Fælles) — intet barnevalg.
-        .sheet(isPresented: $showAddEvent, onDismiss: { Task { await load() } }) {
-            AddEventView(familyId: state.familyId ?? "")
+        // Familie-handlinger (Fælles) — intet barnevalg.
+        .sheet(item: $familyAdd, onDismiss: { Task { await load() } }) { action in
+            let familyId = state.familyId ?? ""
+            switch action {
+            case .event: AddEventView(familyId: familyId)
+            case .vacation: AddVacationView(familyId: familyId)
+            case .birthday: AddBirthdayView(familyId: familyId)
+            case .tradition: TraditionEditView(familyId: familyId)
+            default: EmptyView()
+            }
         }
-        // Flere børn: vælg ét eller flere — samme indlæg gemmes for hvert valgt barn.
+        .sheet(isPresented: $showActionsEditor) { HomeActionsEditor() }
+        .alert(noChildMessage ?? "", isPresented: Binding(get: { noChildMessage != nil },
+                                                           set: { if !$0 { noChildMessage = nil } })) {
+            Button("OK", role: .cancel) {}
+        }
+        // Flere børn: vælg ét eller flere (eller ét, hvis handlingen kun gælder ét barn).
         .sheet(item: $chooseChildFor, onDismiss: {
             if let pending = pendingAdd { quickAdd = pending; pendingAdd = nil }
-        }) { kind in
-            ChooseChildrenView(children: children) { selected in
-                pendingAdd = QuickAdd(kind: kind, children: selected)
+        }) { action in
+            ChooseChildrenView(children: children.filter { action.fits($0) }) { selected in
+                let picked = action.allowsSeveral ? selected : Array(selected.prefix(1))
+                if !picked.isEmpty { pendingAdd = QuickAdd(kind: action, children: picked) }
                 chooseChildFor = nil
             }
             .presentationDetents([.medium, .large])
@@ -104,32 +125,46 @@ struct HomeView: View {
     }
 
     private var quickAddSection: some View {
-        HStack(spacing: 10) {
-            quickButton("Højdepunkt", "star", Theme.rose, .highlight)
-            quickButton("Dagbog", "book", Theme.neutralDark, .diary)
-            quickButton("Begivenhed", "calendar.badge.plus", Theme.tint, nil)
+        VStack(spacing: 8) {
+            HStack {
+                SectionLabel("Hurtigt")
+                Button { showActionsEditor = true } label: {
+                    Text("Redigér").font(.caption.weight(.semibold))
+                }
+            }
+            HStack(spacing: 10) {
+                ForEach(HomeAction.load(homeActionsRaw)) { quickButton($0) }
+            }
         }
     }
 
-    /// kind = nil → ny begivenhed under Fælles; ellers et indlæg for ét eller flere børn.
-    private func quickButton(_ title: String, _ symbol: String, _ color: Color, _ kind: QuickAdd.Kind?) -> some View {
-        Button {
-            guard let kind else { showAddEvent = true; return }
-            if children.count == 1, let only = children.first {
-                quickAdd = QuickAdd(kind: kind, children: [only])
-            } else {
-                chooseChildFor = kind
-            }
-        } label: {
+    private func quickButton(_ action: HomeAction) -> some View {
+        Button { start(action) } label: {
             VStack(spacing: 6) {
-                Image(systemName: symbol).font(.system(size: 18)).foregroundStyle(color)
-                Text(title).font(.caption).foregroundStyle(Theme.text)
+                Image(systemName: action.symbol).font(.system(size: 18)).foregroundStyle(action.color)
+                Text(action.title).font(.caption).foregroundStyle(Theme.text)
+                    .lineLimit(1).minimumScaleFactor(0.8)
             }
             .frame(maxWidth: .infinity).padding(.vertical, 12)
             .background(Theme.card).clipShape(RoundedRectangle(cornerRadius: 12))
             .overlay(RoundedRectangle(cornerRadius: 12).stroke(Theme.sep))
         }
         .buttonStyle(.plain)
+        // Hold fingeren på en knap for at redigere, som på iPhonens hjemmeskærm.
+        .contextMenu { Button { showActionsEditor = true } label: { Label("Redigér hurtigknapper", systemImage: "slider.horizontal.3") } }
+    }
+
+    /// Familie-handlinger åbner deres formular direkte; barne-handlinger spørger om barn, hvis der er flere.
+    private func start(_ action: HomeAction) {
+        guard action.isForChild else { familyAdd = action; return }
+        let candidates = children.filter { action.fits($0) }
+        if candidates.isEmpty {
+            noChildMessage = action == .belly ? "Der er ikke noget barn på vej." : "Tilføj et barn under Familie først."
+        } else if candidates.count == 1 {
+            quickAdd = QuickAdd(kind: action, children: candidates)
+        } else {
+            chooseChildFor = action
+        }
     }
 
     private func memorySection(_ title: String, _ items: [RecentMemory],
@@ -295,17 +330,7 @@ struct RecentMemory: Identifiable, Codable {
 }
 
 struct QuickAdd: Identifiable {
-    enum Kind: String, Identifiable {
-        case highlight, diary
-        var id: String { rawValue }
-        var title: String {
-            switch self {
-            case .highlight: return "Højdepunkt"
-            case .diary: return "Dagbog"
-            }
-        }
-    }
-    let kind: Kind
+    let kind: HomeAction
     let children: [Child]   // mindst ét
     var id: String { "\(kind)_" + children.map(\.id).joined(separator: "_") }
 }
