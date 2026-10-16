@@ -265,3 +265,17 @@ struct Tradition: Identifiable, Hashable, Codable {
     var photo: Data? { photos.coverPhoto }
 }
 
+
+/// En person i den delte familie og deres adgang (til "Familie og adgang").
+struct FamilyParticipant: Identifiable, Hashable {
+    enum Access { case owner, editor, viewer
+        var rank: Int { switch self { case .owner: 0; case .editor: 1; case .viewer: 2 } }
+        var label: String { switch self { case .owner: "Ejer"; case .editor: "Kan redigere"; case .viewer: "Kun visning" } }
+    }
+    let id: String
+    let name: String
+    let contact: String     // mail/telefon, hvis det ikke allerede er navnet
+    let access: Access
+    let pending: Bool       // inviteret, men har ikke åbnet invitationen endnu
+    let isMe: Bool
+}

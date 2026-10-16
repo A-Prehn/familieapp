@@ -1,0 +1,193 @@
+import SwiftUI
+
+/// "Familie og adgang": hvem der er med, hvad de må, og to tydelige måder at invitere på.
+/// Erstatter Apples generelle delingsmenu, som var svær at forstå.
+struct FamilyAccessView: View {
+    @EnvironmentObject var state: AppState
+    let familyName: String
+
+    @State private var people: [FamilyParticipant] = []
+    @State private var isOwner = false
+    @State private var busy = false
+    @State private var loaded = false
+    @State private var error: String?
+    @State private var paywall: PaywallReason?
+    @State private var removing: FamilyParticipant?
+
+    private var cloud: CloudKitStore? { state.store as? CloudKitStore }
+
+    var body: some View {
+        List {
+            Section {
+                if !loaded {
+                    HStack { Spacer(); ProgressView(); Spacer() }
+                } else if people.isEmpty {
+                    Text("Familien er ikke delt med nogen endnu.").font(.footnote).foregroundStyle(Theme.muted)
+                }
+                ForEach(people) { person in row(person) }
+            } header: {
+                Text("Hvem er med")
+            } footer: {
+                if isOwner && people.count > 1 {
+                    Text("Tryk på en person for at ændre deres adgang eller fjerne dem.")
+                }
+            }
+
+            if isOwner {
+                Section {
+                    Button { Task { await invite(.edit) } } label: {
+                        inviteLabel("Invitér til at redigere", "Fx din partner. Kan lægge op, ændre og slette.",
+                                    "person.badge.plus", Theme.tint)
+                    }
+                    Button { Task { await invite(.view) } } label: {
+                        inviteLabel("Invitér med kun visning", "Fx bedsteforældre. Kan se alt, men ikke ændre noget.",
+                                    "eye", Theme.green)
+                    }
+                } header: {
+                    Text("Invitér")
+                } footer: {
+                    Text("Invitationen sendes via Beskeder eller mail. Personen skal have en iPhone og trykke på linket for at komme med.")
+                }
+            } else if loaded {
+                Section {
+                    Label(state.canEdit ? "Du kan redigere i familien." : "Du har kun visning af familien.",
+                          systemImage: state.canEdit ? "pencil" : "eye")
+                        .font(.footnote).foregroundStyle(Theme.neutralDark)
+                } footer: {
+                    Text("Kun den, der har oprettet familien, kan invitere og ændre adgang.")
+                }
+            }
+
+            if let error {
+                Section { Text(error).font(.footnote).foregroundStyle(Theme.rose) }
+            }
+        }
+        .navigationTitle("Familie og adgang")
+        .navigationBarTitleDisplayMode(.inline)
+        .overlay { if busy { ProgressView().controlSize(.large) } }
+        .sheet(item: $paywall) { PaywallView(reason: $0) }
+        .confirmationDialog(removing.map { "Fjern \($0.name) fra familien?" } ?? "",
+                            isPresented: Binding(get: { removing != nil }, set: { if !$0 { removing = nil } }),
+                            titleVisibility: .visible) {
+            Button("Fjern", role: .destructive) {
+                if let p = removing { Task { await remove(p) } }
+            }
+        } message: {
+            Text("De kan ikke længere se familien. Det, de har lagt op, bliver liggende.")
+        }
+        .refreshable { await load() }
+        .task { await load() }
+    }
+
+    // MARK: Rækker
+
+    @ViewBuilder
+    private func row(_ p: FamilyParticipant) -> some View {
+        let content = HStack(spacing: 12) {
+            Circle().fill(color(p.access).opacity(0.15)).frame(width: 36, height: 36)
+                .overlay(Text(initials(p.name)).font(.system(size: 13, weight: .semibold)).foregroundStyle(color(p.access)))
+            VStack(alignment: .leading, spacing: 2) {
+                Text(p.name + (p.isMe ? " (dig)" : "")).font(.subheadline.weight(.medium)).foregroundStyle(Theme.text)
+                HStack(spacing: 6) {
+                    Label(p.access.label, systemImage: icon(p.access))
+                    if p.pending { Text("· Inviteret") }
+                }
+                .font(.caption).foregroundStyle(Theme.muted)
+            }
+            Spacer()
+            if isOwner && p.access != .owner {
+                Image(systemName: "chevron.up.chevron.down").font(.caption).foregroundStyle(Theme.muted)
+            }
+        }
+
+        if isOwner && p.access != .owner {
+            Menu {
+                Button { Task { await setAccess(p, readOnly: false) } } label: {
+                    Label("Kan redigere", systemImage: p.access == .editor ? "checkmark" : "pencil")
+                }
+                Button { Task { await setAccess(p, readOnly: true) } } label: {
+                    Label("Kun visning", systemImage: p.access == .viewer ? "checkmark" : "eye")
+                }
+                Divider()
+                Button(role: .destructive) { removing = p } label: {
+                    Label("Fjern fra familien", systemImage: "person.badge.minus")
+                }
+            } label: { content }
+        } else {
+            content
+        }
+    }
+
+    private func inviteLabel(_ title: String, _ detail: String, _ symbol: String, _ tint: Color) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: symbol).font(.system(size: 17)).foregroundStyle(tint).frame(width: 28)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title).font(.subheadline.weight(.semibold)).foregroundStyle(Theme.text)
+                Text(detail).font(.caption).foregroundStyle(Theme.muted)
+            }
+        }
+        .padding(.vertical, 2)
+    }
+
+    private func color(_ a: FamilyParticipant.Access) -> Color {
+        switch a { case .owner: Theme.rose; case .editor: Theme.tint; case .viewer: Theme.green }
+    }
+    private func icon(_ a: FamilyParticipant.Access) -> String {
+        switch a { case .owner: "crown"; case .editor: "pencil"; case .viewer: "eye" }
+    }
+    private func initials(_ name: String) -> String {
+        let letters = name.split(separator: " ").prefix(2).compactMap(\.first).map(String.init).joined()
+        return letters.isEmpty ? "?" : letters.uppercased()
+    }
+
+    // MARK: Handlinger
+
+    private func load() async {
+        guard let cloud, let familyId = state.familyId else { loaded = true; return }
+        isOwner = await cloud.isShareOwner(familyId: familyId)
+        people = (try? await cloud.participants(familyId: familyId)) ?? []
+        loaded = true
+    }
+
+    private func invite(_ kind: CloudSharing.Invite) async {
+        // Deling er Premium — men en familie, der allerede er delt, skal ikke stoppes.
+        if !state.isPremium && people.count <= 1 { paywall = .sharing; return }
+        guard let cloud, let familyId = state.familyId else { return }
+        busy = true
+        error = nil
+        defer { busy = false }
+        do {
+            let (share, container) = try await cloud.shareForSharing(familyId: familyId)
+            CloudSharing.present(share: share, container: container, invite: kind,
+                                 title: familyName.isEmpty ? "Vores familie" : familyName) {
+                Task { await load() }
+            }
+        } catch {
+            self.error = "Kunne ikke åbne invitationen: \(error.localizedDescription)"
+        }
+    }
+
+    private func setAccess(_ p: FamilyParticipant, readOnly: Bool) async {
+        guard let cloud, let familyId = state.familyId else { return }
+        busy = true
+        defer { busy = false }
+        do {
+            try await cloud.setParticipant(familyId: familyId, id: p.id, readOnly: readOnly)
+            await load()
+        } catch {
+            self.error = "Kunne ikke ændre adgangen: \(error.localizedDescription)"
+        }
+    }
+
+    private func remove(_ p: FamilyParticipant) async {
+        guard let cloud, let familyId = state.familyId else { return }
+        busy = true
+        defer { busy = false; removing = nil }
+        do {
+            try await cloud.removeParticipant(familyId: familyId, id: p.id)
+            await load()
+        } catch {
+            self.error = "Kunne ikke fjerne \(p.name): \(error.localizedDescription)"
+        }
+    }
+}

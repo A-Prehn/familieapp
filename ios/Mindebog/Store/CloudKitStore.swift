@@ -167,11 +167,20 @@ actor CloudKitStore: Store {
     /// inviterer personer og vælger "kun inviterede" eller "alle med linket".
     func shareForSharing(familyId: String) async throws -> (CKShare, CKContainer) {
         let (db, zoneID) = try await locate(familyId)
+        // Navnet folk ser i invitationen: familiens navn (ældre delinger hed "Mindebog").
+        let title = shareTitle((try? await familyRecord(db: db, zoneID: zoneID))?["name"] as? String)
         if let existing = try? await fetchShare(db: db, zoneID: zoneID) {
+            if db === privateDB, existing[CKShare.SystemFieldKey.title] as? String != title {
+                existing[CKShare.SystemFieldKey.title] = title as CKRecordValue
+                if let (saved, _) = try? await db.modifyRecords(saving: [existing], deleting: []),
+                   let updated = try? saved[existing.recordID]?.get() as? CKShare {
+                    return (updated, container)
+                }
+            }
             return (existing, container)
         }
         let share = CKShare(recordZoneID: zoneID)
-        share[CKShare.SystemFieldKey.title] = "Vores familie" as CKRecordValue
+        share[CKShare.SystemFieldKey.title] = title as CKRecordValue
         share.publicPermission = .none
         let (saveResults, _) = try await db.modifyRecords(saving: [share], deleting: [])
         guard let saved = try saveResults[share.recordID]?.get() as? CKShare else { throw StoreError.notFound }
@@ -1335,6 +1344,77 @@ actor CloudKitStore: Store {
 
     private func familyRecord(db: CKDatabase, zoneID: CKRecordZone.ID) async throws -> CKRecord {
         try await db.record(for: CKRecord.ID(recordName: "family", zoneID: zoneID))
+    }
+
+    private func shareTitle(_ familyName: String?) -> String {
+        let name = (familyName ?? "").trimmingCharacters(in: .whitespaces)
+        return name.isEmpty || name == "Vores familie" ? "Vores familie" : "Vores familie · \(name)"
+    }
+
+    // MARK: - Adgang (deltagere i delingen)
+
+    /// Alle i den delte familie med deres adgang — til "Familie og adgang".
+    func participants(familyId: String) async throws -> [FamilyParticipant] {
+        let (db, zoneID) = try await locate(familyId)
+        guard let share = try? await fetchShare(db: db, zoneID: zoneID) else { return [] }
+        let me = share.currentUserParticipant
+        let myId = UserDefaults.standard.string(forKey: "mindebog.userId")
+        let myName = UserDefaults.standard.string(forKey: nameKey)
+        var savedNames: [String: String] = [:]
+        for r in (try? await all(db: db, zoneID: zoneID, type: "Member")) ?? [] {
+            if let uid = r["userId"] as? String, let n = r["name"] as? String, !n.isEmpty { savedNames[uid] = n }
+        }
+        return share.participants.map { p in
+            let identity = p.userIdentity
+            let uid = (p == me ? myId : nil) ?? identity.userRecordID?.recordName
+            var name = uid.flatMap { savedNames[$0] } ?? ""
+            if name.isEmpty {
+                name = identity.nameComponents.map { PersonNameComponentsFormatter.localizedString(from: $0, style: .default) } ?? ""
+            }
+            if p == me, name.isEmpty, let myName, myName != "Forælder" { name = myName }
+            let contact = identity.lookupInfo?.emailAddress ?? identity.lookupInfo?.phoneNumber ?? ""
+            if name.isEmpty { name = contact.isEmpty ? (p.role == .owner ? "Ejer" : "Inviteret") : contact }
+            let access: FamilyParticipant.Access = p.role == .owner ? .owner : (p.permission == .readOnly ? .viewer : .editor)
+            return FamilyParticipant(id: Self.participantKey(p), name: name, contact: contact == name ? "" : contact,
+                                     access: access, pending: p.acceptanceStatus == .pending, isMe: p == me)
+        }
+        .sorted { ($0.access.rank, $0.name) < ($1.access.rank, $1.name) }
+    }
+
+    /// Kun ejeren kan ændre adgang og fjerne folk.
+    func isShareOwner(familyId: String) async -> Bool {
+        guard let (db, _) = try? await locate(familyId) else { return false }
+        return db === privateDB
+    }
+
+    func setParticipant(familyId: String, id: String, readOnly: Bool) async throws {
+        try await changeShare(familyId: familyId) { share in
+            guard let p = share.participants.first(where: { Self.participantKey($0) == id }), p.role != .owner else { return }
+            p.permission = readOnly ? .readOnly : .readWrite
+        }
+    }
+
+    func removeParticipant(familyId: String, id: String) async throws {
+        try await changeShare(familyId: familyId) { share in
+            guard let p = share.participants.first(where: { Self.participantKey($0) == id }), p.role != .owner else { return }
+            share.removeParticipant(p)
+        }
+    }
+
+    private func changeShare(familyId: String, _ change: (CKShare) -> Void) async throws {
+        let (db, zoneID) = try await locate(familyId)
+        let share = try await fetchShare(db: db, zoneID: zoneID)
+        change(share)
+        let (saved, _) = try await db.modifyRecords(saving: [share], deleting: [], savePolicy: .changedKeys)
+        _ = try saved[share.recordID]?.get()
+    }
+
+    private static func participantKey(_ p: CKShare.Participant) -> String {
+        let identity = p.userIdentity
+        return identity.userRecordID?.recordName
+            ?? identity.lookupInfo?.emailAddress
+            ?? identity.lookupInfo?.phoneNumber
+            ?? "\(p.hashValue)"
     }
 
     private func fetchShare(db: CKDatabase, zoneID: CKRecordZone.ID) async throws -> CKShare {

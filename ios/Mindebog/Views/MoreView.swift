@@ -30,37 +30,32 @@ struct MoreView: View {
 
     var body: some View {
         List {
-            Section("Familie") {
-                Text(family?.name ?? "—").font(.headline)
-                ForEach(members) { m in
-                    Label(m.name + (m.id == state.user?.id && !m.name.contains("dig") ? " (dig)" : ""), systemImage: "person")
-                }
-            }
-
-            Section("Deling med familien") {
+            Section {
                 if state.usingCloud {
-                    Button { Task { await openSharing() } } label: {
-                        Label(busy ? "Åbner…" : "Invitér og administrér deling", systemImage: "person.badge.plus")
-                    }
-                    .disabled(busy)
-                    if shareIsPublic, let invite, let url = URL(string: invite) {
-                        ShareLink(item: url) {
-                            Label("Send delelink", systemImage: "square.and.arrow.up")
+                    NavigationLink {
+                        FamilyAccessView(familyName: family?.name ?? "")
+                    } label: {
+                        HStack(spacing: 12) {
+                            Image(systemName: "person.2.fill").foregroundStyle(Theme.tint).frame(width: 28)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(family?.name ?? "Familie og adgang").font(.headline)
+                                Text(membersSummary).font(.caption).foregroundStyle(Theme.muted)
+                            }
                         }
-                        Button { showQR = true } label: {
-                            Label("Vis QR-kode", systemImage: "qrcode")
-                        }
-                        Text("Alle med linket kan deltage. Lad partneren scanne QR-koden med iPhonens kamera.")
-                            .font(.footnote).foregroundStyle(Theme.muted)
-                    } else {
-                        Text("Invitér partneren via Beskeder eller mail — så kan kun de åbne linket. Vil du bruge QR-kode, så vælg \"Alle med linket\" under delingsindstillinger.")
-                            .font(.footnote).foregroundStyle(Theme.muted)
+                        .padding(.vertical, 2)
                     }
-                    Text("Bedsteforældre og familie: invitér dem, og vælg \"Kun visning\" under Tilladelser — så kan de se alt, men ikke ændre noget.")
-                        .font(.footnote).foregroundStyle(Theme.muted)
-                    if !state.canEdit {
-                        Label("Du har kun visning af denne familie.", systemImage: "eye")
-                            .font(.footnote).foregroundStyle(Theme.neutralDark)
+                    if state.canEdit {
+                        DisclosureGroup("Flere muligheder") {
+                            Button { Task { await openSharing() } } label: {
+                                Label(busy ? "Åbner…" : "Apples delingsindstillinger", systemImage: "gearshape")
+                            }
+                            .disabled(busy)
+                            if shareIsPublic, let invite, let url = URL(string: invite) {
+                                ShareLink(item: url) { Label("Send delelink", systemImage: "square.and.arrow.up") }
+                                Button { showQR = true } label: { Label("Vis QR-kode", systemImage: "qrcode") }
+                            }
+                        }
+                        .font(.subheadline)
                     }
                 } else if let invite {
                     HStack {
@@ -74,6 +69,13 @@ struct MoreView: View {
                 }
                 if let err = state.errorMessage {
                     Text(err).font(.footnote).foregroundStyle(Theme.rose)
+                }
+            } header: {
+                Text("Familie og adgang")
+            } footer: {
+                if state.usingCloud {
+                    Text(state.canEdit ? "Se hvem der er med, invitér partneren eller bedsteforældre, og vælg hvem der kun må se."
+                                       : "Du har kun visning af denne familie.")
                 }
             }
 
@@ -268,6 +270,15 @@ struct MoreView: View {
     }
 
     private func myBirthdayKey(_ familyId: String) -> String { "mindebog.myBirthday.\(familyId)" }
+
+    /// "3 personer · 1 med kun visning"
+    private var membersSummary: String {
+        let viewers = members.filter { $0.name.contains("kun visning") }.count
+        let count = members.count
+        var text = count == 1 ? "Kun dig" : "\(count) personer"
+        if viewers > 0 { text += " · \(viewers) med kun visning" }
+        return text
+    }
 
     private var premiumText: String {
         if purchases.ownsLifetime { return "Premium for altid" }
