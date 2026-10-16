@@ -245,3 +245,24 @@ DEFINE SCHEMA
         GRANT CREATE TO "_icloud",
         GRANT READ TO "_world"
     );
+
+    RECORD TYPE Person (
+        "___createTime" TIMESTAMP,
+        "___createdBy"  REFERENCE,
+        "___etag"       STRING,
+        "___modTime"    TIMESTAMP,
+        "___modifiedBy" REFERENCE,
+        "___recordID"   REFERENCE QUERYABLE,
+        familyRef       REFERENCE QUERYABLE,
+        name            STRING,
+        birthDate       TIMESTAMP,
+        deathDate       TIMESTAMP,
+        role            STRING,
+        photo           ASSET,
+        parentIds       LIST<STRING>,
+        partnerIds      LIST<STRING>,
+        childId         STRING,
+        GRANT WRITE TO "_creator",
+        GRANT CREATE TO "_icloud",
+        GRANT READ TO "_world"
+    );

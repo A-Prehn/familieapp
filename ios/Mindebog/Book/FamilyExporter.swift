@@ -85,6 +85,36 @@ final class FamilyExport: ObservableObject {
         try write(bdayText, to: familyDir.appendingPathComponent("Fødselsdage.txt"))
         json["fødselsdage"] = birthdays.map { ["navn": $0.name, "dato": Fmt.iso($0.date)] }
 
+        step("Familietræ…")
+        let persons = (try? await store.persons(familyId: familyId)) ?? []
+        if !persons.isEmpty {
+            let byId = Dictionary(persons.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
+            let treeDir = familyDir.appendingPathComponent("Familietræ", isDirectory: true)
+            var treeText = "FAMILIETRÆ\n\n"
+            var treeJSON: [[String: Any]] = []
+            for p in persons.sorted(by: FamilyTreeLayout.olderFirst) {
+                let linked = p.childId.flatMap { id in children.first { $0.id == id } }
+                let name = linked?.name ?? p.name
+                let birth = linked?.birthDate ?? p.birthDate
+                var line = name
+                if !p.role.isEmpty { line += " (\(p.role))" }
+                if let b = birth { line += ", født \(Fmt.long(b))" }
+                if let d = p.deathDate { line += ", død \(Fmt.long(d))" }
+                let parents = p.parentIds.compactMap { byId[$0]?.name }
+                let partners = p.partnerIds.compactMap { byId[$0]?.name }
+                if !parents.isEmpty { line += "\n  Forældre: " + parents.joined(separator: ", ") }
+                if !partners.isEmpty { line += "\n  Partner: " + partners.joined(separator: ", ") }
+                treeText += line + "\n\n"
+                var files: [String] = []
+                if let photo = linked?.photo ?? p.photo { files.append(try writePhoto(photo, to: treeDir, name: Self.safe(name))) }
+                treeJSON.append(["id": p.id, "navn": name, "rolle": p.role, "født": birth.map(Fmt.iso) as Any,
+                                 "død": p.deathDate.map(Fmt.iso) as Any, "forældre": p.parentIds,
+                                 "partnere": p.partnerIds, "filer": files])
+            }
+            try write(treeText, to: treeDir.appendingPathComponent("Familietræ.txt"))
+            json["familietræ"] = treeJSON
+        }
+
         step("Begivenheder…")
         let events = (try? await store.events(familyId: familyId)) ?? []
         let eventsDir = familyDir.appendingPathComponent("Begivenheder", isDirectory: true)

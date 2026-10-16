@@ -211,3 +211,21 @@ struct CustomBirthday: Identifiable, Hashable, Codable {
     var date: Date
     var emoji: String
 }
+
+/// En person i familietræet. Relationer gemmes på personen selv:
+/// `parentIds` (nul, én eller to forældre) og `partnerIds` (nuværende og tidligere partnere).
+/// Det giver plads til sammenbragte familier: halvsøskende hænger under hvert sit par,
+/// og et barn med kun én forælder i træet hænger under den forælder.
+/// `childId` kobler personen til et af familiens børn, så navn og billede følger med.
+struct Person: Identifiable, Hashable, Codable {
+    let id: String
+    var name: String
+    var birthDate: Date? = nil
+    var deathDate: Date? = nil
+    /// Kort rolle/beskrivelse, fx "Mormor" eller "Farfar".
+    var role: String = ""
+    var photo: Data? = nil
+    var parentIds: [String] = []
+    var partnerIds: [String] = []
+    var childId: String? = nil
+}

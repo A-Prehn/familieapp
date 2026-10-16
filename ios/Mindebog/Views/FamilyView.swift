@@ -7,6 +7,7 @@ struct FamilyView: View {
         case events = "Begivenheder"
         case vacations = "Ferier"
         case birthdays = "Fødselsdage"
+        case tree = "Stamtræ"
         var id: String { rawValue }
     }
 
@@ -15,6 +16,8 @@ struct FamilyView: View {
     @State private var vacations: [Vacation] = []
     @State private var children: [Child] = []
     @State private var customBirthdays: [CustomBirthday] = []
+    @State private var persons: [Person] = []
+    @State private var editingPerson: Person?
     @State private var activeSheet: Tab?
     @State private var editingEvent: FamilyEvent?
     @State private var editingVacation: Vacation?
@@ -33,6 +36,8 @@ struct FamilyView: View {
                 case .events: eventsList
                 case .vacations: vacationsList
                 case .birthdays: birthdaysList
+                case .tree: FamilyTreeView(persons: persons, children: children,
+                                           onEdit: { editingPerson = $0 }, onAdd: { activeSheet = .tree })
                 }
             }
             .padding(16)
@@ -50,6 +55,7 @@ struct FamilyView: View {
             case .events: AddEventView(familyId: state.familyId ?? "")
             case .vacations: AddVacationView(familyId: state.familyId ?? "")
             case .birthdays: AddBirthdayView(familyId: state.familyId ?? "")
+            case .tree: PersonEditView(familyId: state.familyId ?? "", persons: persons, children: children)
             }
         }
         .sheet(item: $editingEvent, onDismiss: { Task { await load() } }) { event in
@@ -60,6 +66,9 @@ struct FamilyView: View {
         }
         .sheet(item: $editingBirthday, onDismiss: { Task { await load() } }) { birthday in
             AddBirthdayView(familyId: state.familyId ?? "", editing: birthday)
+        }
+        .sheet(item: $editingPerson, onDismiss: { Task { await load() } }) { person in
+            PersonEditView(familyId: state.familyId ?? "", persons: persons, children: children, editing: person)
         }
         .fullScreenCover(item: $lightbox) { LightboxView(state: $0) }
         .refreshable { await load() }
@@ -246,6 +255,7 @@ struct FamilyView: View {
         var vacations: [Vacation]
         var children: [Child]
         var birthdays: [CustomBirthday]
+        var persons: [Person] = []
     }
 
     private func load() async {
@@ -258,13 +268,15 @@ struct FamilyView: View {
             children = cached.children
             ChildPalette.update(children)
             customBirthdays = cached.birthdays
+            persons = cached.persons
         }
         // Behold det viste ved netværksfejl i stedet for at tømme listerne.
         if let v = try? await state.store.events(familyId: familyId) { events = v }
         if let v = try? await state.store.vacations(familyId: familyId) { vacations = v }
         if let v = try? await state.store.children(familyId: familyId) { children = v; ChildPalette.update(v) }
         if let v = try? await state.store.birthdays(familyId: familyId) { customBirthdays = v }
-        ScreenCache.save(Cached(events: events, vacations: vacations, children: children, birthdays: customBirthdays),
+        if let v = try? await state.store.persons(familyId: familyId) { persons = v }
+        ScreenCache.save(Cached(events: events, vacations: vacations, children: children, birthdays: customBirthdays, persons: persons),
                          key: cacheKey)
     }
 }

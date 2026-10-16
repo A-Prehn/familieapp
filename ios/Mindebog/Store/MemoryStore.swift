@@ -17,6 +17,7 @@ actor MemoryStore: Store {
     private var eventsByFamily: [String: [FamilyEvent]] = [:]
     private var vacationsByFamily: [String: [Vacation]] = [:]
     private var birthdaysByFamily: [String: [CustomBirthday]] = [:]
+    private var personsByFamily: [String: [Person]] = [:]
 
     // MARK: Auth
     func signIn(name: String) async throws -> AppUser {
@@ -384,5 +385,20 @@ actor MemoryStore: Store {
 
     func deleteBirthday(familyId: String, id: String) async throws {
         birthdaysByFamily[familyId]?.removeAll { $0.id == id }
+    }
+
+    // MARK: Familietræ
+    func persons(familyId: String) async throws -> [Person] {
+        personsByFamily[familyId] ?? []
+    }
+
+    func savePerson(familyId: String, _ person: Person) async throws {
+        var list = personsByFamily[familyId] ?? []
+        if let i = list.firstIndex(where: { $0.id == person.id }) { list[i] = person } else { list.append(person) }
+        personsByFamily[familyId] = list
+    }
+
+    func deletePerson(familyId: String, id: String) async throws {
+        personsByFamily[familyId]?.removeAll { $0.id == id }
     }
 }

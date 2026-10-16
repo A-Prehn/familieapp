@@ -83,6 +83,11 @@ protocol Store {
     func addBirthday(familyId: String, name: String, date: Date, emoji: String) async throws -> CustomBirthday
     func updateBirthday(familyId: String, _ birthday: CustomBirthday) async throws
     func deleteBirthday(familyId: String, id: String) async throws
+
+    // Familietræ
+    func persons(familyId: String) async throws -> [Person]
+    func savePerson(familyId: String, _ person: Person) async throws   // opret eller opdatér
+    func deletePerson(familyId: String, id: String) async throws
 }
 
 enum StoreError: LocalizedError {

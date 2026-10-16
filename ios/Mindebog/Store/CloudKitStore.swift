@@ -770,6 +770,49 @@ actor CloudKitStore: Store {
         _ = try await db.deleteRecord(withID: CKRecord.ID(recordName: id, zoneID: zoneID))
     }
 
+    // MARK: - Familietræ
+
+    func persons(familyId: String) async throws -> [Person] {
+        let (db, zoneID) = try await locate(familyId)
+        return try await all(db: db, zoneID: zoneID, type: "Person").map { r in
+            Person(id: r.recordID.recordName,
+                   name: r["name"] as? String ?? "",
+                   birthDate: r["birthDate"] as? Date,
+                   deathDate: r["deathDate"] as? Date,
+                   role: r["role"] as? String ?? "",
+                   photo: Self.assetData(r["photo"]),
+                   parentIds: r["parentIds"] as? [String] ?? [],
+                   partnerIds: r["partnerIds"] as? [String] ?? [],
+                   childId: r["childId"] as? String)
+        }
+    }
+
+    func savePerson(familyId: String, _ person: Person) async throws {
+        let (db, zoneID) = try await locate(familyId)
+        let recordID = CKRecord.ID(recordName: person.id, zoneID: zoneID)
+        let record: CKRecord
+        if let existing = try? await db.record(for: recordID) {
+            record = existing
+        } else {
+            record = CKRecord(recordType: "Person", recordID: recordID)
+            record["familyRef"] = familyRef(zoneID)
+        }
+        record["name"] = person.name.trimmingCharacters(in: .whitespaces) as CKRecordValue
+        record["birthDate"] = person.birthDate as CKRecordValue?
+        record["deathDate"] = person.deathDate as CKRecordValue?
+        record["role"] = person.role as CKRecordValue
+        record["photo"] = person.photo.flatMap { Self.asset(from: $0) }
+        record["parentIds"] = person.parentIds.isEmpty ? nil : person.parentIds as CKRecordValue
+        record["partnerIds"] = person.partnerIds.isEmpty ? nil : person.partnerIds as CKRecordValue
+        record["childId"] = person.childId as CKRecordValue?
+        _ = try await persist(record, in: db)
+    }
+
+    func deletePerson(familyId: String, id: String) async throws {
+        let (db, zoneID) = try await locate(familyId)
+        _ = try await db.deleteRecord(withID: CKRecord.ID(recordName: id, zoneID: zoneID))
+    }
+
     // MARK: - Hjælpere
 
     // Zone-placeringer gemmes på enheden, så opstart ikke skal slå alle zoner op
