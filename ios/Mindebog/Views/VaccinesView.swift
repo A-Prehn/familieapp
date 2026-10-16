@@ -29,6 +29,9 @@ struct VaccinesView: View {
     let child: Child
     @State private var given: [String: Date] = [:]
     @State private var editing: VaccineDef?
+    @State private var custom: [CustomVaccine] = []
+    @State private var editingCustom: CustomVaccine?
+    @State private var addingCustom = false
 
     var body: some View {
         List {
@@ -36,8 +39,27 @@ struct VaccinesView: View {
                 ForEach(VaccineProgram.all) { vaccine in
                     row(vaccine)
                 }
+            } header: {
+                Text("Børnevaccinationsprogrammet")
             } footer: {
                 Text("Efter Sundhedsstyrelsens børnevaccinationsprogram. Tidspunkterne er vejledende — aftal altid med jeres egen læge.")
+            }
+
+            Section {
+                ForEach(custom) { v in
+                    customRow(v)
+                }
+                if state.canEdit {
+                    Button { addingCustom = true } label: {
+                        Label("Tilføj vaccine", systemImage: "plus.circle")
+                    }
+                }
+            } header: {
+                Text("Andre vacciner")
+            } footer: {
+                if custom.isEmpty {
+                    Text("Fx hepatitis A/B, rotavirus, influenza eller rejsevacciner.")
+                }
             }
         }
         .scrollContentBackground(.hidden)
@@ -47,6 +69,12 @@ struct VaccinesView: View {
         .sheet(item: $editing, onDismiss: { Task { await load() } }) { vaccine in
             VaccineEditView(child: child, vaccine: vaccine, given: given[vaccine.key])
                 .presentationDetents([.medium])
+        }
+        .sheet(item: $editingCustom, onDismiss: { Task { await load() } }) { v in
+            CustomVaccineEditView(child: child, existing: v)
+        }
+        .sheet(isPresented: $addingCustom, onDismiss: { Task { await load() } }) {
+            CustomVaccineEditView(child: child, existing: nil)
         }
         .refreshable { await load() }
         .task { await load() }
@@ -77,6 +105,25 @@ struct VaccinesView: View {
         .onTapGesture { if state.canEdit { editing = v } }
     }
 
+    private func customRow(_ v: CustomVaccine) -> some View {
+        HStack(spacing: 14) {
+            Image(systemName: "checkmark.circle.fill")
+                .font(.title3)
+                .foregroundStyle(Theme.green)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(v.name).font(.subheadline.weight(.semibold))
+                if !v.note.isEmpty {
+                    Text(v.note).font(.footnote).foregroundStyle(Theme.muted)
+                }
+                Text("Givet \(Fmt.long(v.date))").font(.caption).foregroundStyle(Theme.green)
+            }
+            Spacer()
+        }
+        .padding(.vertical, 4)
+        .contentShape(Rectangle())
+        .onTapGesture { if state.canEdit { editingCustom = v } }
+    }
+
     private func load() async {
         let ms = (try? await state.store.milestones(childId: child.id)) ?? [:]
         var out: [String: Date] = [:]
@@ -84,6 +131,11 @@ struct VaccinesView: View {
             if let value = ms[v.key]?.value, let date = Fmt.parseIso(value) { out[v.key] = date }
         }
         given = out
+        custom = ms.compactMap { key, entry in
+            guard key.hasPrefix(CustomVaccine.prefix), let value = entry.value else { return nil }
+            return CustomVaccine.decode(value)
+        }
+        .sorted { $0.date > $1.date }
     }
 }
 
@@ -129,6 +181,108 @@ struct VaccineEditView: View {
         await performSave(saving: $saving, errorMessage: $saveError, dismiss: dismiss) {
             try await state.store.setMilestone(childId: child.id, key: vaccine.key,
                                                value: value.map(Fmt.iso), photos: PhotoSet())
+        }
+    }
+}
+
+// MARK: - Egne vacciner
+
+/// En vaccine uden for standardprogrammet (fx hepatitis A/B før en rejse).
+/// Gemmes som milepæl med nøglen "vacx_<id>" og JSON som værdi, så der ikke kræves
+/// noget nyt i iCloud. Andre visninger ignorerer ukendte milepælsnøgler.
+struct CustomVaccine: Identifiable, Hashable, Codable {
+    static let prefix = "vacx_"
+    var key: String
+    var name: String
+    var note: String
+    var date: Date
+    var id: String { key }
+
+    static func new() -> CustomVaccine {
+        CustomVaccine(key: prefix + UUID().uuidString.prefix(8).lowercased(), name: "", note: "", date: Date())
+    }
+
+    var encoded: String? {
+        let enc = JSONEncoder()
+        enc.dateEncodingStrategy = .iso8601
+        return (try? enc.encode(self)).flatMap { String(data: $0, encoding: .utf8) }
+    }
+
+    static func decode(_ value: String) -> CustomVaccine? {
+        let dec = JSONDecoder()
+        dec.dateDecodingStrategy = .iso8601
+        return value.data(using: .utf8).flatMap { try? dec.decode(CustomVaccine.self, from: $0) }
+    }
+}
+
+/// Tilføj, redigér eller slet en egen vaccine.
+struct CustomVaccineEditView: View {
+    @EnvironmentObject var state: AppState
+    @Environment(\.dismiss) private var dismiss
+    let child: Child
+    let existing: CustomVaccine?
+
+    @State private var draft = CustomVaccine.new()
+    @State private var saving = false
+    @State private var saveError: String?
+    @State private var confirmDelete = false
+
+    private static let suggestions = ["Hepatitis A", "Hepatitis B", "Hepatitis A+B", "Rotavirus",
+                                      "Influenza", "Skoldkopper", "TBE (skovflåt)", "Tyfus", "Gul feber", "BCG (tuberkulose)"]
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    TextField("Vaccine (fx Hepatitis A)", text: $draft.name)
+                    DatePicker("Givet den", selection: $draft.date, in: ...Date(), displayedComponents: .date)
+                    TextField("Note (valgfri, fx dosis eller rejse)", text: $draft.note, axis: .vertical)
+                        .lineLimit(1...3)
+                }
+                if existing == nil && draft.name.isEmpty {
+                    Section("Forslag") {
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(spacing: 8) {
+                                ForEach(Self.suggestions, id: \.self) { s in
+                                    Button(s) { draft.name = s }
+                                        .font(.footnote)
+                                        .padding(.horizontal, 10).padding(.vertical, 6)
+                                        .background(Capsule().fill(Theme.bgDark))
+                                        .buttonStyle(.plain)
+                                }
+                            }
+                        }
+                    }
+                }
+                if existing != nil {
+                    Section {
+                        Button("Slet vaccine", role: .destructive) { confirmDelete = true }
+                    }
+                }
+            }
+            .navigationTitle(existing == nil ? "Ny vaccine" : "Redigér vaccine")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) { Button("Annullér") { dismiss() } }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Gem") { Task { await save(delete: false) } }
+                        .disabled(saving || draft.name.trimmingCharacters(in: .whitespaces).isEmpty)
+                }
+            }
+            .confirmationDialog("Slet vaccinen?", isPresented: $confirmDelete, titleVisibility: .visible) {
+                Button("Slet", role: .destructive) { Task { await save(delete: true) } }
+            }
+            .saveErrorAlert($saveError)
+            .onAppear { if let existing { draft = existing } }
+        }
+    }
+
+    private func save(delete: Bool) async {
+        draft.name = draft.name.trimmingCharacters(in: .whitespaces)
+        draft.note = draft.note.trimmingCharacters(in: .whitespacesAndNewlines)
+        let value = delete ? nil : draft.encoded
+        await performSave(saving: $saving, errorMessage: $saveError, dismiss: dismiss) {
+            try await state.store.setMilestone(childId: child.id, key: draft.key, value: value, photos: PhotoSet())
         }
     }
 }
