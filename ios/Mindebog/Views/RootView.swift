@@ -27,6 +27,9 @@ struct MainTabView: View {
     @EnvironmentObject var state: AppState
     @State private var selection: MainTab = .home
     @State private var interview: InterviewTarget?
+    /// iOS tegner fanebjælken første gang med sine egne sorte ikoner. Tælleren tvinger en ny
+    /// tegning af fanerne lige efter opstart, så de får appens farver med det samme.
+    @State private var tabRedraw = 0
 
     var body: some View {
         TabView(selection: $selection) {
@@ -59,6 +62,13 @@ struct MainTabView: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: .openInterview)) { _ in Task { await openPendingInterview() } }
         .task { await openPendingInterview() }
+        .task {
+            // To gentegninger: én så snart første billede er vist, og én lidt senere, hvis glas-tabbaren var sen.
+            for ms in [50, 600] {
+                try? await Task.sleep(for: .milliseconds(ms))
+                tabRedraw += 1
+            }
+        }
     }
 
     struct InterviewTarget: Identifiable {
@@ -80,6 +90,7 @@ struct MainTabView: View {
     private func tabLabel(_ title: String, _ symbol: String, _ tab: MainTab) -> some View {
         let selected = selection == tab
         let color = selected ? Theme.tint : Theme.muted
+        _ = tabRedraw   // fanen tegnes igen, når tælleren ændrer sig
         let config = UIImage.SymbolConfiguration(pointSize: 22, weight: selected ? .semibold : .regular)
         let image = (UIImage(systemName: symbol, withConfiguration: config) ?? UIImage())
             .withTintColor(UIColor(color), renderingMode: .alwaysOriginal)
