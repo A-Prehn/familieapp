@@ -324,6 +324,15 @@ struct HomeView: View {
         // 2) Billeder kun til de viste minder; genbrug dem vi allerede har fra sidst.
         var known: [String: Data] = [:]
         for m in recent + onThisDay { if let p = m.photo { known[m.id] = p } }
+        // Vis den friske liste med det samme (med de billeder vi allerede har), så gamle opslag
+        // fra hukommelsen ikke bliver stående, mens nye billeder hentes.
+        func withKnownPhotos(_ list: [RecentMemory]) -> [RecentMemory] {
+            list.map { var m = $0; if m.photo == nil { m.photo = known[m.id] }; return m }
+        }
+        withAnimation(.easeInOut(duration: 0.25)) {
+            recent = withKnownPhotos(newRecent)
+            onThisDay = withKnownPhotos(newOnThisDay)
+        }
         func withPhotos(_ list: [RecentMemory]) async -> [RecentMemory] {
             var out = list
             for i in out.indices {
