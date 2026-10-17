@@ -294,9 +294,18 @@ struct FamilyMemory: Identifiable, Hashable, Codable {
     let id: String
     var title: String
     var date: Date? = nil
+    /// Sidste dag, når mindet strækker sig over flere dage (fx et spaophold med overnatning).
+    var endDate: Date? = nil
     var text: String = ""
     var photos: PhotoSet = PhotoSet()
     /// Hvilke børn mindet handler om (tomt = hele familien).
     var childIds: [String] = []
     var photo: Data? { photos.coverPhoto }
+
+    /// "14. marts 2026" eller "14.–16. marts 2026" / "30. marts – 2. april 2026".
+    var dateText: String? {
+        guard let date else { return nil }
+        guard let endDate, !Calendar.current.isDate(endDate, inSameDayAs: date), endDate > date else { return Fmt.long(date) }
+        return Fmt.period(date, endDate)
+    }
 }

@@ -325,6 +325,7 @@ DEFINE SCHEMA
         familyRef       REFERENCE QUERYABLE,
         title           STRING,
         date            TIMESTAMP,
+        endDate         TIMESTAMP,
         text            STRING,
         childIds        LIST<STRING>,
         photo           ASSET,

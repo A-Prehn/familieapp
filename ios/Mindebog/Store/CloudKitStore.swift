@@ -1039,11 +1039,12 @@ actor CloudKitStore: Store {
     func memories(familyId: String) async throws -> [FamilyMemory] {
         let (db, zoneID) = try await locate(familyId)
         return try await all(db: db, zoneID: zoneID, type: "Memory",
-                             keys: ["familyRef", "title", "date", "text", "childIds", "captions", "coverIndex"],
+                             keys: ["familyRef", "title", "date", "endDate", "text", "childIds", "captions", "coverIndex"],
                              assetKeys: ["photos", "photo"]).map { r in
             FamilyMemory(id: r.recordID.recordName,
                          title: r["title"] as? String ?? "",
                          date: r["date"] as? Date,
+                         endDate: r["endDate"] as? Date,
                          text: r["text"] as? String ?? "",
                          photos: Self.photoSet(from: r),
                          childIds: r["childIds"] as? [String] ?? [])
@@ -1063,6 +1064,7 @@ actor CloudKitStore: Store {
         }
         record["title"] = memory.title.trimmingCharacters(in: .whitespaces) as CKRecordValue
         record["date"] = memory.date as CKRecordValue?
+        record["endDate"] = memory.endDate as CKRecordValue?
         record["text"] = memory.text as CKRecordValue
         record["childIds"] = memory.childIds.isEmpty ? nil : memory.childIds as CKRecordValue
         Self.setPhotos(memory.photos, on: record)

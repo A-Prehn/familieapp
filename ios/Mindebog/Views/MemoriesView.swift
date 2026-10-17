@@ -34,7 +34,7 @@ struct MemoriesView: View {
                 VStack(alignment: .leading, spacing: 8) {
                     Text(memory.title).font(.serifTitle(16)).foregroundStyle(Theme.text)
                     HStack(spacing: 6) {
-                        if let date = memory.date { Text(Fmt.long(date)) }
+                        if let dateText = memory.dateText { Text(dateText) }
                         if !names(memory).isEmpty {
                             if memory.date != nil { Text("·") }
                             Label(names(memory), systemImage: "person")
@@ -73,6 +73,8 @@ struct MemoryEditView: View {
     @State private var draft = FamilyMemory(id: newId("mem"), title: "")
     @State private var hasDate = true
     @State private var date = Date()
+    @State private var isPeriod = false     // flere dage, fx et spaophold med overnatning
+    @State private var endDate = Date()
     @State private var saving = false
     @State private var saveError: String?
     @State private var confirmDelete = false
@@ -85,7 +87,13 @@ struct MemoryEditView: View {
                     TextField("Titel (fx Første gang vi så havet)", text: $draft.title)
                     Toggle("Dato", isOn: $hasDate.animation())
                     if hasDate {
-                        DatePicker("Hvornår", selection: $date, in: ...Date(), displayedComponents: .date)
+                        DatePicker(isPeriod ? "Fra" : "Hvornår", selection: $date, in: ...Date(), displayedComponents: .date)
+                            .environment(\.locale, Locale(identifier: "da_DK"))
+                        Toggle("Over flere dage", isOn: $isPeriod.animation())
+                        if isPeriod {
+                            DatePicker("Til", selection: $endDate, in: date..., displayedComponents: .date)
+                                .environment(\.locale, Locale(identifier: "da_DK"))
+                        }
                     }
                 }
                 Section("Fortæl om det") {
@@ -149,6 +157,8 @@ struct MemoryEditView: View {
                     draft = editing
                     hasDate = editing.date != nil
                     date = editing.date ?? Date()
+                    isPeriod = editing.endDate != nil
+                    endDate = editing.endDate ?? date
                 }
             }
         }
@@ -161,6 +171,8 @@ struct MemoryEditView: View {
     private func save() {
         draft.title = draft.title.trimmingCharacters(in: .whitespaces)
         draft.date = hasDate ? date : nil
+        // Slutdato kun når den faktisk ligger efter startdagen.
+        draft.endDate = hasDate && isPeriod && !Calendar.current.isDate(endDate, inSameDayAs: date) && endDate > date ? endDate : nil
         let (store, familyId, memory) = (state.store, familyId, draft)
         // Billeder kan tage tid at uploade: luk med det samme, gem i baggrunden.
         performSaveInBackground(label: "mindet", dismiss: dismiss) {

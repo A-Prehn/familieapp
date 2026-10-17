@@ -145,7 +145,7 @@ final class FamilyExport: ObservableObject {
                 let files = try writePhotoSet(m.photos, name: name, in: mDir)
                 let who = m.childIds.compactMap { id in children.first { $0.id == id }?.name }
                 var text = m.title + "\n"
-                if let d = m.date { text += Fmt.long(d) + "\n" }
+                if let d = m.dateText { text += d + "\n" }
                 if !who.isEmpty { text += "Handler om: " + who.joined(separator: ", ") + "\n" }
                 if !m.text.isEmpty { text += "\n" + m.text + "\n" }
                 try write(text, to: mDir.appendingPathComponent(name + ".txt"))

@@ -204,6 +204,17 @@ enum Fmt {
     static func parseIso(_ string: String) -> Date? { isoFormatter.date(from: string) }
     static func long(_ date: Date) -> String { longFormatter.string(from: date) }
 
+    private static let periodFormatter: DateIntervalFormatter = {
+        let f = DateIntervalFormatter()
+        f.locale = Locale(identifier: "da_DK")
+        f.dateStyle = .long
+        f.timeStyle = .none
+        return f
+    }()
+
+    /// En periode på dansk, uden gentagelser: "14.–16. marts 2026", "30. marts – 2. april 2026".
+    static func period(_ start: Date, _ end: Date) -> String { periodFormatter.string(from: start, to: end) }
+
     /// Næste forekomst af en årlig dato (fødselsdag) fra og med i dag.
     static func nextOccurrence(of date: Date, from today: Date = Date()) -> Date {
         let cal = Calendar.current
