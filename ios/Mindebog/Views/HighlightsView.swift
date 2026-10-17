@@ -133,7 +133,12 @@ struct HighlightsView: View {
 
     private func load() async {
         defer { loading = false }
-        items = (try? await state.store.highlights(childId: child.id)) ?? []
+        let cacheKey = "highlights_\(child.id)"
+        if items.isEmpty, let cached = ScreenCache.load([Highlight].self, key: cacheKey) { items = cached; loading = false }
+        if let fresh = try? await state.store.highlights(childId: child.id) {
+            items = fresh
+            ScreenCache.save(fresh, key: cacheKey)
+        }
     }
 }
 

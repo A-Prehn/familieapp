@@ -61,7 +61,12 @@ struct AboutMeView: View {
     }
 
     private func load() async {
-        answers = (try? await state.store.answers(childId: child.id)) ?? [:]
+        let cacheKey = "aboutme_\(child.id)"
+        if answers.isEmpty, let cached = ScreenCache.load([String: String].self, key: cacheKey) { answers = cached }
+        if let fresh = try? await state.store.answers(childId: child.id) {
+            answers = fresh
+            ScreenCache.save(fresh, key: cacheKey)
+        }
     }
 }
 

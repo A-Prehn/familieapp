@@ -167,8 +167,13 @@ struct BirthdayPhotosView: View {
     }
 
     private func load() async {
-        items = (try? await state.store.gallery(childId: child.id, kind: .birthday)) ?? []
-        loadingItems = false
+        defer { loadingItems = false }
+        let cacheKey = "gallery_\(child.id)_\(GalleryKind.birthday.rawValue)"
+        if items.isEmpty, let cached = ScreenCache.load([GalleryItem].self, key: cacheKey) { items = cached; loadingItems = false }
+        if let fresh = try? await state.store.gallery(childId: child.id, kind: .birthday) {
+            items = fresh
+            ScreenCache.save(fresh, key: cacheKey)
+        }
     }
 
     /// Gemmer billederne til den valgte fødselsdag, ét ad gangen, mens man kan se dem dukke op.

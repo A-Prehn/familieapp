@@ -55,14 +55,25 @@ struct VoiceArchiveView: View {
     }
 
     private func load() async {
+        let hKey = "highlights_\(child.id)", iKey = "interviews_\(child.id)"
+        if clips.isEmpty {
+            build(highlights: ScreenCache.load([Highlight].self, key: hKey) ?? [],
+                  answers: ScreenCache.load([InterviewAnswer].self, key: iKey) ?? [])
+        }
+        guard let highlights = try? await state.store.highlights(childId: child.id),
+              let answers = try? await state.store.interviews(childId: child.id) else { return }
+        ScreenCache.save(highlights, key: hKey)
+        ScreenCache.save(answers, key: iKey)
+        build(highlights: highlights, answers: answers)
+    }
+
+    private func build(highlights: [Highlight], answers: [InterviewAnswer]) {
         var out: [Clip] = []
-        let highlights = (try? await state.store.highlights(childId: child.id)) ?? []
         for h in highlights {
             guard let d = h.audioDuration else { continue }
             out.append(Clip(id: h.id, title: h.text.isEmpty ? "Lydnote" : h.text, subtitle: "Højdepunkt",
                             date: h.date ?? h.createdAt, duration: d, source: .highlight(h.id)))
         }
-        let answers = (try? await state.store.interviews(childId: child.id)) ?? []
         for a in answers {
             guard let d = a.audioDuration else { continue }
             out.append(Clip(id: a.id, title: Constants.interviewQuestion(a.question),

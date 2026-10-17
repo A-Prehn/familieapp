@@ -144,10 +144,21 @@ struct GrowthView: View {
     }
 
     private func load() async {
-        measurements = (try? await state.store.measurements(childId: child.id)) ?? []
-        let ms = (try? await state.store.milestones(childId: child.id)) ?? [:]
-        birthWeight = ms["birth_weight"]?.value.flatMap(MilestoneValue.grams)
-        birthLength = ms["birth_length"]?.value.flatMap(MilestoneValue.centimeters)
+        let cacheKey = "growth_\(child.id)"
+        if measurements.isEmpty, let cached = ScreenCache.load(GrowthCache.self, key: cacheKey) { apply(cached) }
+        guard let m = try? await state.store.measurements(childId: child.id),
+              let ms = try? await state.store.milestones(childId: child.id) else { return }
+        let fresh = GrowthCache(measurements: m, milestones: ms)
+        apply(fresh)
+        ScreenCache.save(fresh, key: cacheKey)
+    }
+
+    private struct GrowthCache: Codable { var measurements: [Measurement]; var milestones: [String: MilestoneEntry] }
+
+    private func apply(_ c: GrowthCache) {
+        measurements = c.measurements
+        birthWeight = c.milestones["birth_weight"]?.value.flatMap(MilestoneValue.grams)
+        birthLength = c.milestones["birth_length"]?.value.flatMap(MilestoneValue.centimeters)
     }
 }
 

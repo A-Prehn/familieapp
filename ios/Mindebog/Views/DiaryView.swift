@@ -77,7 +77,12 @@ struct DiaryView: View {
 
     private func load() async {
         defer { loading = false }
-        entries = (try? await state.store.diary(childId: child.id)) ?? []
+        let cacheKey = "diary_\(child.id)"
+        if entries.isEmpty, let cached = ScreenCache.load([DiaryEntry].self, key: cacheKey) { entries = cached; loading = false }
+        if let fresh = try? await state.store.diary(childId: child.id) {
+            entries = fresh
+            ScreenCache.save(fresh, key: cacheKey)
+        }
     }
 }
 

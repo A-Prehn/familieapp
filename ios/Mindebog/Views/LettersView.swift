@@ -93,7 +93,12 @@ struct LettersView: View {
     }
 
     private func load() async {
-        letters = (try? await state.store.letters(childId: child.id)) ?? []
+        let cacheKey = "letters_\(child.id)"
+        if letters.isEmpty, let cached = ScreenCache.load([Letter].self, key: cacheKey) { letters = cached }
+        if let fresh = try? await state.store.letters(childId: child.id) {
+            letters = fresh
+            ScreenCache.save(fresh, key: cacheKey)
+        }
     }
 }
 

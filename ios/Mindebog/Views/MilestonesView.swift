@@ -85,7 +85,12 @@ struct MilestonesView: View {
     }
 
     private func load() async {
-        entries = (try? await state.store.milestones(childId: child.id)) ?? [:]
+        let cacheKey = "milestones_\(child.id)"
+        if entries.isEmpty, let cached = ScreenCache.load([String: MilestoneEntry].self, key: cacheKey) { entries = cached }
+        if let fresh = try? await state.store.milestones(childId: child.id) {
+            entries = fresh
+            ScreenCache.save(fresh, key: cacheKey)
+        }
     }
 }
 

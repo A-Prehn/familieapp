@@ -174,7 +174,11 @@ struct InterviewView: View {
     }
 
     private func load() async {
-        answers = (try? await state.store.interviews(childId: child.id)) ?? []
+        let cacheKey = "interviews_\(child.id)"
+        if answers.isEmpty, let cached = ScreenCache.load([InterviewAnswer].self, key: cacheKey) { answers = cached }
+        guard let fresh = try? await state.store.interviews(childId: child.id) else { return }
+        answers = fresh
+        ScreenCache.save(fresh, key: cacheKey)
         await removeEmptyDuplicates()
         // Er interviewet for en alder påbegyndt, skal opfølgningspåmindelsen ikke komme.
         for age in Set(answers.filter(\.hasAnswer).map(\.age)) {

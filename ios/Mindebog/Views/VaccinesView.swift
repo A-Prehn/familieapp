@@ -126,7 +126,14 @@ struct VaccinesView: View {
     }
 
     private func load() async {
-        let ms = (try? await state.store.milestones(childId: child.id)) ?? [:]
+        let cacheKey = "milestones_\(child.id)"
+        if given.isEmpty && custom.isEmpty, let cached = ScreenCache.load([String: MilestoneEntry].self, key: cacheKey) { apply(cached) }
+        guard let ms = try? await state.store.milestones(childId: child.id) else { return }
+        apply(ms)
+        ScreenCache.save(ms, key: cacheKey)
+    }
+
+    private func apply(_ ms: [String: MilestoneEntry]) {
         var out: [String: Date] = [:]
         for v in VaccineProgram.all {
             if let value = ms[v.key]?.value, let date = Fmt.parseIso(value) { out[v.key] = date }
