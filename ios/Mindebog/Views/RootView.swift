@@ -28,11 +28,6 @@ struct MainTabView: View {
     @State private var selection: MainTab = .home
     @State private var interview: InterviewTarget?
 
-    init() {
-        // Kun farven sættes — ingen egen UITabBarAppearance, så iOS 26 beholder Liquid Glass.
-        UITabBar.appearance().unselectedItemTintColor = UIColor(Theme.muted)
-    }
-
     var body: some View {
         TabView(selection: $selection) {
             NavigationStack { HomeView().tabSwipe(.home, selection: $selection) }
@@ -93,6 +88,8 @@ struct MainTabView: View {
         } icon: {
             Image(uiImage: image).renderingMode(.original)
         }
+        // Fanebjælken bruger ellers de udfyldte (sorte) ikoner ved opstart.
+        .environment(\.symbolVariants, .none)
     }
 }
 

@@ -6,6 +6,12 @@ struct MindebogApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @StateObject private var state = AppState()
 
+    init() {
+        // Sættes før fanebjælken findes — ellers vises ikonerne sorte, indtil siden tegnes igen.
+        // Kun farven: ingen egen UITabBarAppearance, så iOS 26 beholder Liquid Glass.
+        UITabBar.appearance().unselectedItemTintColor = UIColor(Theme.muted)
+    }
+
     var body: some Scene {
         WindowGroup {
             RootView()
