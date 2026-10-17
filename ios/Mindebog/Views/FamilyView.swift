@@ -12,6 +12,28 @@ struct FamilyView: View {
         case tree = "Stamtræ"
         case traditions = "Traditioner"
         var id: String { rawValue }
+
+        /// Kort tekst under ikonet — seks faner skal være på skærmen samtidig.
+        var short: String {
+            switch self {
+            case .memories: "Minder"
+            case .events: "Begiv."
+            case .vacations: "Ferier"
+            case .birthdays: "Fødsel"
+            case .tree: "Stamtræ"
+            case .traditions: "Trad."
+            }
+        }
+        var symbol: String {
+            switch self {
+            case .memories: "heart"
+            case .events: "calendar"
+            case .vacations: "sun.max"
+            case .birthdays: "gift"
+            case .tree: "tree"
+            case .traditions: "flame"
+            }
+        }
     }
 
     @State private var tab: Tab = .events
@@ -35,24 +57,31 @@ struct FamilyView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 16) {
-                // Fem faner er for mange til et segmenteret felt på en iPhone — brug chips, der kan rulles.
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 8) {
+                // Seks faner med ikon og kort tekst, alle synlige på én gang; den valgte har en rosa streg under.
+                VStack(spacing: 0) {
+                    HStack(spacing: 0) {
                         ForEach(Tab.allCases) { t in
-                            Button { withAnimation(.easeInOut(duration: 0.15)) { tab = t } } label: {
-                                Text(t.rawValue)
-                                    .font(.system(size: 14, weight: .semibold))
-                                    .padding(.horizontal, 14).padding(.vertical, 8)
-                                    .background(Capsule().fill(tab == t ? Theme.text : Theme.card))
-                                    .overlay(Capsule().stroke(tab == t ? Theme.text : Theme.sep))
-                                    .foregroundStyle(tab == t ? Theme.bg : Theme.text)
+                            Button { withAnimation(.easeInOut(duration: 0.2)) { tab = t } } label: {
+                                VStack(spacing: 4) {
+                                    Image(systemName: t.symbol)
+                                        .font(.system(size: 18, weight: tab == t ? .semibold : .light))
+                                    Text(t.short).font(.system(size: 10, weight: tab == t ? .semibold : .regular))
+                                        .lineLimit(1).minimumScaleFactor(0.8)
+                                    Rectangle()
+                                        .fill(tab == t ? Theme.rose : .clear)
+                                        .frame(height: 2)
+                                        .padding(.horizontal, 6)
+                                }
+                                .frame(maxWidth: .infinity)
+                                .padding(.top, 4)
+                                .foregroundStyle(tab == t ? Theme.rose : Theme.muted)
+                                .contentShape(Rectangle())
                             }
                             .buttonStyle(.plain)
                         }
                     }
-                    .padding(.horizontal, 2)
+                    Rectangle().fill(Theme.sep).frame(height: 1)
                 }
-                .noTabSwipe()
 
                 switch tab {
                 case .memories: MemoriesView(memories: memories, children: children, onEdit: { editingMemory = $0 },
