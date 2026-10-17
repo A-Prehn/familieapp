@@ -124,7 +124,7 @@ struct BirthdaysView: View {
                 .font(.caption2.weight(.semibold))
                 .foregroundStyle(WTheme.muted)
             if list.isEmpty {
-                Text("Tilføj fødselsdage i appen under Fælles.")
+                Text("Tilføj fødselsdage i appen under Familie.")
                     .font(.caption).foregroundStyle(WTheme.muted)
                 Spacer(minLength: 0)
             } else if family == .systemSmall, let first = list.first {

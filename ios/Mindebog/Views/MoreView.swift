@@ -53,7 +53,7 @@ struct MoreView: View {
                 } header: {
                     Text("Skift familie")
                 } footer: {
-                    Text("Du er med i flere familier. Vælg, hvilken du vil se. Hjem, Familie og Fælles viser den valgte.")
+                    Text("Du er med i flere familier. Vælg, hvilken du vil se. Hjem, Børn og Familie viser den valgte.")
                 }
             }
 
