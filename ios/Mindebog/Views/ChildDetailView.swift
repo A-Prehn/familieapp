@@ -72,7 +72,7 @@ struct ChildDetailView: View {
             }
             .padding(16)
         }
-        .paperBackground()
+        .background(Theme.bg.ignoresSafeArea())
         .navigationTitle(child.name)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -166,7 +166,6 @@ struct ChildDetailView: View {
         .padding(14)
         .background(Theme.card)
         .clipShape(RoundedRectangle(cornerRadius: 14))
-        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Theme.sep.opacity(0.7)))
-        .warmShadow()
+        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Theme.sep))
     }
 }

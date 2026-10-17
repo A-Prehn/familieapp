@@ -33,7 +33,7 @@ struct AboutMeView: View {
             }
             .padding(.horizontal, 16).padding(.bottom, 24)
         }
-        .paperBackground()
+        .background(Theme.bg.ignoresSafeArea())
         .navigationTitle("Om dig")
         .navigationBarTitleDisplayMode(.inline)
         .sheet(item: $editing, onDismiss: { Task { await load() } }) { item in

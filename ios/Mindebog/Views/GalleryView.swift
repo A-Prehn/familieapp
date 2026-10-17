@@ -66,7 +66,7 @@ struct GalleryView: View {
                 .padding(16)
             }
         }
-        .paperBackground()
+        .background(Theme.bg.ignoresSafeArea())
         .navigationTitle(kind.title)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -140,8 +140,7 @@ struct GalleryView: View {
         .padding(14)
         .background(Theme.card)
         .clipShape(RoundedRectangle(cornerRadius: 14))
-        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Theme.sep.opacity(0.7)))
-        .warmShadow()
+        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Theme.sep))
         .contentShape(RoundedRectangle(cornerRadius: 14))
         .onTapGesture { if state.canEdit { editing = item } }
         .contextMenu {
@@ -195,8 +194,7 @@ struct GalleryView: View {
         }
         .background(Theme.card)
         .clipShape(RoundedRectangle(cornerRadius: 14))
-        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Theme.sep.opacity(0.7)))
-        .warmShadow()
+        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Theme.sep))
         .contextMenu {
             Button { if state.canEdit { editing = item } } label: { Label("Redigér", systemImage: "pencil") }
         }

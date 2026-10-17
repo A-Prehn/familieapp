@@ -21,7 +21,7 @@ struct HomeView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
-                HeroView(expecting: children.contains { $0.onTheWay }).padding(.vertical, 8)
+                HeroView().padding(.vertical, 8)
 
                 // Hilsen og citat toner ind med et lille "åndedrag" efter hinanden.
                 Text(greeting)
@@ -55,7 +55,7 @@ struct HomeView: View {
             }
             .padding(16)
         }
-        .paperBackground()
+        .background(Theme.bg.ignoresSafeArea())
         .navigationTitle("Hjem")
         .navigationBarTitleDisplayMode(.inline)
         .navigationDestination(for: Child.self) { ChildDetailView(child: $0) }
@@ -134,8 +134,7 @@ struct HomeView: View {
         }
         .frame(maxWidth: .infinity).padding(24)
         .background(Theme.card).clipShape(RoundedRectangle(cornerRadius: 14))
-        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Theme.sep.opacity(0.7)))
-        .warmShadow()
+        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Theme.sep))
     }
 
     private var quickAddSection: some View {
@@ -211,8 +210,7 @@ struct HomeView: View {
                 }
                 .padding(12)
                 .background(Theme.card).clipShape(RoundedRectangle(cornerRadius: 14))
-                .overlay(RoundedRectangle(cornerRadius: 14).stroke(Theme.sep.opacity(0.7)))
-        .warmShadow()
+                .overlay(RoundedRectangle(cornerRadius: 14).stroke(Theme.sep))
             }
         }
     }

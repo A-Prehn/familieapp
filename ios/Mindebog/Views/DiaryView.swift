@@ -26,7 +26,7 @@ struct DiaryView: View {
                 .padding(16)
             }
         }
-        .paperBackground()
+        .background(Theme.bg.ignoresSafeArea())
         .navigationTitle(child.onTheWay ? "Svangerskabsdagbog" : "Dagbog")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -67,8 +67,7 @@ struct DiaryView: View {
         .padding(14)
         .background(Theme.card)
         .clipShape(RoundedRectangle(cornerRadius: 14))
-        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Theme.sep.opacity(0.7)))
-        .warmShadow()
+        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Theme.sep))
         .contentShape(RoundedRectangle(cornerRadius: 14))
         .onTapGesture { if state.canEdit { editing = entry } }
         .contextMenu {

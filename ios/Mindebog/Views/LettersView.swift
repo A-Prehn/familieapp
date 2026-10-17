@@ -28,7 +28,7 @@ struct LettersView: View {
                 .padding(16)
             }
         }
-        .paperBackground()
+        .background(Theme.bg.ignoresSafeArea())
         .navigationTitle("Breve til dig")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -79,8 +79,7 @@ struct LettersView: View {
         .padding(14)
         .background(Theme.card)
         .clipShape(RoundedRectangle(cornerRadius: 14))
-        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Theme.sep.opacity(0.7)))
-        .warmShadow()
+        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Theme.sep))
         .contentShape(RoundedRectangle(cornerRadius: 14))
         .onTapGesture { if !letter.isSealed { reading = letter } }
         .contextMenu {
@@ -155,7 +154,7 @@ struct LetterReadView: View {
                 .padding(24)
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .paperBackground()
+            .background(Theme.bg.ignoresSafeArea())
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) { Button("Luk") { dismiss() } }
             }

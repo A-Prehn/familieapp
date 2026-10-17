@@ -33,7 +33,7 @@ struct ChildrenView: View {
             }
             .padding(16)
         }
-        .paperBackground()
+        .background(Theme.bg.ignoresSafeArea())
         .navigationTitle(family?.name ?? "Familie")
         .navigationBarTitleDisplayMode(.inline)
         .navigationDestination(for: Child.self) { ChildDetailView(child: $0) }

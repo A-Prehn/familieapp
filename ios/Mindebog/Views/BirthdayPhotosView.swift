@@ -119,7 +119,7 @@ struct BirthdayPhotosView: View {
             }
             .padding(16)
         }
-        .paperBackground()
+        .background(Theme.bg.ignoresSafeArea())
         .navigationTitle("Fødselsdage")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {

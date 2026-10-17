@@ -63,7 +63,7 @@ struct VaccinesView: View {
             }
         }
         .scrollContentBackground(.hidden)
-        .paperBackground()
+        .background(Theme.bg.ignoresSafeArea())
         .navigationTitle("Vaccinationer")
         .navigationBarTitleDisplayMode(.inline)
         .sheet(item: $editing, onDismiss: { Task { await load() } }) { vaccine in

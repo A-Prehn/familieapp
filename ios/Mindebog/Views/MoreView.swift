@@ -266,7 +266,7 @@ struct MoreView: View {
                     }
                     .padding(.top, 32)
                     .frame(maxWidth: .infinity)
-                    .paperBackground()
+                    .background(Theme.bg.ignoresSafeArea())
                     .toolbar {
                         ToolbarItem(placement: .confirmationAction) { Button("Færdig") { showQR = false } }
                     }

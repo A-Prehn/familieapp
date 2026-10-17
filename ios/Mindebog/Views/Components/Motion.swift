@@ -54,53 +54,24 @@ private struct Breathing: ViewModifier {
 
 // MARK: - Papir
 
-/// Et svagt papirkorn over baggrundsfarven, så fladerne føles som sider i en bog.
+/// Baggrunden på en skærm. (Et papirkorn blev prøvet og droppet igen: det gjorde fladerne gullige.)
 struct PaperBackground: View {
     var body: some View {
-        ZStack {
-            Theme.bg
-            Image(uiImage: Self.grain)
-                .resizable(resizingMode: .tile)
-                .opacity(0.5)
-                .blendMode(.multiply)
-                .allowsHitTesting(false)
-        }
-        .ignoresSafeArea()
+        Theme.bg.ignoresSafeArea()
     }
-
-    /// 96×96 px korn, lavet én gang: tilfældige, meget lyse prikker med lav gennemsigtighed.
-    private static let grain: UIImage = {
-        let size = 96
-        var pixels = [UInt8](repeating: 0, count: size * size * 4)
-        var seed: UInt32 = 0x9E37_79B9
-        for i in 0..<(size * size) {
-            seed = seed &* 1_664_525 &+ 1_013_904_223
-            let v = UInt8(seed >> 24)
-            // Kun hver tredje prik er synlig, og kun svagt — det skal anes, ikke ses.
-            let alpha: UInt8 = v % 3 == 0 ? 10 : 0
-            pixels[i * 4] = 60; pixels[i * 4 + 1] = 50; pixels[i * 4 + 2] = 35; pixels[i * 4 + 3] = alpha
-        }
-        let data = Data(pixels)
-        guard let provider = CGDataProvider(data: data as CFData),
-              let cg = CGImage(width: size, height: size, bitsPerComponent: 8, bitsPerPixel: 32, bytesPerRow: size * 4,
-                               space: CGColorSpaceCreateDeviceRGB(),
-                               bitmapInfo: CGBitmapInfo(rawValue: CGImageAlphaInfo.premultipliedLast.rawValue),
-                               provider: provider, decode: nil, shouldInterpolate: false, intent: .defaultIntent)
-        else { return UIImage() }
-        return UIImage(cgImage: cg, scale: 2, orientation: .up)
-    }()
 }
 
 extension View {
     func softAppear(index: Int = 0) -> some View { modifier(SoftAppear(index: index)) }
     func breathing(_ active: Bool) -> some View { modifier(Breathing(active: active)) }
 
-    /// Varm, lys skygge under et kort, så det ligger på siden i stedet for at være tegnet på den.
+    /// Let, neutral skygge under et kort, så det ligger på siden. Så svag, at den kun anes
+    /// (en varm brun skygge gav kortene en gullig kant på den cremefarvede baggrund).
     func warmShadow() -> some View {
-        shadow(color: Theme.neutralDark.opacity(0.07), radius: 10, y: 4)
+        shadow(color: .black.opacity(0.035), radius: 8, y: 3)
     }
 
-    /// Papir som baggrund på en skærm (erstatter `.paperBackground()`).
+    /// Papir som baggrund på en skærm (erstatter `.background(Theme.bg.ignoresSafeArea())`).
     func paperBackground() -> some View { background(PaperBackground()) }
 }
 

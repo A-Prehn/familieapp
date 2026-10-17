@@ -68,7 +68,7 @@ struct FamilyView: View {
             }
             .padding(16)
         }
-        .paperBackground()
+        .background(Theme.bg.ignoresSafeArea())
         .navigationTitle("Fælles")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -142,8 +142,7 @@ struct FamilyView: View {
                 .onTapGesture { if state.canEdit { editingEvent = event } }
                 .background(Theme.card)
                 .clipShape(RoundedRectangle(cornerRadius: 14))
-                .overlay(RoundedRectangle(cornerRadius: 14).stroke(Theme.sep.opacity(0.7)))
-        .warmShadow()
+                .overlay(RoundedRectangle(cornerRadius: 14).stroke(Theme.sep))
             }
         }
     }
@@ -178,8 +177,7 @@ struct FamilyView: View {
                     .onTapGesture { if state.canEdit { editingVacation = vacation } }
                     .background(Theme.card)
                     .clipShape(RoundedRectangle(cornerRadius: 14))
-                    .overlay(RoundedRectangle(cornerRadius: 14).stroke(Theme.sep.opacity(0.7)))
-        .warmShadow()
+                    .overlay(RoundedRectangle(cornerRadius: 14).stroke(Theme.sep))
             }
         }
     }

@@ -80,8 +80,7 @@ private struct TraditionCard: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(Theme.card)
         .clipShape(RoundedRectangle(cornerRadius: 14))
-        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Theme.sep.opacity(0.7)))
-        .warmShadow()
+        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Theme.sep))
         .contentShape(RoundedRectangle(cornerRadius: 14))
     }
 
