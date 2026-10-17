@@ -50,7 +50,7 @@ enum WidgetSync {
             case .memory: kind = "Minde"
             default: return nil   // "På denne dag" bruger kun de klassiske minder
             }
-            let who = s.childId.flatMap { names[$0] } ?? "Fælles"
+            let who = s.childId.flatMap { names[$0] } ?? "Familie"
             return .init(who: who, kind: kind, text: s.text, date: date)
         }
         .suffix(2000)

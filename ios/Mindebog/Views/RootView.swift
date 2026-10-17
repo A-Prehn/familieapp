@@ -40,11 +40,11 @@ struct MainTabView: View {
                 .tag(MainTab.home)
 
             NavigationStack { ChildrenView().tabSwipe(.family, selection: $selection) }
-                .tabItem { tabLabel("Familie", "person.2", .family) }
+                .tabItem { tabLabel("Børn", "person.2", .family) }
                 .tag(MainTab.family)
 
             NavigationStack { FamilyView().tabSwipe(.shared, selection: $selection) }
-                .tabItem { tabLabel("Fælles", "calendar", .shared) }
+                .tabItem { tabLabel("Familie", "heart.text.square", .shared) }
                 .tag(MainTab.shared)
 
             NavigationStack { MoreView().tabSwipe(.more, selection: $selection) }

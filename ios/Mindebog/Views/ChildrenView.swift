@@ -34,7 +34,7 @@ struct ChildrenView: View {
             .padding(16)
         }
         .background(Theme.bg.ignoresSafeArea())
-        .navigationTitle(family?.name ?? "Familie")
+        .navigationTitle(family?.name ?? "Børn")
         .navigationBarTitleDisplayMode(.inline)
         .navigationDestination(for: Child.self) { ChildDetailView(child: $0) }
         .toolbar {

@@ -273,10 +273,10 @@ struct HomeView: View {
                                     symbol: isHighlight ? "star" : "book",
                                     date: s.date, sortDate: s.date ?? s.createdAt, text: s.text, photo: nil)
             case .event:
-                return RecentMemory(id: "ev_" + s.id, summary: s, childName: "Fælles", kind: "Begivenhed", symbol: "calendar",
+                return RecentMemory(id: "ev_" + s.id, summary: s, childName: "Familie", kind: "Begivenhed", symbol: "calendar",
                                     date: s.date, sortDate: s.date ?? .distantPast, text: s.text, photo: nil)
             case .vacation:
-                return RecentMemory(id: "va_" + s.id, summary: s, childName: "Fælles", kind: "Ferie", symbol: "beach.umbrella",
+                return RecentMemory(id: "va_" + s.id, summary: s, childName: "Familie", kind: "Ferie", symbol: "beach.umbrella",
                                     date: s.date, sortDate: s.date ?? .distantPast, text: s.text, photo: nil)
             case .photo:
                 guard let id = s.childId, let child = names[id] else { return nil }
@@ -294,14 +294,14 @@ struct HomeView: View {
                                     symbol: "bubble.left.and.text.bubble.right",
                                     date: s.date, sortDate: s.createdAt, text: s.text, photo: nil)
             case .tradition:
-                return RecentMemory(id: "tr_" + s.id, summary: s, childName: "Fælles", kind: "Tradition", symbol: "sparkles",
+                return RecentMemory(id: "tr_" + s.id, summary: s, childName: "Familie", kind: "Tradition", symbol: "sparkles",
                                     date: nil, sortDate: s.createdAt, text: s.text, photo: nil)
             case .letter:
                 guard let id = s.childId, let child = names[id] else { return nil }
                 return RecentMemory(id: "le_" + s.id, summary: s, childName: child.name, kind: "Brev", symbol: "envelope",
                                     date: s.date, sortDate: s.createdAt, text: s.text, photo: nil)
             case .memory:
-                return RecentMemory(id: "me_" + s.id, summary: s, childName: "Fælles", kind: "Minde", symbol: "heart.text.square",
+                return RecentMemory(id: "me_" + s.id, summary: s, childName: "Familie", kind: "Minde", symbol: "heart.text.square",
                                     date: s.date, sortDate: s.date ?? s.createdAt, text: s.text, photo: nil)
             }
         }
