@@ -4,6 +4,7 @@ import SwiftUI
 // og seneste minder. Børnene ligger under Familie-fanen.
 struct HomeView: View {
     @EnvironmentObject var state: AppState
+    @Namespace private var zoomNS   // zoom-overgang til fuld skærm (iOS 18)
     @State private var children: [Child] = []
     @State private var onThisDay: [RecentMemory] = []
     @State private var recent: [RecentMemory] = []
@@ -15,35 +16,46 @@ struct HomeView: View {
     @State private var noChildMessage: String?
     @AppStorage(HomeAction.storageKey) private var homeActionsRaw = ""
     @State private var lightbox: LightboxState?
+    @State private var loading = true
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
-                HeroView().padding(.vertical, 8)
+                HeroView(expecting: children.contains { $0.onTheWay }).padding(.vertical, 8)
 
+                // Hilsen og citat toner ind med et lille "åndedrag" efter hinanden.
                 Text(greeting)
                     .font(.serifTitle(22))
                     .foregroundStyle(Theme.text)
+                    .softAppear(index: 1)
 
-                quoteCard
+                quoteCard.softAppear(index: 2)
 
                 if children.isEmpty {
                     emptyState
                 } else {
-                    if state.canEdit { quickAddSection }
+                    if state.canEdit { quickAddSection.softAppear(index: 3) }
                     if !onThisDay.isEmpty {
                         memorySection("På denne dag", onThisDay) { m in
                             "\(yearsAgo(m.date)) · \(m.childName) · \(m.kind)"
                         }
+                        .softAppear(index: 5)
                     }
                     if !recent.isEmpty {
                         memorySection("Seneste i familien", recent) { m in "\(whenText(m)) · \(m.childName) · \(m.kind)" }
+                            .softAppear(index: 7)
+                    } else if loading {
+                        // Skimmer, mens iCloud henter første gang.
+                        VStack(spacing: 10) {
+                            SectionLabel("Seneste i familien")
+                            ForEach(0..<3, id: \.self) { _ in ShimmerPlaceholder(height: 88) }
+                        }
                     }
                 }
             }
             .padding(16)
         }
-        .background(Theme.bg.ignoresSafeArea())
+        .paperBackground()
         .navigationTitle("Hjem")
         .navigationBarTitleDisplayMode(.inline)
         .navigationDestination(for: Child.self) { ChildDetailView(child: $0) }
@@ -89,7 +101,7 @@ struct HomeView: View {
             }
             .presentationDetents([.medium, .large])
         }
-        .fullScreenCover(item: $lightbox) { LightboxView(state: $0) }
+        .fullScreenCover(item: $lightbox) { LightboxView(state: $0).zoomTarget(id: $0.sourceId, in: zoomNS) }
         .refreshable { await load() }
         .task { await load() }
         .reloadOnStoreChange { await load() }
@@ -122,7 +134,8 @@ struct HomeView: View {
         }
         .frame(maxWidth: .infinity).padding(24)
         .background(Theme.card).clipShape(RoundedRectangle(cornerRadius: 14))
-        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Theme.sep))
+        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Theme.sep.opacity(0.7)))
+        .warmShadow()
     }
 
     private var quickAddSection: some View {
@@ -178,7 +191,8 @@ struct HomeView: View {
                         DataImage(data: photo)
                             .frame(width: 64, height: 64)
                             .clipShape(RoundedRectangle(cornerRadius: 8))
-                            .onTapGesture { lightbox = LightboxState(photos: [photo]) }
+                            .zoomSource(id: memory.id, in: zoomNS)
+                            .onTapGesture { lightbox = LightboxState(photos: [photo], sourceId: memory.id) }
                     } else {
                         RoundedRectangle(cornerRadius: 8).fill(Theme.bgDark)
                             .frame(width: 64, height: 64)
@@ -197,7 +211,8 @@ struct HomeView: View {
                 }
                 .padding(12)
                 .background(Theme.card).clipShape(RoundedRectangle(cornerRadius: 14))
-                .overlay(RoundedRectangle(cornerRadius: 14).stroke(Theme.sep))
+                .overlay(RoundedRectangle(cornerRadius: 14).stroke(Theme.sep.opacity(0.7)))
+        .warmShadow()
             }
         }
     }
@@ -223,6 +238,7 @@ struct HomeView: View {
     }
 
     private func load() async {
+        defer { loading = false }
         guard let familyId = state.familyId else { return }
         let cacheKey = "home_\(familyId)"
         let todayKey = Fmt.iso(Date())

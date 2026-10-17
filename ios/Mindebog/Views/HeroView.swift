@@ -2,6 +2,8 @@ import SwiftUI
 import Combine
 
 struct HeroView: View {
+    /// Et barn på vej: hjertet "trækker vejret" langsomt i stedet for de skiftende ikoner.
+    var expecting = false
     private let slides: [(tagline: String, symbol: String)] = [
         ("Et sted til minder, milepæle og øjeblikke", "book.closed"),
         ("Jeres historie — samlet ét sted", "house"),
@@ -22,10 +24,19 @@ struct HeroView: View {
                 .multilineTextAlignment(.center)
                 .frame(minHeight: 50)
                 .padding(.horizontal, 12)
-            Image(systemName: slides[index].symbol)
-                .font(.system(size: 44, weight: .light))
-                .foregroundStyle(Theme.neutralDark)
-                .frame(height: 60)
+            if expecting {
+                Image(systemName: "heart.fill")
+                    .font(.system(size: 44, weight: .light))
+                    .foregroundStyle(Theme.rose.opacity(0.85))
+                    .frame(height: 60)
+                    .breathing(true)
+                    .accessibilityLabel("Et barn på vej")
+            } else {
+                Image(systemName: slides[index].symbol)
+                    .font(.system(size: 44, weight: .light))
+                    .foregroundStyle(Theme.neutralDark)
+                    .frame(height: 60)
+            }
             HStack(spacing: 8) {
                 ForEach(slides.indices, id: \.self) { i in
                     Circle()

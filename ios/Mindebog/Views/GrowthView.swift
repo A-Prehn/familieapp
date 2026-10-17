@@ -56,7 +56,7 @@ struct GrowthView: View {
             }
             .padding(16)
         }
-        .background(Theme.bg.ignoresSafeArea())
+        .paperBackground()
         .navigationTitle("Vækst")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {

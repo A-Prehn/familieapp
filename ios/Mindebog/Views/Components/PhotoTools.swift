@@ -80,12 +80,17 @@ struct DataImage: View {
     let data: Data
     var contentMode: ContentMode = .fill
     var maxPixel: CGFloat = 800
+    @Environment(.accessibilityReduceMotion) private var reduceMotion
+    @State private var shown = false
 
     var body: some View {
         if let ui = ImageTools.thumbnail(data, maxPixel: maxPixel) {
             Image(uiImage: ui)
                 .resizable()
                 .aspectRatio(contentMode: contentMode)
+                // Billedet "fremkaldes" blidt i stedet for at hoppe på plads.
+                .opacity(shown || reduceMotion ? 1 : 0)
+                .onAppear { withAnimation(.easeOut(duration: 0.3)) { shown = true } }
         } else {
             Theme.bgDark
         }
@@ -333,6 +338,9 @@ struct CoverPhotoView: View {
     var aspect: CGFloat? = nil
     var cornerRadius: CGFloat = 8
     var showCaption = true
+    /// Til zoom-overgangen: et id for kortet og den skærms namespace, der viser fuld skærm.
+    var zoomId: String? = nil
+    var zoomNamespace: Namespace.ID? = nil
     let onOpen: (LightboxState) -> Void
 
     var body: some View {
@@ -340,6 +348,7 @@ struct CoverPhotoView: View {
             Color.clear
                 .aspectRatio(aspect ?? ImageTools.displayAspect(cover), contentMode: .fit)
                 .overlay { DataImage(data: cover) }
+                .modifier(OptionalZoomSource(id: zoomId, namespace: zoomNamespace))
                 .overlay(alignment: .bottom) {
                     if showCaption && !set.coverCaption.isEmpty || set.count > 1 {
                         HStack(alignment: .bottom) {
@@ -369,9 +378,19 @@ struct CoverPhotoView: View {
                 .contentShape(Rectangle())
                 .onTapGesture {
                     onOpen(LightboxState(photos: set.photos, index: set.coverIndex,
-                                         captions: set.photos.indices.map { set.caption(at: $0) }))
+                                         captions: set.photos.indices.map { set.caption(at: $0) },
+                                         sourceId: zoomId))
                 }
         }
+    }
+}
+
+/// Zoom-kilde, der kun sættes, når både id og namespace er givet.
+struct OptionalZoomSource: ViewModifier {
+    let id: String?
+    let namespace: Namespace.ID?
+    func body(content: Content) -> some View {
+        if let id, let namespace { content.zoomSource(id: id, in: namespace) } else { content }
     }
 }
 
@@ -381,6 +400,8 @@ struct LightboxState: Identifiable {
     let photos: [Data]
     var index: Int = 0
     var captions: [String] = []
+    /// Id på det billede, der blev trykket på — så fuld skærm kan "løfte sig" fra det (iOS 18).
+    var sourceId: String? = nil
 }
 
 struct LightboxView: View {

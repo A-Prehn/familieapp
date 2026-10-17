@@ -2,6 +2,7 @@ import SwiftUI
 
 struct FamilyView: View {
     @EnvironmentObject var state: AppState
+    @Namespace private var zoomNS   // zoom-overgang til fuld skærm (iOS 18)
 
     enum Tab: String, CaseIterable, Identifiable {
         case memories = "Minder"
@@ -67,7 +68,7 @@ struct FamilyView: View {
             }
             .padding(16)
         }
-        .background(Theme.bg.ignoresSafeArea())
+        .paperBackground()
         .navigationTitle("Fælles")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -105,7 +106,7 @@ struct FamilyView: View {
             PersonEditView(familyId: state.familyId ?? "", persons: persons, children: children,
                            members: members, birthdays: customBirthdays, editing: person)
         }
-        .fullScreenCover(item: $lightbox) { LightboxView(state: $0) }
+        .fullScreenCover(item: $lightbox) { LightboxView(state: $0).zoomTarget(id: $0.sourceId, in: zoomNS) }
         .refreshable { await load() }
         .task { await load() }
         .reloadOnStoreChange { await load() }
@@ -129,7 +130,7 @@ struct FamilyView: View {
                     if !event.details.isEmpty {
                         Text(event.details).font(.footnote).foregroundStyle(Theme.muted)
                     }
-                    CoverPhotoView(set: event.photos) { lightbox = $0 }
+                    CoverPhotoView(set: event.photos, zoomId: event.id, zoomNamespace: zoomNS) { lightbox = $0 }
                     if let place = event.place {
                         PlaceLabel(place: place)
                         PlaceMap(place: place)
@@ -141,7 +142,8 @@ struct FamilyView: View {
                 .onTapGesture { if state.canEdit { editingEvent = event } }
                 .background(Theme.card)
                 .clipShape(RoundedRectangle(cornerRadius: 14))
-                .overlay(RoundedRectangle(cornerRadius: 14).stroke(Theme.sep))
+                .overlay(RoundedRectangle(cornerRadius: 14).stroke(Theme.sep.opacity(0.7)))
+        .warmShadow()
             }
         }
     }
@@ -164,7 +166,7 @@ struct FamilyView: View {
                         if !vacation.details.isEmpty {
                             Text(vacation.details).font(.footnote).foregroundStyle(Theme.muted)
                         }
-                        CoverPhotoView(set: vacation.photos) { lightbox = $0 }
+                        CoverPhotoView(set: vacation.photos, zoomId: vacation.id, zoomNamespace: zoomNS) { lightbox = $0 }
                         if let place = vacation.place {
                             PlaceLabel(place: place)
                             PlaceMap(place: place)
@@ -176,7 +178,8 @@ struct FamilyView: View {
                     .onTapGesture { if state.canEdit { editingVacation = vacation } }
                     .background(Theme.card)
                     .clipShape(RoundedRectangle(cornerRadius: 14))
-                    .overlay(RoundedRectangle(cornerRadius: 14).stroke(Theme.sep))
+                    .overlay(RoundedRectangle(cornerRadius: 14).stroke(Theme.sep.opacity(0.7)))
+        .warmShadow()
             }
         }
     }

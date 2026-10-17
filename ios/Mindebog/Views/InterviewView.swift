@@ -50,7 +50,7 @@ struct InterviewView: View {
             }
             .scrollContentBackground(.hidden)
         }
-        .background(Theme.bg.ignoresSafeArea())
+        .paperBackground()
         .navigationTitle("Det årlige interview")
         .navigationBarTitleDisplayMode(.inline)
         .sheet(item: $editing, onDismiss: { Task { await load() } }) { target in

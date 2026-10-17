@@ -23,7 +23,7 @@ struct TimelineView<Item: Identifiable, Card: View>: View {
                         .frame(width: dotSize, height: dotSize)
                         .frame(width: rail)
                         .padding(.top, 22)
-                    card(item)
+                    card(item).softAppear(index: index)
                 }
             }
         }

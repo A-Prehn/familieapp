@@ -2,15 +2,19 @@ import SwiftUI
 
 struct DiaryView: View {
     @EnvironmentObject var state: AppState
+    @Namespace private var zoomNS   // zoom-overgang til fuld skærm (iOS 18)
     let child: Child
     @State private var entries: [DiaryEntry] = []
     @State private var showAdd = false
     @State private var editing: DiaryEntry?
     @State private var lightbox: LightboxState?
+    @State private var loading = true
 
     var body: some View {
         ScrollView {
-            if entries.isEmpty {
+            if entries.isEmpty && loading {
+                ShimmerList()
+            } else if entries.isEmpty {
                 ContentUnavailableView("Ingen indlæg endnu", systemImage: "book")
                     .padding(.top, 60)
             } else {
@@ -22,7 +26,7 @@ struct DiaryView: View {
                 .padding(16)
             }
         }
-        .background(Theme.bg.ignoresSafeArea())
+        .paperBackground()
         .navigationTitle(child.onTheWay ? "Svangerskabsdagbog" : "Dagbog")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -36,7 +40,7 @@ struct DiaryView: View {
         .sheet(item: $editing, onDismiss: { Task { await load() } }) { entry in
             AddDiaryView(childId: child.id, editing: entry)
         }
-        .fullScreenCover(item: $lightbox) { LightboxView(state: $0) }
+        .fullScreenCover(item: $lightbox) { LightboxView(state: $0).zoomTarget(id: $0.sourceId, in: zoomNS) }
         .refreshable { await load() }
         .task { await load() }
         .reloadOnStoreChange { await load() }
@@ -54,15 +58,17 @@ struct DiaryView: View {
                 Color.clear
                     .aspectRatio(ImageTools.displayAspect(photo), contentMode: .fit)   // billedets egen form
                     .overlay { DataImage(data: photo) }
+                    .zoomSource(id: entry.id, in: zoomNS)
                     .clipShape(RoundedRectangle(cornerRadius: 8))
-                    .onTapGesture { lightbox = LightboxState(photos: [photo]) }
+                    .onTapGesture { lightbox = LightboxState(photos: [photo], sourceId: entry.id) }
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(14)
         .background(Theme.card)
         .clipShape(RoundedRectangle(cornerRadius: 14))
-        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Theme.sep))
+        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Theme.sep.opacity(0.7)))
+        .warmShadow()
         .contentShape(RoundedRectangle(cornerRadius: 14))
         .onTapGesture { if state.canEdit { editing = entry } }
         .contextMenu {
@@ -71,6 +77,7 @@ struct DiaryView: View {
     }
 
     private func load() async {
+        defer { loading = false }
         entries = (try? await state.store.diary(childId: child.id)) ?? []
     }
 }

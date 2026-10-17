@@ -41,6 +41,7 @@ func performSave(saving: Binding<Bool>, errorMessage: Binding<String?>,
     defer { SaveQueue.shared.foreground -= 1 }
     do {
         try await work()
+        Haptics.success()
         dismiss()
         NotificationCenter.default.post(name: .storeDidChange, object: nil)
     } catch {

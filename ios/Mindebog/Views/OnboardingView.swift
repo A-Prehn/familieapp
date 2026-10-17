@@ -66,6 +66,6 @@ struct OnboardingView: View {
             Spacer()
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Theme.bg.ignoresSafeArea())
+        .paperBackground()
     }
 }

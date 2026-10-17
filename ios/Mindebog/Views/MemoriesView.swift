@@ -52,7 +52,8 @@ struct MemoriesView: View {
                 .onTapGesture { if state.canEdit { onEdit(memory) } }
                 .background(Theme.card)
                 .clipShape(RoundedRectangle(cornerRadius: 14))
-                .overlay(RoundedRectangle(cornerRadius: 14).stroke(Theme.sep))
+                .overlay(RoundedRectangle(cornerRadius: 14).stroke(Theme.sep.opacity(0.7)))
+        .warmShadow()
             }
         }
     }

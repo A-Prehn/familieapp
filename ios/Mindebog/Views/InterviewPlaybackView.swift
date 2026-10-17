@@ -114,6 +114,7 @@ struct InterviewPlaybackView: View, Identifiable {
 
     private func go(_ newIndex: Int) {
         guard answers.indices.contains(newIndex) else { return }
+        Haptics.light()
         stopCurrent()
         index = newIndex
         paused = false

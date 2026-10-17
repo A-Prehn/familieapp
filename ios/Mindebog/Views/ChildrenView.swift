@@ -20,9 +20,10 @@ struct ChildrenView: View {
             VStack(spacing: 12) {
                 SectionLabel("Vores børn")
                 LazyVGrid(columns: columns, spacing: 12) {
-                    ForEach(children) { child in
+                    ForEach(Array(children.enumerated()), id: .element.id) { i, child in
                         NavigationLink(value: child) { ChildCard(child: child) }
                             .buttonStyle(.plain)
+                            .softAppear(index: i)
                     }
                     if state.canEdit {
                         Button { addChild() } label: { AddChildCard() }
@@ -32,7 +33,7 @@ struct ChildrenView: View {
             }
             .padding(16)
         }
-        .background(Theme.bg.ignoresSafeArea())
+        .paperBackground()
         .navigationTitle(family?.name ?? "Familie")
         .navigationBarTitleDisplayMode(.inline)
         .navigationDestination(for: Child.self) { ChildDetailView(child: $0) }

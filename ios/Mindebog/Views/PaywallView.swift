@@ -115,7 +115,7 @@ struct PaywallView: View {
                 }
                 .padding(24)
             }
-            .background(Theme.bg.ignoresSafeArea())
+            .paperBackground()
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Ikke nu") { dismiss() } }
             }

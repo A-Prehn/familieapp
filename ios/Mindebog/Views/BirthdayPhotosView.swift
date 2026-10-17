@@ -5,6 +5,7 @@ import PhotosUI
 /// billederne fra netop den dag. Gemmes som billedserie med alderen som billedtekst.
 struct BirthdayPhotosView: View {
     @EnvironmentObject var state: AppState
+    @Namespace private var zoomNS   // zoom-overgang til fuld skærm (iOS 18)
     let child: Child
 
     @State private var items: [GalleryItem] = []
@@ -13,6 +14,7 @@ struct BirthdayPhotosView: View {
     @State private var pickerItems: [PhotosPickerItem] = []
     @State private var showSuggestions = false
     @State private var showPicker = false
+    @State private var loadingItems = true
     @State private var adding = 0
     @State private var editing: GalleryItem?
     @State private var lightbox: LightboxState?
@@ -76,7 +78,9 @@ struct BirthdayPhotosView: View {
                     }
                 }
 
-                if forAge.isEmpty && adding == 0 {
+                if items.isEmpty && loadingItems {
+                    ShimmerGrid(columns: 3).padding(-16)
+                } else if forAge.isEmpty && adding == 0 {
                     VStack(spacing: 10) {
                         Image(systemName: "gift").font(.system(size: 34, weight: .light)).foregroundStyle(Theme.rose)
                         Text("Ingen billeder fra \(age)-års fødselsdagen endnu.")
@@ -93,11 +97,13 @@ struct BirthdayPhotosView: View {
                     .padding(.vertical, 30)
                 } else {
                     LazyVGrid(columns: columns, spacing: 6) {
-                        ForEach(forAge) { item in
+                        ForEach(Array(forAge.enumerated()), id: .element.id) { i, item in
                             Color.clear
                                 .aspectRatio(1, contentMode: .fit)
                                 .overlay { if let p = item.photo { DataImage(data: p) } else { Theme.bgDark } }
+                                .zoomSource(id: item.id, in: zoomNS)
                                 .clipShape(RoundedRectangle(cornerRadius: 8))
+                                .softAppear(index: i)
                                 .contentShape(Rectangle())
                                 .onTapGesture { open(item) }
                                 .contextMenu {
@@ -113,7 +119,7 @@ struct BirthdayPhotosView: View {
             }
             .padding(16)
         }
-        .background(Theme.bg.ignoresSafeArea())
+        .paperBackground()
         .navigationTitle("Fødselsdage")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -134,7 +140,7 @@ struct BirthdayPhotosView: View {
         .sheet(item: $editing, onDismiss: { Task { await load() } }) { item in
             AddGalleryItemView(childId: child.id, kind: .birthday, editing: item)
         }
-        .fullScreenCover(item: $lightbox) { LightboxView(state: $0) }
+        .fullScreenCover(item: $lightbox) { LightboxView(state: $0).zoomTarget(id: $0.sourceId, in: zoomNS) }
         .onChange(of: pickerItems) { _, newItems in
             guard !newItems.isEmpty else { return }
             Task {
@@ -157,11 +163,12 @@ struct BirthdayPhotosView: View {
     private func open(_ item: GalleryItem) {
         let list = forAge.filter { $0.photo != nil }
         guard let i = list.firstIndex(where: { $0.id == item.id }) else { return }
-        lightbox = LightboxState(photos: list.compactMap(\.photo), index: i, captions: list.map(\.note))
+        lightbox = LightboxState(photos: list.compactMap(\.photo), index: i, captions: list.map(\.note), sourceId: item.id)
     }
 
     private func load() async {
         items = (try? await state.store.gallery(childId: child.id, kind: .birthday)) ?? []
+        loadingItems = false
     }
 
     /// Gemmer billederne til den valgte fødselsdag, ét ad gangen, mens man kan se dem dukke op.

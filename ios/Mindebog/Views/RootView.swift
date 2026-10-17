@@ -15,7 +15,7 @@ struct RootView: View {
                 MainTabView()
             }
         }
-        .background(Theme.bg.ignoresSafeArea())
+        .paperBackground()
     }
 }
 

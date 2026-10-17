@@ -156,7 +156,7 @@ struct ChildCard: View {
         .frame(maxWidth: .infinity).padding(.vertical, 18)
         .background(Theme.card).clipShape(RoundedRectangle(cornerRadius: 14))
         .overlay(RoundedRectangle(cornerRadius: 14).stroke(Theme.sep))
-        .shadow(color: .black.opacity(0.05), radius: 6, y: 2)
+
         .accessibilityHint("Åbner \(child.name)s mindebog")
     }
 }

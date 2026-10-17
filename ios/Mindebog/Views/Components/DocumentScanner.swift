@@ -30,6 +30,7 @@ struct DocumentScanner: UIViewControllerRepresentable {
                     out.append(ImageTools.resized(jpeg) ?? jpeg)
                 }
             }
+            if !out.isEmpty { Haptics.light() }
             controller.dismiss(animated: true) { self.onFinish(out) }
         }
 

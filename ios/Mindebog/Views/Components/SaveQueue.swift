@@ -28,6 +28,7 @@ final class SaveQueue: ObservableObject {
         Task {
             do {
                 try await work()
+                Haptics.success()
             } catch {
                 failed.append(Failed(label: label, message: SaveError.message(for: error), work: work))
             }

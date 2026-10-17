@@ -2,11 +2,13 @@ import SwiftUI
 
 struct HighlightsView: View {
     @EnvironmentObject var state: AppState
+    @Namespace private var zoomNS   // zoom-overgang til fuld skærm (iOS 18)
     let child: Child
     @State private var items: [Highlight] = []
     @State private var showAdd = false
     @State private var editing: Highlight?
     @State private var lightbox: LightboxState?
+    @State private var loading = true
     @State private var playingVideo: VideoPlayerScreen?
     @State private var loadingMedia: String?          // highlight-id der henter medie
     @StateObject private var audioPlayback = AudioPlayback()
@@ -14,7 +16,9 @@ struct HighlightsView: View {
 
     var body: some View {
         ScrollView {
-            if items.isEmpty {
+            if items.isEmpty && loading {
+                ShimmerList()
+            } else if items.isEmpty {
                 ContentUnavailableView("Ingen højdepunkter endnu", systemImage: "star")
                     .padding(.top, 60)
             } else {
@@ -26,7 +30,7 @@ struct HighlightsView: View {
                 .padding(16)
             }
         }
-        .background(Theme.bg.ignoresSafeArea())
+        .paperBackground()
         .navigationTitle("Højdepunkter")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -40,7 +44,7 @@ struct HighlightsView: View {
         .sheet(item: $editing, onDismiss: { Task { await load() } }) { highlight in
             AddHighlightView(childId: child.id, editing: highlight)
         }
-        .fullScreenCover(item: $lightbox) { LightboxView(state: $0) }
+        .fullScreenCover(item: $lightbox) { LightboxView(state: $0).zoomTarget(id: $0.sourceId, in: zoomNS) }
         .fullScreenCover(item: $playingVideo) { $0 }
         .refreshable { await load() }
         .task { await load() }
@@ -107,9 +111,10 @@ struct HighlightsView: View {
                 Color.clear
                     .aspectRatio(ImageTools.displayAspect(highlight.photos[index]), contentMode: .fit)
                     .overlay { DataImage(data: highlight.photos[index]) }
+                    .zoomSource(id: "\(highlight.id)_\(index)", in: zoomNS)
                     .clipShape(RoundedRectangle(cornerRadius: 8))
                     .onTapGesture {
-                        lightbox = LightboxState(photos: highlight.photos, index: index)
+                        lightbox = LightboxState(photos: highlight.photos, index: index, sourceId: "\(highlight.id)_\(index)")
                     }
             }
             mediaButtons(highlight)
@@ -118,7 +123,8 @@ struct HighlightsView: View {
         .padding(14)
         .background(Theme.card)
         .clipShape(RoundedRectangle(cornerRadius: 14))
-        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Theme.sep))
+        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Theme.sep.opacity(0.7)))
+        .warmShadow()
         .contentShape(RoundedRectangle(cornerRadius: 14))
         .onTapGesture { if state.canEdit { editing = highlight } }
         .contextMenu {
@@ -127,6 +133,8 @@ struct HighlightsView: View {
     }
 
     private func load() async {
+        defer { loading = false }
+        defer { loading = false }
         items = (try? await state.store.highlights(childId: child.id)) ?? []
     }
 }

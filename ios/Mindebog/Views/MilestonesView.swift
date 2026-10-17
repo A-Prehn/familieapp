@@ -2,6 +2,7 @@ import SwiftUI
 
 struct MilestonesView: View {
     @EnvironmentObject var state: AppState
+    @Namespace private var zoomNS   // zoom-overgang til fuld skærm (iOS 18)
     let child: Child
     @State private var entries: [String: MilestoneEntry] = [:]
     @State private var editing: MilestoneDef?
@@ -18,13 +19,13 @@ struct MilestonesView: View {
             }
             .padding(16)
         }
-        .background(Theme.bg.ignoresSafeArea())
+        .paperBackground()
         .navigationTitle("Milepæle")
         .navigationBarTitleDisplayMode(.inline)
         .sheet(item: $editing, onDismiss: { Task { await load() } }) { def in
             MilestoneEditView(child: child, def: def, entry: entries[def.key])
         }
-        .fullScreenCover(item: $lightbox) { LightboxView(state: $0) }
+        .fullScreenCover(item: $lightbox) { LightboxView(state: $0).zoomTarget(id: $0.sourceId, in: zoomNS) }
         .refreshable { await load() }
         .task { await load() }
         .reloadOnStoreChange { await load() }
@@ -37,7 +38,7 @@ struct MilestonesView: View {
             Group {
                 if let photos = entry?.photos, !photos.isEmpty {
                     // Forsidebillede + billedtekst + "+N"; tryk viser alle billeder.
-                    CoverPhotoView(set: photos, aspect: 4.0 / 3.0, cornerRadius: 0) { lightbox = $0 }
+                    CoverPhotoView(set: photos, aspect: 4.0 / 3.0, cornerRadius: 0, zoomId: def.key, zoomNamespace: zoomNS) { lightbox = $0 }
                 } else {
                     Color.clear
                         .aspectRatio(4.0 / 3.0, contentMode: .fit)

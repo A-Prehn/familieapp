@@ -3,6 +3,7 @@ import SwiftUI
 // Bruges til både "Maven måned for måned" og "Måned for måned".
 struct GalleryView: View {
     @EnvironmentObject var state: AppState
+    @Namespace private var zoomNS   // zoom-overgang til fuld skærm (iOS 18)
     let child: Child
     let kind: GalleryKind
     @State private var items: [GalleryItem] = []
@@ -24,12 +25,15 @@ struct GalleryView: View {
     @State private var lightbox: LightboxState?
     @State private var scanning = false
     @State private var scanError: String?
+    @State private var loading = true
 
     private let columns = [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)]
 
     var body: some View {
         ScrollView {
-            if items.isEmpty {
+            if items.isEmpty && loading {
+                ShimmerGrid(columns: kind == .belly ? 1 : 2)
+            } else if items.isEmpty {
                 if kind == .drawings {
                     ContentUnavailableView {
                         Label("Ingen tegninger endnu", systemImage: "paintpalette")
@@ -55,14 +59,14 @@ struct GalleryView: View {
                 .padding(16)
             } else {
                 LazyVGrid(columns: columns, spacing: 10) {
-                    ForEach(sorted) { item in
-                        cell(item)
+                    ForEach(Array(sorted.enumerated()), id: \.element.id) { i, item in
+                        cell(item).softAppear(index: i)
                     }
                 }
                 .padding(16)
             }
         }
-        .background(Theme.bg.ignoresSafeArea())
+        .paperBackground()
         .navigationTitle(kind.title)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -104,7 +108,7 @@ struct GalleryView: View {
         .sheet(item: $editing, onDismiss: { Task { await load() } }) { item in
             AddGalleryItemView(childId: child.id, kind: kind, editing: item)
         }
-        .fullScreenCover(item: $lightbox) { LightboxView(state: $0) }
+        .fullScreenCover(item: $lightbox) { LightboxView(state: $0).zoomTarget(id: $0.sourceId, in: zoomNS) }
         .refreshable { await load() }
         .task { await load() }
         .reloadOnStoreChange { await load() }
@@ -127,6 +131,7 @@ struct GalleryView: View {
                 Color.clear
                     .aspectRatio(ImageTools.displayAspect(photo), contentMode: .fit)
                     .overlay { DataImage(data: photo) }
+                    .zoomSource(id: item.id, in: zoomNS)
                     .clipShape(RoundedRectangle(cornerRadius: 8))
                     .onTapGesture { openLightbox(at: item) }
             }
@@ -135,7 +140,8 @@ struct GalleryView: View {
         .padding(14)
         .background(Theme.card)
         .clipShape(RoundedRectangle(cornerRadius: 14))
-        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Theme.sep))
+        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Theme.sep.opacity(0.7)))
+        .warmShadow()
         .contentShape(RoundedRectangle(cornerRadius: 14))
         .onTapGesture { if state.canEdit { editing = item } }
         .contextMenu {
@@ -155,6 +161,7 @@ struct GalleryView: View {
                     }
                 }
                 .clipped()
+                .zoomSource(id: item.id, in: zoomNS)
                 .contentShape(Rectangle())
                 .onTapGesture { openLightbox(at: item) }
                 // Lille blyant: redigér tekst/billede (tryk på selve billedet = fuld skærm).
@@ -188,7 +195,8 @@ struct GalleryView: View {
         }
         .background(Theme.card)
         .clipShape(RoundedRectangle(cornerRadius: 14))
-        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Theme.sep))
+        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Theme.sep.opacity(0.7)))
+        .warmShadow()
         .contextMenu {
             Button { if state.canEdit { editing = item } } label: { Label("Redigér", systemImage: "pencil") }
         }
@@ -201,10 +209,11 @@ struct GalleryView: View {
         let index = withPhotos.firstIndex(where: { $0.id == item.id }) ?? 0
         // Tegninger: beskrivelsen vises kun her, i fuld skærm.
         let captions = withPhotos.map { $0.note.isEmpty ? $0.caption : ($0.caption.isEmpty ? $0.note : "\($0.caption) · \($0.note)") }
-        lightbox = LightboxState(photos: photos, index: index, captions: captions)
+        lightbox = LightboxState(photos: photos, index: index, captions: captions, sourceId: item.id)
     }
 
     private func load() async {
+        defer { loading = false }
         // Vis det, der blev vist sidst, med det samme — og hent så det nye fra iCloud.
         let cacheKey = "gallery_\(child.id)_\(kind.rawValue)"
         if items.isEmpty, let cached = ScreenCache.load([GalleryItem].self, key: cacheKey) { items = cached }
