@@ -20,7 +20,7 @@ struct ChildrenView: View {
             VStack(spacing: 12) {
                 SectionLabel("Vores børn")
                 LazyVGrid(columns: columns, spacing: 12) {
-                    ForEach(Array(children.enumerated()), id: .element.id) { i, child in
+                    ForEach(Array(children.enumerated()), id: \.element.id) { i, child in
                         NavigationLink(value: child) { ChildCard(child: child) }
                             .buttonStyle(.plain)
                             .softAppear(index: i)

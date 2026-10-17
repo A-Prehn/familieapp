@@ -80,7 +80,7 @@ struct DataImage: View {
     let data: Data
     var contentMode: ContentMode = .fill
     var maxPixel: CGFloat = 800
-    @Environment(.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var shown = false
 
     var body: some View {

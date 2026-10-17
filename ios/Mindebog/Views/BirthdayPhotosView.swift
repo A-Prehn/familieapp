@@ -97,7 +97,7 @@ struct BirthdayPhotosView: View {
                     .padding(.vertical, 30)
                 } else {
                     LazyVGrid(columns: columns, spacing: 6) {
-                        ForEach(Array(forAge.enumerated()), id: .element.id) { i, item in
+                        ForEach(Array(forAge.enumerated()), id: \.element.id) { i, item in
                             Color.clear
                                 .aspectRatio(1, contentMode: .fit)
                                 .overlay { if let p = item.photo { DataImage(data: p) } else { Theme.bgDark } }
