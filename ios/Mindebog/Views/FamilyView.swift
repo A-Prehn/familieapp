@@ -16,17 +16,6 @@ struct FamilyView: View {
         /// Fanerne, der vises. Stamtræet er taget ud, indtil tegningen af det er færdig.
         static var visible: [Tab] { allCases.filter { $0 != .tree } }
 
-        /// Kort tekst under ikonet — seks faner skal være på skærmen samtidig.
-        var short: String {
-            switch self {
-            case .memories: "Minder"
-            case .events: "Begiv."
-            case .vacations: "Ferier"
-            case .birthdays: "Fødsel"
-            case .tree: "Stamtræ"
-            case .traditions: "Trad."
-            }
-        }
         var symbol: String {
             switch self {
             case .memories: "heart"
@@ -68,8 +57,9 @@ struct FamilyView: View {
                                 VStack(spacing: 4) {
                                     Image(systemName: t.symbol)
                                         .font(.system(size: 18, weight: tab == t ? .semibold : .light))
-                                    Text(t.short).font(.system(size: 10, weight: tab == t ? .semibold : .regular))
-                                        .lineLimit(1).minimumScaleFactor(0.8)
+                                    // Fulde navne — med fem faner er der plads; teksten skrumper lidt, hvis ikke.
+                                    Text(t.rawValue).font(.system(size: 11, weight: tab == t ? .semibold : .regular))
+                                        .lineLimit(1).minimumScaleFactor(0.7)
                                     Rectangle()
                                         .fill(tab == t ? Theme.rose : .clear)
                                         .frame(height: 2)
