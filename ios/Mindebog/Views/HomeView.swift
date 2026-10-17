@@ -18,6 +18,8 @@ struct HomeView: View {
     @State private var lightbox: LightboxState?
     @State private var loading = true
     @State private var refreshing = false   // viser "Henter nyeste", mens listen fra sidst opdateres
+    @State private var loadGeneration = 0
+    @State private var lastLoad: Date?
 
     var body: some View {
         ScrollView {
@@ -104,7 +106,7 @@ struct HomeView: View {
         }
         .fullScreenCover(item: $lightbox) { LightboxView(state: $0).zoomTarget(id: $0.sourceId, in: zoomNS) }
         .refreshable { await load() }
-        .task { await load() }
+        .task { await loadIfStale() }
         .reloadOnStoreChange { await load() }
     }
 
@@ -248,8 +250,20 @@ struct HomeView: View {
         var day: String   // "På denne dag" gælder kun samme dato
     }
 
+    /// Ved fanebladsskift: hent kun igen, hvis det er et stykke tid siden.
+    private func loadIfStale() async {
+        if let last = lastLoad, Date().timeIntervalSince(last) < 30 { return }
+        await load()
+    }
+
     private func load() async {
-        defer { loading = false; refreshing = false }
+        // Kun den nyeste hentning må opdatere skærmen — en ældre, der bliver færdig sidst,
+        // ville ellers vise gamle opslag igen.
+        loadGeneration += 1
+        let generation = loadGeneration
+        func isCurrent() -> Bool { generation == loadGeneration }
+        lastLoad = Date()
+        defer { if isCurrent() { loading = false; refreshing = false } }
         guard let familyId = state.familyId else { return }
         let cacheKey = "home_\(familyId)"
         refreshing = true
@@ -265,16 +279,16 @@ struct HomeView: View {
         // Børn og minde-oversigten hentes samtidig.
         async let kidsTask = store.children(familyId: familyId)
         async let summariesTask = store.memorySummaries(familyId: familyId)
-        guard let loadedKids = try? await kidsTask else { return }
+        guard let loadedKids = try? await kidsTask, isCurrent() else { return }
         children = loadedKids
         ChildPalette.update(children)
         Task { await Reminders.schedule(children: loadedKids) }
         defer {
-            ScreenCache.save(Cached(children: children, recent: recent, onThisDay: onThisDay, day: todayKey), key: cacheKey)
+            if isCurrent() { ScreenCache.save(Cached(children: children, recent: recent, onThisDay: onThisDay, day: todayKey), key: cacheKey) }
         }
 
         // 1) Let oversigt over alle minder — kun tekst og datoer, ingen billeder.
-        guard let summaries = try? await summariesTask else { return }
+        guard let summaries = try? await summariesTask, isCurrent() else { return }
         let names = Dictionary(uniqueKeysWithValues: loadedKids.map { ($0.id, $0) })
 
         func memory(_ s: MemorySummary) -> RecentMemory? {
@@ -362,6 +376,7 @@ struct HomeView: View {
         }
         newRecent = await withPhotos(newRecent)
         newOnThisDay = await withPhotos(newOnThisDay)
+        guard isCurrent() else { return }
         recent = newRecent
         onThisDay = newOnThisDay
 
