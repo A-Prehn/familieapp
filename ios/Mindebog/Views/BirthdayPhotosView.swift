@@ -135,7 +135,8 @@ struct BirthdayPhotosView: View {
         }
         .photosPicker(isPresented: $showPicker, selection: $pickerItems, maxSelectionCount: 30, matching: .images)
         .sheet(isPresented: $showSuggestions) {
-            PhotoSuggestionsView(days: 31) { picked in Task { await add(picked) } }
+            // Billeder fra selve fødselsdagen og dagene omkring — ikke bare de nyeste.
+            PhotoSuggestionsView(range: birthdayDate.map { .around($0, days: 3) }) { picked in Task { await add(picked) } }
         }
         .sheet(item: $editing, onDismiss: { Task { await load() } }) { item in
             AddGalleryItemView(childId: child.id, kind: .birthday, editing: item)

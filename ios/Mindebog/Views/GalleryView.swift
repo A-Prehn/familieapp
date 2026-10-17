@@ -291,7 +291,8 @@ struct AddGalleryItemView: View {
                          : "Vises efter \(kind == .belly ? "ugen" : "måneden") på oversigten.")
                 }
                 Section("Billede") {
-                    PhotoField(data: $photo, onCaptureDate: { date = $0 })
+                    // Forslag fra ugerne omkring den valgte dato.
+                    PhotoField(data: $photo, suggestRange: .around(date, days: 14), onCaptureDate: { date = $0 })
                 }
                 if editing != nil {
                     Section {

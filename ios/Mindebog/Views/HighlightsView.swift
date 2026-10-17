@@ -185,7 +185,7 @@ struct AddHighlightView: View {
                         .lineLimit(3...6)
                 }
                 Section("Billeder") {
-                    MultiPhotoField(photos: $photos)
+                    MultiPhotoField(photos: $photos, suggestRange: .around(date, days: 3))
                 }
                 Section {
                     MediaField(video: $video, audio: $audio,

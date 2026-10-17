@@ -115,7 +115,8 @@ struct AddDiaryView: View {
                         .lineLimit(3...8)
                 }
                 Section("Billede") {
-                    PhotoField(data: $photo)
+                    // Forslag fra dagene omkring den dato, man skriver om.
+                    PhotoField(data: $photo, suggestRange: .around(date, days: 3))
                 }
                 if editing != nil {
                     Section {

@@ -110,6 +110,8 @@ struct PhotoField: View {
     var title: String = "Vælg billede"
     /// Vis "Forslag" (de nyeste billeder fra Fotos) — slået fra fx til profilbilleder.
     var suggestions = true
+    /// Periode, forslagene hentes fra (ellers de seneste 31 dage).
+    var suggestRange: ClosedRange<Date>? = nil
     /// Kaldes med datoen, billedet blev taget (fra billedet selv), når der vælges et nyt.
     var onCaptureDate: ((Date) -> Void)? = nil
     @State private var pickerItem: PhotosPickerItem?
@@ -149,7 +151,7 @@ struct PhotoField: View {
             CropView(image: target.image) { data = $0 }
         }
         .sheet(isPresented: $showSuggestions) {
-            PhotoSuggestionsView(allowMultiple: false) { picked in data = picked.first }
+            PhotoSuggestionsView(range: suggestRange, allowMultiple: false) { picked in data = picked.first }
         }
         .onChange(of: pickerItem) { _, newItem in
             guard let newItem else { return }
@@ -168,6 +170,8 @@ struct PhotoField: View {
 // Flere billeder (højdepunkter) — med fjern-knap på hvert billede.
 struct MultiPhotoField: View {
     @Binding var photos: [Data]
+    /// Periode, forslagene hentes fra (ellers de seneste 31 dage).
+    var suggestRange: ClosedRange<Date>? = nil
     @State private var pickerItem: PhotosPickerItem?
     @State private var cropping: CropTarget?
     @State private var showSuggestions = false
@@ -227,7 +231,7 @@ struct MultiPhotoField: View {
             }
         }
         .sheet(isPresented: $showSuggestions) {
-            PhotoSuggestionsView { photos.append(contentsOf: $0) }
+            PhotoSuggestionsView(range: suggestRange) { photos.append(contentsOf: $0) }
         }
         .onChange(of: pickerItem) { _, newItem in
             guard let newItem else { return }

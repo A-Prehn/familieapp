@@ -5,8 +5,11 @@ import Photos
 // i stedet for at lede. Kræver læseadgang til Fotos (også "Udvalgte billeder" virker).
 struct PhotoSuggestionsView: View {
     @Environment(\.dismiss) private var dismiss
-    /// Hvor mange dage tilbage der foreslås fra.
+    /// Hvor mange dage tilbage der foreslås fra (når `range` ikke er sat).
     var days: Int = 31
+    /// Foreslå billeder fra netop denne periode — fx dagene omkring en fødselsdag eller
+    /// den dato, man er ved at skrive om — i stedet for bare de nyeste.
+    var range: ClosedRange<Date>? = nil
     var allowMultiple = true
     var onPick: ([Data]) -> Void
 
@@ -22,7 +25,7 @@ struct PhotoSuggestionsView: View {
             Group {
                 if status == .authorized || status == .limited {
                     if assets.isEmpty {
-                        ContentUnavailableView("Ingen billeder fra de sidste \(days) dage", systemImage: "photo")
+                        ContentUnavailableView(emptyText, systemImage: "photo")
                     } else {
                         ScrollView {
                             LazyVGrid(columns: columns, spacing: 4) {
@@ -82,10 +85,19 @@ struct PhotoSuggestionsView: View {
         else { selected = [id] }
     }
 
+    private var emptyText: String {
+        if let range {
+            return "Ingen billeder fra \(Fmt.long(range.lowerBound)) – \(Fmt.long(range.upperBound))"
+        }
+        return "Ingen billeder fra de sidste \(days) dage"
+    }
+
     private func load() async {
         let options = PHFetchOptions()
-        let since = Calendar.current.date(byAdding: .day, value: -days, to: Date()) ?? Date()
-        options.predicate = NSPredicate(format: "mediaType == %d AND creationDate >= %@", PHAssetMediaType.image.rawValue, since as NSDate)
+        let since = range?.lowerBound ?? Calendar.current.date(byAdding: .day, value: -days, to: Date()) ?? Date()
+        let until = range?.upperBound ?? Date.distantFuture
+        options.predicate = NSPredicate(format: "mediaType == %d AND creationDate >= %@ AND creationDate <= %@",
+                                        PHAssetMediaType.image.rawValue, since as NSDate, until as NSDate)
         options.sortDescriptors = [NSSortDescriptor(key: "creationDate", ascending: false)]
         options.fetchLimit = 300
         let result = PHAsset.fetchAssets(with: options)
@@ -116,6 +128,16 @@ struct PhotoSuggestionsView: View {
                 cont.resume(returning: data)
             }
         }
+    }
+}
+
+extension ClosedRange where Bound == Date {
+    /// Hele dage omkring en dato: fra morgenen `days` dage før til aftenen `days` dage efter.
+    static func around(_ date: Date, days: Int) -> ClosedRange<Date> {
+        let cal = Calendar.current
+        let start = cal.startOfDay(for: cal.date(byAdding: .day, value: -days, to: date) ?? date)
+        let endDay = cal.date(byAdding: .day, value: days + 1, to: cal.startOfDay(for: date)) ?? date
+        return start...(endDay.addingTimeInterval(-1))
     }
 }
 

@@ -13,6 +13,9 @@ struct FamilyView: View {
         case traditions = "Traditioner"
         var id: String { rawValue }
 
+        /// Fanerne, der vises. Stamtræet er taget ud, indtil tegningen af det er færdig.
+        static var visible: [Tab] { allCases.filter { $0 != .tree } }
+
         /// Kort tekst under ikonet — seks faner skal være på skærmen samtidig.
         var short: String {
             switch self {
@@ -57,10 +60,10 @@ struct FamilyView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 16) {
-                // Seks faner med ikon og kort tekst, alle synlige på én gang; den valgte har en rosa streg under.
+                // Fem faner med ikon og kort tekst, alle synlige på én gang; den valgte har en rosa streg under.
                 VStack(spacing: 0) {
                     HStack(spacing: 0) {
-                        ForEach(Tab.allCases) { t in
+                        ForEach(Tab.visible) { t in
                             Button { withAnimation(.easeInOut(duration: 0.2)) { tab = t } } label: {
                                 VStack(spacing: 4) {
                                     Image(systemName: t.symbol)
