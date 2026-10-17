@@ -134,7 +134,6 @@ struct HighlightsView: View {
 
     private func load() async {
         defer { loading = false }
-        defer { loading = false }
         items = (try? await state.store.highlights(childId: child.id)) ?? []
     }
 }
