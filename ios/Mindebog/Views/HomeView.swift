@@ -17,6 +17,7 @@ struct HomeView: View {
     @AppStorage(HomeAction.storageKey) private var homeActionsRaw = ""
     @State private var lightbox: LightboxState?
     @State private var loading = true
+    @State private var refreshing = false   // viser "Henter nyeste", mens listen fra sidst opdateres
 
     var body: some View {
         ScrollView {
@@ -42,7 +43,7 @@ struct HomeView: View {
                         .softAppear(index: 5)
                     }
                     if !recent.isEmpty {
-                        memorySection("Seneste i familien", recent) { m in "\(whenText(m)) · \(m.childName) · \(m.kind)" }
+                        memorySection("Seneste i familien", recent, refreshing: refreshing) { m in "\(whenText(m)) · \(m.childName) · \(m.kind)" }
                             .softAppear(index: 7)
                     } else if loading {
                         // Skimmer, mens iCloud henter første gang.
@@ -180,10 +181,20 @@ struct HomeView: View {
         }
     }
 
-    private func memorySection(_ title: String, _ items: [RecentMemory],
+    private func memorySection(_ title: String, _ items: [RecentMemory], refreshing: Bool = false,
                                meta: @escaping (RecentMemory) -> String) -> some View {
         VStack(spacing: 10) {
             SectionLabel(title)
+                .overlay(alignment: .trailing) {
+                    // Viser, at listen fra sidst er ved at blive opdateret fra iCloud.
+                    if refreshing {
+                        HStack(spacing: 6) {
+                            ProgressView().controlSize(.mini)
+                            Text("Henter nyeste").font(.caption2).foregroundStyle(Theme.muted)
+                        }
+                        .transition(.opacity)
+                    }
+                }
             ForEach(items) { memory in
                 HStack(alignment: .top, spacing: 12) {
                     if let photo = memory.photo {
@@ -211,8 +222,10 @@ struct HomeView: View {
                 .padding(12)
                 .background(Theme.card).clipShape(RoundedRectangle(cornerRadius: 14))
                 .overlay(RoundedRectangle(cornerRadius: 14).stroke(Theme.sep))
+                .opacity(refreshing ? 0.55 : 1)
             }
         }
+        .animation(.easeInOut(duration: 0.25), value: refreshing)
     }
 
     // MARK: Data
@@ -236,9 +249,10 @@ struct HomeView: View {
     }
 
     private func load() async {
-        defer { loading = false }
+        defer { loading = false; refreshing = false }
         guard let familyId = state.familyId else { return }
         let cacheKey = "home_\(familyId)"
+        refreshing = true
         let todayKey = Fmt.iso(Date())
         if children.isEmpty, let cached = ScreenCache.load(Cached.self, key: cacheKey) {
             children = cached.children
@@ -332,6 +346,7 @@ struct HomeView: View {
         withAnimation(.easeInOut(duration: 0.25)) {
             recent = withKnownPhotos(newRecent)
             onThisDay = withKnownPhotos(newOnThisDay)
+            refreshing = false
         }
         func withPhotos(_ list: [RecentMemory]) async -> [RecentMemory] {
             var out = list
