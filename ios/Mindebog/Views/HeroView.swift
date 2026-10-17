@@ -20,12 +20,19 @@ struct HeroView: View {
                 .font(.serifTitle(19))
                 .foregroundStyle(Theme.text)
                 .multilineTextAlignment(.center)
-                .frame(minHeight: 50)
+                .fixedSize(horizontal: false, vertical: true)
                 .padding(.horizontal, 12)
+                // Fuld bredde og en ny visning pr. slide: den gamle toner ud og den nye ind, i stedet
+                // for at SwiftUI prøver at glide mellem to tekster af forskellig længde (gav skæv tekst).
+                .frame(maxWidth: .infinity, minHeight: 50)
+                .id(index)
+                .transition(.opacity)
             Image(systemName: slides[index].symbol)
                 .font(.system(size: 44, weight: .light))
                 .foregroundStyle(Theme.neutralDark)
                 .frame(height: 60)
+                .id(index)
+                .transition(.opacity)
             HStack(spacing: 8) {
                 ForEach(slides.indices, id: \.self) { i in
                     Circle()
