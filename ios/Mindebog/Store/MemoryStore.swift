@@ -28,6 +28,7 @@ actor MemoryStore: Store {
     }
 
     func user(id: String) async throws -> AppUser? { users[id] }
+    func sharedChildren() async throws -> [Child] { [] }
 
     // MARK: Familie
     func families(for userId: String) async throws -> [Family] {

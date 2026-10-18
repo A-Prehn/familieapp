@@ -23,6 +23,8 @@ protocol Store {
     func createChild(familyId: String, name: String, gender: Gender,
                      birthDate: Date?, dueDate: Date?) async throws -> Child
     func updateChild(_ child: Child) async throws -> Child
+    /// Børn delt direkte med én (fx fra den anden forælders familie). Tom uden iCloud.
+    func sharedChildren() async throws -> [Child]
 
     // Pr. barn
     func highlights(childId: String) async throws -> [Highlight]
@@ -124,12 +126,16 @@ enum StoreError: LocalizedError {
     case notImplemented
     case invalidInvite
     case notFound
+    case notOwner
+    case moveIncomplete(String)
 
     var errorDescription: String? {
         switch self {
         case .notImplemented: return "Ikke implementeret endnu."
         case .invalidInvite: return "Ugyldig invitationskode."
         case .notFound: return "Findes ikke."
+        case .notOwner: return "Kun den, der har oprettet familien, kan gøre det."
+        case .moveIncomplete(let type): return "Flytningen blev ikke færdig (\(type)). Prøv igen — intet er slettet."
         }
     }
 }

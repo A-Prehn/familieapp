@@ -4,6 +4,7 @@ import SwiftUI
 struct ChildrenView: View {
     @EnvironmentObject var state: AppState
     @State private var children: [Child] = []
+    @State private var sharedChildren: [Child] = []
     @State private var family: Family?
     @State private var showNewChild = false
     @State private var paywall: PaywallReason?
@@ -28,6 +29,17 @@ struct ChildrenView: View {
                     if state.canEdit {
                         Button { addChild() } label: { AddChildCard() }
                             .buttonStyle(.plain)
+                    }
+                }
+                // Børn, der er delt med dig fra en anden familie (fx dit barn hos den anden forælder).
+                if !sharedChildren.isEmpty {
+                    SectionLabel("Delt med dig").padding(.top, 8)
+                    LazyVGrid(columns: columns, spacing: 12) {
+                        ForEach(Array(sharedChildren.enumerated()), id: \.element.id) { i, child in
+                            NavigationLink(value: child) { ChildCard(child: child) }
+                                .buttonStyle(.plain)
+                                .softAppear(index: i)
+                        }
                     }
                 }
             }
@@ -70,5 +82,8 @@ struct ChildrenView: View {
             family = fams.first { $0.id == familyId }
         }
         ScreenCache.save(Cached(family: family, children: children), key: cacheKey)
+        // Delte børn hører ikke til familien, så de vises ikke dobbelt.
+        let own = Set(children.map(\.id))
+        sharedChildren = ((try? await state.store.sharedChildren()) ?? []).filter { !own.contains($0.id) }
     }
 }

@@ -36,8 +36,13 @@ struct Child: Identifiable, Hashable, Codable {
     var gender: Gender
     /// Profilbillede (valgfrit); ellers vises en emoji efter alder og køn.
     var photo: Data? = nil
+    /// Sat, når barnet bor i sin egen iCloud-zone (delt med fx den anden forælder).
+    var ownZone: String? = nil
 
     var onTheWay: Bool { birthDate == nil && dueDate != nil }
+    /// "familyId" for et barn, der kun er delt med én (man er ikke med i barnets familie).
+    static let sharedFamilyId = "shared"
+    var isSharedOnly: Bool { familyId == Child.sharedFamilyId }
 }
 
 struct Highlight: Identifiable, Hashable, Codable {

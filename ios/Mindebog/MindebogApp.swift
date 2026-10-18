@@ -172,6 +172,11 @@ final class AppState: ObservableObject {
     /// Kaldes når brugeren har trykket på et delelink og iOS har accepteret delingen.
     func didAcceptShare(zoneName: String) async {
         guard let user else { return }
+        // Et enkelt barn delt med én (den anden forælder): vis det under Børn.
+        if zoneName.hasPrefix(CloudKitStore.childZonePrefix) {
+            NotificationCenter.default.post(name: .storeDidChange, object: nil)
+            return
+        }
         let fams = (try? await store.families(for: user.id)) ?? []
         if let match = fams.first(where: { $0.id == zoneName }) {
             setFamily(match.id)

@@ -8,6 +8,8 @@ struct ChildDetailView: View {
     @State private var bookShare: ShareSheet?
     @State private var bookError: String?
     @State private var paywall: PaywallReason?
+    @State private var canShareChild = false
+    @State private var showAccess = false
 
     init(child: Child) {
         _child = State(initialValue: child)
@@ -84,6 +86,12 @@ struct ChildDetailView: View {
                     Button { Task { await makeBook() } } label: {
                         Label("Lav mindebog (PDF)", systemImage: "book.closed")
                     }
+                    if canShareChild {
+                        Button { showAccess = true } label: {
+                            Label(child.ownZone == nil ? "Del med den anden forælder" : "Delt med den anden forælder",
+                                  systemImage: "person.2.badge.key")
+                        }
+                    }
                 } label: {
                     if makingBook { ProgressView() } else { Image(systemName: "ellipsis.circle") }
                 }
@@ -95,6 +103,21 @@ struct ChildDetailView: View {
         .saveErrorAlert($bookError)
         .sheet(isPresented: $editing) {
             NewChildView(editing: child) { updated in child = updated }
+        }
+        .sheet(isPresented: $showAccess, onDismiss: { Task { await refreshChild() } }) {
+            NavigationStack { ChildAccessView(child: child) }
+        }
+        .task {
+            // Kun familiens ejer kan dele et barn (zonen ligger i ejerens iCloud).
+            if !child.isSharedOnly, let cloud = state.store as? CloudKitStore {
+                canShareChild = await cloud.isShareOwner(familyId: child.familyId)
+            }
+        }
+    }
+
+    private func refreshChild() async {
+        if let fresh = (try? await state.store.children(familyId: child.familyId))?.first(where: { $0.id == child.id }) {
+            child = fresh
         }
     }
 

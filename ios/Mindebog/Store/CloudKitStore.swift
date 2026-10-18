@@ -50,6 +50,8 @@ actor CloudKitStore: Store {
         var result: [Family] = []
         for db in [privateDB, sharedDB] {
             let zones = try await db.allRecordZones()
+            // Barnezoner (børn delt med fx den anden forælder) huskes også, så locate() finder dem.
+            for zone in zones where zone.zoneID.zoneName.hasPrefix(Self.childZonePrefix) { remember(zone.zoneID, in: db) }
             for zone in zones where zone.zoneID.zoneName.hasPrefix("family_") {
                 let query = CKQuery(recordType: "Family", predicate: NSPredicate(value: true))
                 let (matches, _) = try await db.records(matching: query, inZoneWith: zone.zoneID, resultsLimit: 1)
@@ -205,11 +207,245 @@ actor CloudKitStore: Store {
     func children(familyId: String) async throws -> [Child] {
         let (db, zoneID) = try await locate(familyId)
         let records = try await all(db: db, zoneID: zoneID, type: "Child",
-                                    keys: ["familyRef", "name", "gender", "birthDate", "dueDate"], assetKeys: ["photo"])
-        let kids = records.map { Self.child(from: $0, familyId: familyId) }
-            .sorted { $0.name < $1.name }
-        for kid in kids { rememberChild(kid.id, zoneName: familyId) }
-        return kids
+                                    keys: ["familyRef", "name", "gender", "birthDate", "dueDate", "ownZone", "shareURL"],
+                                    assetKeys: ["photo"])
+        var kids: [Child] = []
+        for r in records {
+            var kid = Self.child(from: r, familyId: familyId)
+            if let zoneName = r["ownZone"] as? String, !zoneName.isEmpty {
+                // Barnet bor i sin egen zone (delt med den anden forælder). Sørg for at have adgang,
+                // og tag navn/billede derfra, så ændringer fra den anden forælder ses.
+                kid.ownZone = zoneName
+                await ensureChildZoneAccess(zoneName: zoneName, shareURL: r["shareURL"] as? String)
+                rememberChild(kid.id, zoneName: zoneName)
+                if let fresh = try? await childRecord(kid.id) {
+                    var updated = Self.child(from: fresh, familyId: familyId)
+                    updated.ownZone = zoneName
+                    kid = updated
+                }
+            } else {
+                rememberChild(kid.id, zoneName: familyId)
+            }
+            kids.append(kid)
+        }
+        return kids.sorted { $0.name < $1.name }
+    }
+
+    /// Børn, der er delt med én direkte (fx fra den anden forælders familie) — uden at man er med i familien.
+    func sharedChildren() async throws -> [Child] {
+        let zones = (try? await sharedDB.allRecordZones()) ?? []
+        var out: [Child] = []
+        for zone in zones where zone.zoneID.zoneName.hasPrefix(Self.childZonePrefix) {
+            remember(zone.zoneID, in: sharedDB)
+            let childId = String(zone.zoneID.zoneName.dropFirst(Self.childZonePrefix.count))
+            rememberChild(childId, zoneName: zone.zoneID.zoneName)
+            guard let r = try? await childRecord(childId) else { continue }
+            var kid = Self.child(from: r, familyId: Child.sharedFamilyId)
+            kid.ownZone = zone.zoneID.zoneName
+            out.append(kid)
+        }
+        return out.sorted { $0.name < $1.name }
+    }
+
+    private func childRecord(_ childId: String) async throws -> CKRecord {
+        let (db, zoneID) = try await locateChild(childId)
+        return try await db.record(for: CKRecord.ID(recordName: childId, zoneID: zoneID))
+    }
+
+    // MARK: - Barnezoner (del ét barn med den anden forælder)
+    // Et barn kan flyttes til sin egen zone ("child_<id>") i ejerens private database og deles
+    // for sig: den anden forælder ser kun det barn, mens familien ser alt som før. Familiens
+    // Child-record bliver liggende som "skilt" med ownZone + shareURL, så partnerens telefon
+    // selv kan acceptere delingen af barnezonen i baggrunden.
+
+    static let childZonePrefix = "child_"
+
+    /// Partner i familien: accepter barnezonens deling, hvis vi ikke allerede ser zonen.
+    private func ensureChildZoneAccess(zoneName: String, shareURL: String?) async {
+        if (try? await locate(zoneName)) != nil { return }
+        guard let shareURL, let url = URL(string: shareURL) else { return }
+        guard let metadata = try? await container.shareMetadata(for: url) else { return }
+        if metadata.participantStatus != .accepted { _ = try? await container.accept(metadata) }
+        remember(metadata.share.recordID.zoneID, in: sharedDB)
+    }
+
+    /// Typer, der hører til ét barn (alle har childRef).
+    private static let childRecordTypes = ["Highlight", "Diary", "GalleryItem", "Milestone", "Answer", "Letter", "Measurement", "Interview"]
+
+    /// Er barnet allerede i sin egen zone?
+    func childHasOwnZone(childId: String) async -> Bool {
+        let map = UserDefaults.standard.dictionary(forKey: Self.childZoneKey) as? [String: String] ?? [:]
+        return map[childId]?.hasPrefix(Self.childZonePrefix) == true
+    }
+
+    /// Flytter barnet til sin egen zone: kopiér alt, bekræft antal, skift markøren, slet originalerne.
+    /// Kan køres igen, hvis den stoppes midtvejs (kopierne overskrives bare).
+    func moveChildToOwnZone(childId: String, familyId: String) async throws {
+        let (db, familyZone) = try await locate(familyId)
+        guard db === privateDB else { throw StoreError.notOwner }
+        let zoneName = Self.childZonePrefix + childId
+        let zoneID = CKRecordZone.ID(zoneName: zoneName, ownerName: CKCurrentUserDefaultName)
+        _ = try await privateDB.save(CKRecordZone(zoneID: zoneID))
+        remember(zoneID, in: privateDB)
+
+        // 1) Barnet selv (navn, køn, datoer, billede) — uden familyRef, zonen har ingen Family.
+        let source = try await db.record(for: CKRecord.ID(recordName: childId, zoneID: familyZone))
+        if (source["ownZone"] as? String)?.isEmpty == false {
+            try await cleanupMovedChild(childId: childId, familyZone: familyZone)   // tidligere kørsel: kun oprydning
+            return
+        }
+        let childCopy = CKRecord(recordType: "Child", recordID: CKRecord.ID(recordName: childId, zoneID: zoneID))
+        for key in ["name", "gender", "birthDate", "dueDate", "photo"] { childCopy[key] = source[key] }
+        _ = try await privateDB.modifyRecords(saving: [childCopy], deleting: [], savePolicy: .allKeys)
+
+        // 2) Alle barnets records, i bidder af 20 (billeder/video følger med som CKAsset).
+        let ref = childRef(childId, familyZone)
+        var expected: [String: Int] = [:]
+        for type in Self.childRecordTypes {
+            let records = try await all(db: db, zoneID: familyZone, type: type,
+                                        predicate: NSPredicate(format: "childRef == %@", ref))
+            expected[type] = records.count
+            var batch: [CKRecord] = []
+            for r in records {
+                let copy = CKRecord(recordType: type, recordID: CKRecord.ID(recordName: r.recordID.recordName, zoneID: zoneID))
+                for key in r.allKeys() where key != "childRef" {
+                    if let asset = r[key] as? CKAsset, let url = asset.fileURL { copy[key] = CKAsset(fileURL: url) }
+                    else if let list = r[key] as? [CKAsset] { copy[key] = list.compactMap { $0.fileURL.map { CKAsset(fileURL: $0) } } as CKRecordValue }
+                    else if r[key] is CKRecord.Reference { continue }   // kun childRef bruges; sættes nedenfor
+                    else { copy[key] = r[key] }
+                }
+                copy["childRef"] = childRef(childId, zoneID)
+                batch.append(copy)
+                if batch.count == 20 { try await saveBatch(batch, in: privateDB); batch = [] }
+            }
+            if !batch.isEmpty { try await saveBatch(batch, in: privateDB) }
+        }
+
+        // 3) Bekræft: lige så mange i den nye zone som i den gamle.
+        let newRef = childRef(childId, zoneID)
+        for type in Self.childRecordTypes {
+            let count = try await all(db: privateDB, zoneID: zoneID, type: type, keys: ["childRef"],
+                                      predicate: NSPredicate(format: "childRef == %@", newRef)).count
+            guard count >= (expected[type] ?? 0) else { throw StoreError.moveIncomplete(type) }
+        }
+
+        // 4) Markér barnet som flyttet — herfra læser alle fra den nye zone.
+        source["ownZone"] = zoneName as CKRecordValue
+        _ = try await persist(source, in: db)
+        rememberChild(childId, zoneName: zoneName)
+
+        // 5) Slet originalerne i familiezonen.
+        try await cleanupMovedChild(childId: childId, familyZone: familyZone)
+    }
+
+    private func saveBatch(_ records: [CKRecord], in db: CKDatabase) async throws {
+        let (results, _) = try await db.modifyRecords(saving: records, deleting: [], savePolicy: .allKeys)
+        for (_, result) in results { _ = try result.get() }
+    }
+
+    /// Fjerner barnets gamle records fra familiezonen (barnet selv bliver som markør).
+    private func cleanupMovedChild(childId: String, familyZone: CKRecordZone.ID) async throws {
+        let ref = childRef(childId, familyZone)
+        for type in Self.childRecordTypes {
+            let ids = try await all(db: privateDB, zoneID: familyZone, type: type, keys: ["childRef"],
+                                    predicate: NSPredicate(format: "childRef == %@", ref)).map(\.recordID)
+            var i = 0
+            while i < ids.count {
+                let chunk = Array(ids[i..<min(i + 50, ids.count)])
+                i += 50
+                _ = try await privateDB.modifyRecords(saving: [], deleting: chunk)
+                chunk.forEach(noteDeleted)
+            }
+        }
+    }
+
+    /// Barnezonens deling: oprettes første gang, og familiens medlemmer lægges på med samme adgang,
+    /// så partneren stadig ser barnet. Linket gemmes på familiens Child-record til de andre telefoner.
+    func shareChild(childId: String, familyId: String) async throws -> (CKShare, CKContainer) {
+        if !(await childHasOwnZone(childId: childId)) {
+            try await moveChildToOwnZone(childId: childId, familyId: familyId)
+        }
+        let (db, zoneID) = try await locateChild(childId)
+        guard db === privateDB else { throw StoreError.notOwner }
+        let name = (try? await db.record(for: CKRecord.ID(recordName: childId, zoneID: zoneID)))?["name"] as? String ?? "Barn"
+        let share: CKShare
+        if let existing = try? await fetchShare(db: db, zoneID: zoneID) {
+            share = existing
+        } else {
+            let fresh = CKShare(recordZoneID: zoneID)
+            fresh[CKShare.SystemFieldKey.title] = "\(name) · Vores familie" as CKRecordValue
+            fresh.publicPermission = .none
+            let (saved, _) = try await db.modifyRecords(saving: [fresh], deleting: [])
+            guard let s = try saved[fresh.recordID]?.get() as? CKShare else { throw StoreError.notFound }
+            share = s
+        }
+        try await syncFamilyMembers(onto: share, familyId: familyId, db: db)
+        if let url = share.url {
+            let (fdb, fzone) = try await locate(familyId)
+            let marker = try await fdb.record(for: CKRecord.ID(recordName: childId, zoneID: fzone))
+            if marker["shareURL"] as? String != url.absoluteString {
+                marker["shareURL"] = url.absoluteString as CKRecordValue
+                _ = try await persist(marker, in: fdb)
+            }
+        }
+        return (share, container)
+    }
+
+    /// Familiens deltagere (partner, bedsteforældre) lægges på barnets deling med samme adgang.
+    private func syncFamilyMembers(onto share: CKShare, familyId: String, db: CKDatabase) async throws {
+        let (fdb, fzone) = try await locate(familyId)
+        guard let familyShare = try? await fetchShare(db: fdb, zoneID: fzone) else { return }
+        let existing = Set(share.participants.compactMap { $0.userIdentity.userRecordID?.recordName })
+        var changed = false
+        for p in familyShare.participants where p.role != .owner {
+            guard let id = p.userIdentity.userRecordID, !existing.contains(id.recordName),
+                  let fresh = try? await container.fetchShareParticipant(userRecordID: id) else { continue }
+            fresh.permission = p.permission
+            share.addParticipant(fresh)
+            changed = true
+        }
+        if changed {
+            let (saved, _) = try await db.modifyRecords(saving: [share], deleting: [], savePolicy: .changedKeys)
+            _ = try saved[share.recordID]?.get()
+        }
+    }
+
+    /// Deltagere på barnets deling — til "Del barn"-skærmen.
+    func childParticipants(childId: String) async throws -> [FamilyParticipant] {
+        let (db, zoneID) = try await locateChild(childId)
+        guard let share = try? await fetchShare(db: db, zoneID: zoneID) else { return [] }
+        return participants(of: share, db: db, zoneID: zoneID, namesFrom: nil)
+    }
+
+    func isChildZoneOwner(childId: String) async -> Bool {
+        guard let (db, _) = try? await locateChild(childId) else { return false }
+        return db === privateDB
+    }
+
+    func setChildParticipant(childId: String, id: String, readOnly: Bool) async throws {
+        let (db, zoneID) = try await locateChild(childId)
+        let share = try await fetchShare(db: db, zoneID: zoneID)
+        guard let p = share.participants.first(where: { Self.participantKey($0) == id }), p.role != .owner else { return }
+        p.permission = readOnly ? .readOnly : .readWrite
+        let (saved, _) = try await db.modifyRecords(saving: [share], deleting: [], savePolicy: .changedKeys)
+        _ = try saved[share.recordID]?.get()
+    }
+
+    func removeChildParticipant(childId: String, id: String) async throws {
+        let (db, zoneID) = try await locateChild(childId)
+        let share = try await fetchShare(db: db, zoneID: zoneID)
+        guard let p = share.participants.first(where: { Self.participantKey($0) == id }), p.role != .owner else { return }
+        share.removeParticipant(p)
+        let (saved, _) = try await db.modifyRecords(saving: [share], deleting: [], savePolicy: .changedKeys)
+        _ = try saved[share.recordID]?.get()
+    }
+
+    /// Må man redigere dette barn? Familiens børn følger familien; et delt barn følger barnets deling.
+    func canEditChild(childId: String) async -> Bool {
+        guard let (db, zoneID) = try? await locateChild(childId), db === sharedDB,
+              let share = try? await fetchShare(db: db, zoneID: zoneID),
+              let me = share.currentUserParticipant else { return true }
+        return me.permission != .readOnly
     }
 
     func createChild(familyId: String, name: String, gender: Gender,
@@ -238,6 +474,14 @@ actor CloudKitStore: Store {
         record["dueDate"] = child.dueDate as CKRecordValue?
         record["photo"] = child.photo.flatMap { Self.asset(from: $0) }
         let saved = try await persist(record, in: db)
+        // Barn i egen zone: familiens "skilt" får også de nye oplysninger (navnet vises derfra, hvis zonen er utilgængelig).
+        if child.ownZone != nil, child.familyId != Child.sharedFamilyId,
+           let (fdb, fzone) = try? await locate(child.familyId),
+           let marker = try? await fdb.record(for: CKRecord.ID(recordName: child.id, zoneID: fzone)) {
+            for key in ["name", "gender", "birthDate", "dueDate"] { marker[key] = record[key] }
+            marker["photo"] = child.photo.flatMap { Self.asset(from: $0) }
+            _ = try? await persist(marker, in: fdb)
+        }
         // Fødsels-/terminsdato ligger også i milepælene (som på websitet).
         if let birth = child.birthDate {
             try await setMilestoneValue(childId: child.id, key: "birth_date", value: Fmt.iso(birth), db: db, zoneID: zoneID)
@@ -245,7 +489,9 @@ actor CloudKitStore: Store {
         if let due = child.dueDate {
             try await setMilestoneValue(childId: child.id, key: "due_date", value: Fmt.iso(due), db: db, zoneID: zoneID)
         }
-        return Self.child(from: saved, familyId: child.familyId)
+        var updated = Self.child(from: saved, familyId: child.familyId)
+        updated.ownZone = child.ownZone
+        return updated
     }
 
     /// Opdaterer kun milepælens værdi — et evt. billede på milepælen bevares.
@@ -752,12 +998,41 @@ actor CloudKitStore: Store {
         async let letters = all(db: db, zoneID: zoneID, type: "Letter", keys: ["childRef", "title", "writtenAt", "openDate"])
         async let freeMemories = all(db: db, zoneID: zoneID, type: "Memory", keys: ["title", "date"])
 
-        for r in try await highlights {
+        var highlightsR = try await highlights
+        var diaryR = try await diary
+        var photosR = (try? await photos) ?? []
+        var interviewsR = (try? await interviews) ?? []
+        var lettersR = (try? await letters) ?? []
+
+        // Børn i egen zone (delt med den anden forælder): deres minder ligger dér, ikke i familiezonen.
+        let moved = ((try? await all(db: db, zoneID: zoneID, type: "Child", keys: ["ownZone"])) ?? [])
+            .compactMap { r -> (id: String, zone: String)? in
+                guard let z = r["ownZone"] as? String, !z.isEmpty else { return nil }
+                return (r.recordID.recordName, z)
+            }
+        if !moved.isEmpty {
+            let movedIds = Set(moved.map(\.id))
+            highlightsR.removeAll { movedIds.contains(childId($0) ?? "") }
+            diaryR.removeAll { movedIds.contains(childId($0) ?? "") }
+            photosR.removeAll { movedIds.contains(childId($0) ?? "") }
+            interviewsR.removeAll { movedIds.contains(childId($0) ?? "") }
+            lettersR.removeAll { movedIds.contains(childId($0) ?? "") }
+            for (_, zone) in moved {
+                guard let (cdb, cz) = try? await locate(zone) else { continue }
+                highlightsR += (try? await all(db: cdb, zoneID: cz, type: "Highlight", keys: ["childRef", "date", "text"])) ?? []
+                diaryR += (try? await all(db: cdb, zoneID: cz, type: "Diary", keys: ["childRef", "date", "text"])) ?? []
+                photosR += (try? await all(db: cdb, zoneID: cz, type: "GalleryItem", keys: ["childRef", "kind", "caption", "note", "date"])) ?? []
+                interviewsR += (try? await all(db: cdb, zoneID: cz, type: "Interview", keys: ["childRef", "question", "age", "date"])) ?? []
+                lettersR += (try? await all(db: cdb, zoneID: cz, type: "Letter", keys: ["childRef", "title", "writtenAt", "openDate"])) ?? []
+            }
+        }
+
+        for r in highlightsR {
             out.append(MemorySummary(id: r.recordID.recordName, kind: .highlight, childId: childId(r),
                                      date: r["date"] as? Date, createdAt: r.creationDate ?? Date(),
                                      text: r["text"] as? String ?? "", modifiedAt: r.modificationDate ?? .distantPast))
         }
-        for r in try await diary {
+        for r in diaryR {
             out.append(MemorySummary(id: r.recordID.recordName, kind: .diary, childId: childId(r),
                                      date: r["date"] as? Date, createdAt: r.creationDate ?? Date(),
                                      text: r["text"] as? String ?? "", modifiedAt: r.modificationDate ?? .distantPast))
@@ -773,7 +1048,7 @@ actor CloudKitStore: Store {
                                      text: r["title"] as? String ?? "", modifiedAt: r.modificationDate ?? .distantPast))
         }
         // De nyere typer: kun til "Seneste i familien" — en fejl her må ikke tømme forsiden.
-        for r in (try? await photos) ?? [] {
+        for r in photosR {
             let caption = r["caption"] as? String ?? ""
             let note = r["note"] as? String ?? ""
             out.append(MemorySummary(id: r.recordID.recordName, kind: .photo, childId: childId(r),
@@ -782,7 +1057,7 @@ actor CloudKitStore: Store {
                                      modifiedAt: r.modificationDate ?? .distantPast,
                                      detail: r["kind"] as? String ?? ""))
         }
-        for r in (try? await interviews) ?? [] {
+        for r in interviewsR {
             let age = Int(r["age"] as? Int64 ?? 0)
             out.append(MemorySummary(id: r.recordID.recordName, kind: .interview, childId: childId(r),
                                      date: r["date"] as? Date, createdAt: r.creationDate ?? Date(),
@@ -799,7 +1074,7 @@ actor CloudKitStore: Store {
                                      date: r["date"] as? Date, createdAt: r.creationDate ?? Date(),
                                      text: r["title"] as? String ?? "", modifiedAt: r.modificationDate ?? .distantPast))
         }
-        for r in (try? await letters) ?? [] {
+        for r in lettersR {
             let title = r["title"] as? String ?? ""
             let sealed = (r["openDate"] as? Date).map { $0 > Date() } ?? false
             out.append(MemorySummary(id: r.recordID.recordName, kind: .letter, childId: childId(r),
@@ -812,7 +1087,8 @@ actor CloudKitStore: Store {
 
     /// Henter kun billedfelterne for ét minde og returnerer forsidebilledet.
     func coverPhoto(familyId: String, memory: MemorySummary) async throws -> Data? {
-        let (db, zoneID) = try await locate(familyId)
+        // Et barns minde ligger i barnets zone, hvis barnet er flyttet dertil.
+        let (db, zoneID) = memory.childId != nil ? try await locateChild(memory.childId!) : try await locate(familyId)
         let id = CKRecord.ID(recordName: memory.id, zoneID: zoneID)
         let keys: [CKRecord.FieldKey]
         switch memory.kind {
@@ -1470,13 +1746,21 @@ actor CloudKitStore: Store {
     func participants(familyId: String) async throws -> [FamilyParticipant] {
         let (db, zoneID) = try await locate(familyId)
         guard let share = try? await fetchShare(db: db, zoneID: zoneID) else { return [] }
-        let me = share.currentUserParticipant
-        let myId = UserDefaults.standard.string(forKey: "mindebog.userId")
-        let myName = UserDefaults.standard.string(forKey: nameKey)
         var savedNames: [String: String] = [:]
         for r in (try? await all(db: db, zoneID: zoneID, type: "Member")) ?? [] {
             if let uid = r["userId"] as? String, let n = r["name"] as? String, !n.isEmpty { savedNames[uid] = n }
         }
+        return participants(of: share, db: db, zoneID: zoneID, namesFrom: savedNames)
+    }
+
+    /// Deltagerne i en deling (familie eller barn) med navne og adgang.
+    private func participants(of share: CKShare, db: CKDatabase, zoneID: CKRecordZone.ID,
+                              namesFrom: [String: String]?) -> [FamilyParticipant] {
+        let me = share.currentUserParticipant
+        let myId = UserDefaults.standard.string(forKey: "mindebog.userId")
+        let myName = UserDefaults.standard.string(forKey: nameKey)
+        // Navne fra familien (Member-records) bruges også for barnets deling.
+        let savedNames = namesFrom ?? SharedNames.members
         return share.participants.map { p in
             let identity = p.userIdentity
             let uid = (p == me ? myId : nil) ?? identity.userRecordID?.recordName
