@@ -96,6 +96,8 @@ struct AddDiaryView: View {
     var forNames: [String] = []
     /// Sat ved redigering; nil ved oprettelse.
     var editing: DiaryEntry? = nil
+    /// Tekst, feltet starter med (ugens spørgsmål som overskrift).
+    var initialText: String = ""
     @State private var date = Date()
     @State private var text = ""
     @State private var photo: Data?
@@ -167,9 +169,13 @@ struct AddDiaryView: View {
                 Text("Indlægget og dets billede slettes for hele familien.")
             }
             .onAppear {
-                guard !loaded, let e = editing else { return }
+                guard !loaded else { return }
                 loaded = true
-                date = e.date ?? e.createdAt; text = e.text; photo = e.photo
+                if let e = editing {
+                    date = e.date ?? e.createdAt; text = e.text; photo = e.photo
+                } else if text.isEmpty {
+                    text = initialText
+                }
             }
         }
     }

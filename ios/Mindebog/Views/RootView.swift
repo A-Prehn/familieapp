@@ -27,6 +27,7 @@ struct MainTabView: View {
     @EnvironmentObject var state: AppState
     @State private var selection: MainTab = .home
     @State private var interview: InterviewTarget?
+    @State private var prompt: PromptTarget?
     /// iOS tegner fanebjælken første gang med sine egne sorte ikoner. Tælleren tvinger en ny
     /// tegning af fanerne lige efter opstart, så de får appens farver med det samme.
     @State private var tabRedraw = 0
@@ -63,6 +64,12 @@ struct MainTabView: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: .openInterview)) { _ in Task { await openPendingInterview() } }
         .task { await openPendingInterview() }
+        // Tryk på ugens spørgsmål: åbn dagbogen for barnet med spørgsmålet som overskrift.
+        .sheet(item: $prompt) { target in
+            AddDiaryView(childId: target.child.id, initialText: target.text + "\n\n")
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .openDiaryPrompt)) { _ in Task { await openPendingPrompt() } }
+        .task { await openPendingPrompt() }
         .task {
             // To gentegninger: én så snart første billede er vist, og én lidt senere, hvis glas-tabbaren var sen.
             for ms in [50, 600] {
@@ -76,6 +83,19 @@ struct MainTabView: View {
         let child: Child
         let age: Int
         var id: String { "\(child.id)_\(age)" }
+    }
+
+    struct PromptTarget: Identifiable {
+        let child: Child
+        let text: String
+        var id: String { child.id + text }
+    }
+
+    private func openPendingPrompt() async {
+        guard let link = DeepLink.pendingPrompt, let familyId = state.familyId else { return }
+        DeepLink.pendingPrompt = nil
+        guard let child = (try? await state.store.children(familyId: familyId))?.first(where: { $0.id == link.childId }) else { return }
+        prompt = PromptTarget(child: child, text: link.text)
     }
 
     private func openPendingInterview() async {

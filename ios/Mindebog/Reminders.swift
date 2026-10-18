@@ -138,8 +138,8 @@ enum Reminders {
         // og lad der være plads til "på denne dag" (OnThisDay).
         let perChild = max(4, 48 / max(children.count, 1))
         for child in children {
-            // Interviewet først, så det ikke bliver skubbet ud af grænsen på 64.
-            let interview = interviewRequests(for: child)
+            // Interviewet og ugens spørgsmål først, så de ikke bliver skubbet ud af grænsen på 64.
+            let interview = interviewRequests(for: child) + WeeklyQuestion.requests(for: child, prefix: prefix)
             for request in interview + requests(for: child, limit: max(1, perChild - interview.count)) {
                 try? await center.add(request)
             }

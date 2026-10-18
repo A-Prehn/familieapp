@@ -85,21 +85,31 @@ final class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate {
     func userNotificationCenter(_ center: UNUserNotificationCenter,
                                 didReceive response: UNNotificationResponse) async {
         let info = response.notification.request.content.userInfo
-        guard let childId = info["interviewChild"] as? String, let age = info["interviewAge"] as? Int else { return }
-        await MainActor.run {
-            // Gemmes også, hvis appen lige er startet og hovedskærmen ikke lytter endnu.
-            DeepLink.pendingInterview = DeepLink.Interview(childId: childId, age: age)
-            NotificationCenter.default.post(name: .openInterview, object: nil)
+        if let childId = info["interviewChild"] as? String, let age = info["interviewAge"] as? Int {
+            await MainActor.run {
+                // Gemmes også, hvis appen lige er startet og hovedskærmen ikke lytter endnu.
+                DeepLink.pendingInterview = DeepLink.Interview(childId: childId, age: age)
+                NotificationCenter.default.post(name: .openInterview, object: nil)
+            }
+        } else if let childId = info["promptChild"] as? String, let text = info["promptText"] as? String {
+            // Ugens spørgsmål: åbn dagbogen med spørgsmålet som overskrift.
+            await MainActor.run {
+                DeepLink.pendingPrompt = DeepLink.Prompt(childId: childId, text: text)
+                NotificationCenter.default.post(name: .openDiaryPrompt, object: nil)
+            }
         }
     }
 }
 
 extension Notification.Name {
     static let openInterview = Notification.Name("mindebog.openInterview")
+    static let openDiaryPrompt = Notification.Name("mindebog.openDiaryPrompt")
 }
 
 @MainActor
 enum DeepLink {
     struct Interview: Equatable { let childId: String; let age: Int }
     static var pendingInterview: Interview?
+    struct Prompt: Equatable { let childId: String; let text: String }
+    static var pendingPrompt: Prompt?
 }

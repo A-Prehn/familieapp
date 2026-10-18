@@ -19,6 +19,7 @@ struct MoreView: View {
     @State private var bellyWeekday = Reminders.bellyWeekday
     @State private var interviewReminder = Reminders.interviewEnabled
     @State private var onThisDay = OnThisDay.isEnabled
+    @State private var weeklyQuestion = WeeklyQuestion.isEnabled
     @AppStorage(Appearance.key) private var appearance = Appearance.system.rawValue
     @State private var bellyTime: Date = {
         let m = Reminders.bellyMinutes
@@ -185,6 +186,15 @@ struct MoreView: View {
                         Label("Årligt interview", systemImage: "bubble.left.and.text.bubble.right")
                     }
                     Toggle(isOn: Binding(
+                        get: { weeklyQuestion },
+                        set: { on in
+                            weeklyQuestion = on
+                            WeeklyQuestion.isEnabled = on
+                            Task { await rescheduleReminders() }
+                        })) {
+                        Label("Ugens spørgsmål", systemImage: "questionmark.bubble")
+                    }
+                    Toggle(isOn: Binding(
                         get: { onThisDay },
                         set: { on in
                             onThisDay = on
@@ -197,7 +207,7 @@ struct MoreView: View {
             } header: {
                 Text("Påmindelser")
             } footer: {
-                Text("Billeder: for et født barn hver måned på månedsdagen, og for et barn på vej så ofte, på den ugedag og det tidspunkt, du vælger — mavebilledet kan slås fra, hvis det ikke er dig, der tager det. Årligt interview: på hvert barns fødselsdag fra \(Reminders.interviewMinAge) år, og en uge efter, hvis I ikke er gået i gang. På denne dag: kl. 9 på årsdagen for et minde fra et tidligere år.")
+                Text("Billeder: for et født barn hver måned på månedsdagen, og for et barn på vej så ofte, på den ugedag og det tidspunkt, du vælger — mavebilledet kan slås fra, hvis det ikke er dig, der tager det. Årligt interview: på hvert barns fødselsdag fra \(Reminders.interviewMinAge) år, og en uge efter, hvis I ikke er gået i gang. Ugens spørgsmål: lørdag kl. 10 et spørgsmål, der passer til barnets alder — tryk, og dagbogen åbner med spørgsmålet. På denne dag: kl. 9 på årsdagen for et minde fra et tidligere år.")
             }
 
             Section {

@@ -20,7 +20,7 @@ struct FamilyView: View {
             switch self {
             case .memories: "heart"
             case .events: "calendar"
-            case .vacations: "airplane"
+            case .vacations: "airplane.departure"
             case .birthdays: "gift"
             case .tree: "tree"
             case .traditions: "sparkles"
