@@ -399,7 +399,7 @@ actor CloudKitStore: Store {
         var changed = false
         for p in familyShare.participants where p.role != .owner {
             guard let id = p.userIdentity.userRecordID, !existing.contains(id.recordName),
-                  let fresh = try? await container.fetchShareParticipant(userRecordID: id) else { continue }
+                  let fresh = try? await container.shareParticipant(forUserRecordID: id) else { continue }
             fresh.permission = p.permission
             share.addParticipant(fresh)
             changed = true
