@@ -45,10 +45,11 @@ enum MediaFiles {
         return String(format: "%d:%02d", s / 60, s % 60)
     }
 
-    /// Komprimerer en video til MP4 i medium kvalitet (API der virker fra iOS 17).
+    /// Komprimerer en video til MP4 i HD (1280×720) — skarp nok til interviewene, men stadig
+    /// omkring en tredjedel af originalen i iCloud. (Medium kvalitet gav for grynede videoer.)
     static func compressVideo(_ source: URL) async throws -> URL {
         let asset = AVURLAsset(url: source)
-        guard let export = AVAssetExportSession(asset: asset, presetName: AVAssetExportPresetMediumQuality) else {
+        guard let export = AVAssetExportSession(asset: asset, presetName: AVAssetExportPreset1280x720) else {
             throw CocoaError(.fileWriteUnknown)
         }
         let out = newURL("mp4")

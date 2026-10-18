@@ -5,6 +5,7 @@ import CloudKit
 struct MindebogApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @StateObject private var state = AppState()
+    @StateObject private var comments = CommentsModel()
     @AppStorage(Appearance.key) private var appearance = Appearance.system.rawValue
 
     init() {
@@ -18,6 +19,12 @@ struct MindebogApp: App {
         WindowGroup {
             RootView()
                 .environmentObject(state)
+                .environmentObject(comments)
+                // Kommentarer fra de andre i familien: hent igen, når noget er gemt, og ved familieskift.
+                .onReceive(NotificationCenter.default.publisher(for: .storeDidChange)) { _ in
+                    Task { await comments.load(state: state, force: true) }
+                }
+                .onChange(of: state.familyId) { _, _ in Task { await comments.load(state: state, force: true) } }
                 .tint(Theme.tint)
                 // Lyst, mørkt eller følg system — vælges under Mere → Udseende.
                 .preferredColorScheme(Appearance(rawValue: appearance)?.colorScheme)

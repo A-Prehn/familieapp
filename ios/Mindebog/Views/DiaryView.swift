@@ -62,6 +62,7 @@ struct DiaryView: View {
                     .clipShape(RoundedRectangle(cornerRadius: 8))
                     .onTapGesture { lightbox = LightboxState(photos: [photo], sourceId: entry.id) }
             }
+            CommentsBar(targetId: entry.id, title: entry.text)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(14)

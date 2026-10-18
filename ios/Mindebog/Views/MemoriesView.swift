@@ -50,6 +50,7 @@ struct MemoriesView: View {
                         PlaceLabel(place: place)
                         PlaceMap(place: place)
                     }
+                    CommentsBar(targetId: memory.id, title: memory.title)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(14)

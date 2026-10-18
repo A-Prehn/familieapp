@@ -432,6 +432,12 @@ actor MemoryStore: Store {
         traditionsByFamily[familyId] = list
     }
     func deleteTradition(familyId: String, id: String) async throws { traditionsByFamily[familyId]?.removeAll { $0.id == id } }
+
+    // MARK: Reaktioner og kommentarer
+    private var commentsByFamily: [String: [Comment]] = [:]
+    func comments(familyId: String) async throws -> [Comment] { commentsByFamily[familyId] ?? [] }
+    func addComment(familyId: String, _ comment: Comment) async throws { commentsByFamily[familyId, default: []].append(comment) }
+    func deleteComment(familyId: String, id: String) async throws { commentsByFamily[familyId]?.removeAll { $0.id == id } }
     func traditionAudio(familyId: String, id: String) async throws -> URL? { mediaByRecord[id]?.audio }
 
     // MARK: Premium (kun i hukommelsen)

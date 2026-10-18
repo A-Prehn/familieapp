@@ -218,6 +218,7 @@ struct HomeView: View {
                         if let date = memory.date {
                             Text(Fmt.long(date)).font(.caption2).foregroundStyle(Theme.muted)
                         }
+                        CommentsBar(targetId: memory.id, title: memory.text)
                     }
                     Spacer(minLength: 0)
                 }

@@ -1105,6 +1105,40 @@ actor CloudKitStore: Store {
         try await remove(CKRecord.ID(recordName: id, zoneID: zoneID), in: db)
     }
 
+    // MARK: - Reaktioner og kommentarer
+
+    func comments(familyId: String) async throws -> [Comment] {
+        let (db, zoneID) = try await locate(familyId)
+        return try await all(db: db, zoneID: zoneID, type: "Comment",
+                             keys: ["familyRef", "targetId", "text", "emoji", "authorId", "authorName"]).map { r in
+            Comment(id: r.recordID.recordName,
+                    targetId: r["targetId"] as? String ?? "",
+                    text: r["text"] as? String ?? "",
+                    emoji: r["emoji"] as? String ?? "",
+                    authorId: r["authorId"] as? String ?? "",
+                    authorName: r["authorName"] as? String ?? "",
+                    createdAt: r.creationDate ?? Date())
+        }
+        .sorted { $0.createdAt < $1.createdAt }
+    }
+
+    func addComment(familyId: String, _ comment: Comment) async throws {
+        let (db, zoneID) = try await locate(familyId)
+        let record = CKRecord(recordType: "Comment", recordID: CKRecord.ID(recordName: comment.id, zoneID: zoneID))
+        record["familyRef"] = familyRef(zoneID)
+        record["targetId"] = comment.targetId as CKRecordValue
+        record["text"] = comment.text as CKRecordValue
+        record["emoji"] = comment.emoji as CKRecordValue
+        record["authorId"] = comment.authorId as CKRecordValue
+        record["authorName"] = comment.authorName as CKRecordValue
+        _ = try await persist(record, in: db)
+    }
+
+    func deleteComment(familyId: String, id: String) async throws {
+        let (db, zoneID) = try await locate(familyId)
+        try await remove(CKRecord.ID(recordName: id, zoneID: zoneID), in: db)
+    }
+
     // MARK: - Familietræ
 
     func persons(familyId: String) async throws -> [Person] {

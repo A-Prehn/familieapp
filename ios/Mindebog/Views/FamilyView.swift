@@ -155,6 +155,7 @@ struct FamilyView: View {
                         PlaceLabel(place: place)
                         PlaceMap(place: place)
                     }
+                    CommentsBar(targetId: event.id, title: event.title)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(14)
@@ -188,6 +189,7 @@ struct FamilyView: View {
                             PlaceLabel(place: place)
                             PlaceMap(place: place)
                         }
+                        CommentsBar(targetId: vacation.id, title: vacation.title)
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(14)

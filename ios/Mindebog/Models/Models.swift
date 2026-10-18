@@ -287,6 +287,21 @@ struct Tradition: Identifiable, Hashable, Codable {
 
 
 /// En person i den delte familie og deres adgang (til "Familie og adgang").
+/// En reaktion (emoji) eller kommentar fra én i familien på et minde, højdepunkt, dagbogsindlæg,
+/// en begivenhed eller rejse. `targetId` er record-id'et på det, der kommenteres.
+struct Comment: Identifiable, Hashable, Codable {
+    let id: String
+    let targetId: String
+    var text: String = ""       // tom for en ren reaktion
+    var emoji: String = ""      // tom for en kommentar
+    var authorId: String
+    var authorName: String
+    var createdAt: Date = Date()
+    var isReaction: Bool { !emoji.isEmpty && text.isEmpty }
+
+    static let reactions = ["❤️", "😂", "😍", "👏", "🥹"]
+}
+
 struct FamilyParticipant: Identifiable, Hashable, Codable {
     enum Access: Codable { case owner, editor, viewer
         var rank: Int { switch self { case .owner: 0; case .editor: 1; case .viewer: 2 } }

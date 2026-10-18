@@ -77,6 +77,11 @@ protocol Store {
     func deleteTradition(familyId: String, id: String) async throws
     func traditionAudio(familyId: String, id: String) async throws -> URL?
 
+    // Reaktioner og kommentarer (pr. familie, på tværs af alt indhold)
+    func comments(familyId: String) async throws -> [Comment]
+    func addComment(familyId: String, _ comment: Comment) async throws
+    func deleteComment(familyId: String, id: String) async throws
+
     // Minder (frie minder under Fælles)
     func memories(familyId: String) async throws -> [FamilyMemory]
     func saveMemory(familyId: String, _ memory: FamilyMemory) async throws   // opret eller opdatér

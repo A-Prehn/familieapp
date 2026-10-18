@@ -134,6 +134,7 @@ struct HighlightsView: View {
                 PlaceMap(place: place)
             }
             mediaButtons(highlight)
+            CommentsBar(targetId: highlight.id, title: highlight.text)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(14)
