@@ -10,6 +10,7 @@ struct MindebogApp: App {
         // Sættes før fanebjælken findes — ellers vises ikonerne sorte, indtil siden tegnes igen.
         // Kun farven: ingen egen UITabBarAppearance, så iOS 26 beholder Liquid Glass.
         UITabBar.appearance().unselectedItemTintColor = UIColor(Theme.muted)
+        WidgetSync.start()
     }
 
     var body: some Scene {

@@ -24,6 +24,13 @@ enum Reminders {
     }
     private static let bellyIntervalKey = "mindebog.bellyReminderWeeks"
 
+    /// Mavebilledet kan slås fra for sig — fx for den forælder, der ikke tager mavebillederne.
+    private static let bellyEnabledKey = "mindebog.bellyReminderOn"
+    static var bellyEnabled: Bool {
+        get { UserDefaults.standard.object(forKey: bellyEnabledKey) as? Bool ?? true }
+        set { UserDefaults.standard.set(newValue, forKey: bellyEnabledKey) }
+    }
+
     static var bellyInterval: BellyInterval {
         get { BellyInterval(rawValue: UserDefaults.standard.integer(forKey: bellyIntervalKey)) ?? .biweekly }
         set { UserDefaults.standard.set(newValue.rawValue, forKey: bellyIntervalKey) }
@@ -127,8 +134,9 @@ enum Reminders {
         guard isEnabled else { return }
         await removeAll()
         let center = UNUserNotificationCenter.current()
-        // iOS tillader højst 64 planlagte notifikationer pr. app — fordel dem.
-        let perChild = max(4, 56 / max(children.count, 1))
+        // iOS tillader højst 64 planlagte notifikationer pr. app — fordel dem,
+        // og lad der være plads til "på denne dag" (OnThisDay).
+        let perChild = max(4, 48 / max(children.count, 1))
         for child in children {
             // Interviewet først, så det ikke bliver skubbet ud af grænsen på 64.
             let interview = interviewRequests(for: child)
@@ -163,7 +171,7 @@ enum Reminders {
                                    title: "\(child.name) er \(age) i dag 📸",
                                    body: "Tag månedens billede til Måned for måned."))
             }
-        } else if let due = child.dueDate, due > now {
+        } else if bellyEnabled, let due = child.dueDate, due > now {
             // Graviditetsuger: uge 1 starter 40 uger før termin. Påmind hver uge, hver 14. dag
             // eller hver måned (4 uger) — fra uge 4, så rækken af mavebilleder bliver jævn.
             guard let start = cal.date(byAdding: .day, value: -280, to: due) else { return out }
@@ -205,5 +213,7 @@ enum Reminders {
         return UNNotificationRequest(identifier: id, content: content, trigger: trigger)
     }
 
-    static func isReminder(_ identifier: String) -> Bool { identifier.hasPrefix(prefix) }
+    static func isReminder(_ identifier: String) -> Bool {
+        identifier.hasPrefix(prefix) || identifier.hasPrefix(OnThisDay.prefix)
+    }
 }

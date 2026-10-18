@@ -80,7 +80,7 @@ struct HomeView: View {
         .sheet(item: $familyAdd, onDismiss: { Task { await load() } }) { action in
             let familyId = state.familyId ?? ""
             switch action {
-            case .event: AddEventView(familyId: familyId)
+            case .event: AddEventView(familyId: familyId, children: children)
             case .vacation: AddVacationView(familyId: familyId)
             case .birthday: AddBirthdayView(familyId: familyId)
             case .tradition: TraditionEditView(familyId: familyId)
@@ -290,6 +290,9 @@ struct HomeView: View {
         // 1) Let oversigt over alle minder — kun tekst og datoer, ingen billeder.
         guard let summaries = try? await summariesTask, isCurrent() else { return }
         let names = Dictionary(uniqueKeysWithValues: loadedKids.map { ($0.id, $0) })
+        // "På denne dag"-notifikationer for de næste uger.
+        let childNames = loadedKids.reduce(into: [String: String]()) { $0[$1.id] = $1.name }
+        Task { await OnThisDay.schedule(summaries: summaries, childNames: childNames) }
 
         func memory(_ s: MemorySummary) -> RecentMemory? {
             switch s.kind {
@@ -304,7 +307,7 @@ struct HomeView: View {
                 return RecentMemory(id: "ev_" + s.id, summary: s, childName: "Familie", kind: "Begivenhed", symbol: "calendar",
                                     date: s.date, sortDate: s.date ?? .distantPast, text: s.text, photo: nil)
             case .vacation:
-                return RecentMemory(id: "va_" + s.id, summary: s, childName: "Familie", kind: "Ferie", symbol: "beach.umbrella",
+                return RecentMemory(id: "va_" + s.id, summary: s, childName: "Familie", kind: "Rejse", symbol: "beach.umbrella",
                                     date: s.date, sortDate: s.date ?? .distantPast, text: s.text, photo: nil)
             case .photo:
                 guard let id = s.childId, let child = names[id] else { return nil }

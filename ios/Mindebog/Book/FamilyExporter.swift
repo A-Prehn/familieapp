@@ -168,10 +168,10 @@ final class FamilyExport: ObservableObject {
                     "sted": Self.placeJSON(e.place) as Any, "filer": files]
         }
 
-        step("Ferier…")
+        step("Rejser…")
         let vacations = (try? await store.vacations(familyId: familyId)) ?? []
-        let vacDir = familyDir.appendingPathComponent("Ferier", isDirectory: true)
-        json["ferier"] = try vacations.map { v -> [String: Any] in
+        let vacDir = familyDir.appendingPathComponent("Rejser", isDirectory: true)
+        json["rejser"] = try vacations.map { v -> [String: Any] in
             let name = Self.prefix(v.startDate) + Self.safe(v.title)
             let files = try writePhotoSet(v.photos, name: name, in: vacDir)
             let period = [v.startDate, v.endDate].compactMap { $0.map(Fmt.long) }.joined(separator: " – ")
@@ -514,7 +514,7 @@ final class FamilyExport: ObservableObject {
           breve, målinger (Målinger.csv kan åbnes i Excel/Numbers) og en PDF-mindebog.
           Oversigt.txt samler milepæle, vaccinationer og "Om mig".
         • Forseglede breve ligger i en mappe for sig med datoen for, hvornår de må åbnes.
-        • Familie/ – fødselsdage, begivenheder og ferier med billeder.
+        • Familie/ – fødselsdage, begivenheder og rejser med billeder.
         • data.json – alt indhold i et maskinlæsbart format, som andre programmer kan bruge.
 
         Filnavnene starter med datoen (år-måned-dag), så de ligger i rækkefølge.

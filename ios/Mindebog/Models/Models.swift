@@ -49,6 +49,12 @@ struct Highlight: Identifiable, Hashable, Codable {
     /// Varighed i sekunder, hvis der er en video/lydnote. Selve filen hentes først ved afspilning.
     var videoDuration: Double? = nil
     var audioDuration: Double? = nil
+    /// Det billede, der vises på oversigten (resten ses, når man åbner højdepunktet).
+    var cover: Int = 0
+    var place: Place? = nil
+
+    var coverIndex: Int { photos.indices.contains(cover) ? cover : 0 }
+    var coverPhoto: Data? { photos.isEmpty ? nil : photos[coverIndex] }
 }
 
 /// Flere billeder med ét valgt forsidebillede og evt. billedtekst pr. billede
@@ -169,6 +175,9 @@ struct FamilyEvent: Identifiable, Hashable, Codable {
     var details: String
     var photos: PhotoSet = PhotoSet()
     var place: Place? = nil
+    /// Hvem det handler om: børn (id'er) og voksne i familien (bruger-id'er). Tomt = hele familien.
+    var childIds: [String] = []
+    var personIds: [String] = []
     /// Forsidebilledet.
     var photo: Data? { photos.coverPhoto }
 }
@@ -181,6 +190,9 @@ struct Vacation: Identifiable, Hashable, Codable {
     var details: String
     var photos: PhotoSet = PhotoSet()
     var place: Place? = nil
+    /// Hvem rejsen handler om — se FamilyEvent.
+    var childIds: [String] = []
+    var personIds: [String] = []
     /// Forsidebilledet.
     var photo: Data? { photos.coverPhoto }
 }
@@ -275,8 +287,8 @@ struct Tradition: Identifiable, Hashable, Codable {
 
 
 /// En person i den delte familie og deres adgang (til "Familie og adgang").
-struct FamilyParticipant: Identifiable, Hashable {
-    enum Access { case owner, editor, viewer
+struct FamilyParticipant: Identifiable, Hashable, Codable {
+    enum Access: Codable { case owner, editor, viewer
         var rank: Int { switch self { case .owner: 0; case .editor: 1; case .viewer: 2 } }
         var label: String { switch self { case .owner: "Ejer"; case .editor: "Kan redigere"; case .viewer: "Kun visning" } }
     }
@@ -288,7 +300,7 @@ struct FamilyParticipant: Identifiable, Hashable {
     let isMe: Bool
 }
 
-/// Et frit minde under Fælles: ikke en begivenhed eller ferie, bare noget, man vil gemme
+/// Et frit minde under Fælles: ikke en begivenhed eller rejse, bare noget, man vil gemme
 /// og dele — fx "Mormors 80-års tale" eller "Første gang vi så havet".
 struct FamilyMemory: Identifiable, Hashable, Codable {
     let id: String
@@ -298,8 +310,10 @@ struct FamilyMemory: Identifiable, Hashable, Codable {
     var endDate: Date? = nil
     var text: String = ""
     var photos: PhotoSet = PhotoSet()
-    /// Hvilke børn mindet handler om (tomt = hele familien).
+    /// Hvilke børn og voksne mindet handler om (tomt = hele familien).
     var childIds: [String] = []
+    var personIds: [String] = []
+    var place: Place? = nil
     var photo: Data? { photos.coverPhoto }
 
     /// "14. marts 2026" eller "14.–16. marts 2026" / "30. marts – 2. april 2026".

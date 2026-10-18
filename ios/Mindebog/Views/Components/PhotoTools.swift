@@ -170,6 +170,8 @@ struct PhotoField: View {
 // Flere billeder (højdepunkter) — med fjern-knap på hvert billede.
 struct MultiPhotoField: View {
     @Binding var photos: [Data]
+    /// Forsidebilledet (vises på oversigten) — kun når feltet har fået en binding.
+    var cover: Binding<Int>? = nil
     /// Periode, forslagene hentes fra (ellers de seneste 31 dage).
     var suggestRange: ClosedRange<Date>? = nil
     @State private var pickerItem: PhotosPickerItem?
@@ -184,6 +186,22 @@ struct MultiPhotoField: View {
                     DataImage(data: photo, contentMode: .fit)
                         .frame(maxHeight: 180)
                         .clipShape(RoundedRectangle(cornerRadius: 10))
+                        .overlay(alignment: .topLeading) {
+                            // Forside: vises på oversigten. Tryk på stjernen for at vælge et andet billede.
+                            if let cover, photos.count > 1 {
+                                let isCover = index == (photos.indices.contains(cover.wrappedValue) ? cover.wrappedValue : 0)
+                                Button { cover.wrappedValue = index } label: {
+                                    Label(isCover ? "Forside" : "Brug som forside", systemImage: isCover ? "star.fill" : "star")
+                                        .font(.system(size: 11, weight: .semibold))
+                                        .foregroundStyle(.white)
+                                        .padding(.horizontal, 8).padding(.vertical, 5)
+                                        .background(Capsule().fill(isCover ? Theme.rose : .black.opacity(0.55)))
+                                        .padding(6)
+                                }
+                                .buttonStyle(.borderless)
+                                .disabled(isCover)
+                            }
+                        }
                         .overlay(alignment: .topTrailing) {
                             HStack(spacing: 0) {
                                 Button {
@@ -201,7 +219,12 @@ struct MultiPhotoField: View {
                                 .buttonStyle(.borderless)
                                 .accessibilityLabel("Beskær billede")
                                 Button {
-                                    if photos.indices.contains(index) { photos.remove(at: index) }
+                                    if photos.indices.contains(index) {
+                                        photos.remove(at: index)
+                                        // Forsiden følger med, når et billede foran den slettes.
+                                        if let cover, cover.wrappedValue > index { cover.wrappedValue -= 1 }
+                                        else if let cover, cover.wrappedValue == index { cover.wrappedValue = 0 }
+                                    }
                                 } label: {
                                     Image(systemName: "xmark.circle.fill")
                                         .font(.title3)
@@ -381,9 +404,7 @@ struct CoverPhotoView: View {
                 .clipShape(RoundedRectangle(cornerRadius: cornerRadius))
                 .contentShape(Rectangle())
                 .onTapGesture {
-                    onOpen(LightboxState(photos: set.photos, index: set.coverIndex,
-                                         captions: set.photos.indices.map { set.caption(at: $0) },
-                                         sourceId: zoomId))
+                    onOpen(LightboxState.coverFirst(set, sourceId: zoomId))
                 }
         }
     }
@@ -406,6 +427,21 @@ struct LightboxState: Identifiable {
     var captions: [String] = []
     /// Id på det billede, der blev trykket på — så fuld skærm kan "løfte sig" fra det (iOS 18).
     var sourceId: String? = nil
+
+    /// Forsiden først, så resten i rækkefølge — så det valgte billede altid er det første, man ser.
+    static func coverFirst(_ set: PhotoSet, sourceId: String? = nil) -> LightboxState {
+        coverFirst(photos: set.photos, captions: set.photos.indices.map { set.caption(at: $0) },
+                   cover: set.coverIndex, sourceId: sourceId)
+    }
+
+    static func coverFirst(photos: [Data], captions: [String] = [], cover: Int, sourceId: String? = nil) -> LightboxState {
+        guard photos.indices.contains(cover), cover != 0 else {
+            return LightboxState(photos: photos, index: 0, captions: captions, sourceId: sourceId)
+        }
+        let order = [cover] + photos.indices.filter { $0 != cover }
+        let caps = captions.count == photos.count ? order.map { captions[$0] } : captions
+        return LightboxState(photos: order.map { photos[$0] }, index: 0, captions: caps, sourceId: sourceId)
+    }
 }
 
 struct LightboxView: View {

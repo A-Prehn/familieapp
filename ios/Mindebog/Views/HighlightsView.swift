@@ -107,15 +107,31 @@ struct HighlightsView: View {
             Text(highlight.text)
                 .font(.serifTitle(16))
                 .foregroundStyle(Theme.text)
-            ForEach(highlight.photos.indices, id: \.self) { index in
+            // Kun forsidebilledet på oversigten; resten ses i fuld skærm med forsiden først.
+            if let photo = highlight.coverPhoto {
+                let zoomId = "\(highlight.id)_cover"
                 Color.clear
-                    .aspectRatio(ImageTools.displayAspect(highlight.photos[index]), contentMode: .fit)
-                    .overlay { DataImage(data: highlight.photos[index]) }
-                    .zoomSource(id: "\(highlight.id)_\(index)", in: zoomNS)
+                    .aspectRatio(ImageTools.displayAspect(photo), contentMode: .fit)
+                    .overlay { DataImage(data: photo) }
+                    .overlay(alignment: .bottomTrailing) {
+                        if highlight.photos.count > 1 {
+                            Text("+\(highlight.photos.count - 1)")
+                                .font(.system(size: 12, weight: .semibold))
+                                .foregroundStyle(.white)
+                                .padding(.horizontal, 7).padding(.vertical, 3)
+                                .background(Capsule().fill(.black.opacity(0.55)))
+                                .padding(8)
+                        }
+                    }
+                    .zoomSource(id: zoomId, in: zoomNS)
                     .clipShape(RoundedRectangle(cornerRadius: 8))
                     .onTapGesture {
-                        lightbox = LightboxState(photos: highlight.photos, index: index, sourceId: "\(highlight.id)_\(index)")
+                        lightbox = LightboxState.coverFirst(photos: highlight.photos, cover: highlight.coverIndex, sourceId: zoomId)
                     }
+            }
+            if let place = highlight.place {
+                PlaceLabel(place: place)
+                PlaceMap(place: place)
             }
             mediaButtons(highlight)
         }
@@ -155,6 +171,8 @@ struct AddHighlightView: View {
     @State private var date = Date()
     @State private var text = ""
     @State private var photos: [Data] = []
+    @State private var cover = 0        // det billede, der vises på oversigten
+    @State private var place: Place?
     @State private var saving = false
     @State private var saveError: String?
     @State private var savedFor: Set<String> = []   // ved fejl midt i flere børn: undgå dubletter ved nyt forsøg
@@ -185,7 +203,10 @@ struct AddHighlightView: View {
                         .lineLimit(3...6)
                 }
                 Section("Billeder") {
-                    MultiPhotoField(photos: $photos, suggestRange: .around(date, days: 3))
+                    MultiPhotoField(photos: $photos, cover: $cover, suggestRange: .around(date, days: 3))
+                }
+                Section("Sted (valgfrit)") {
+                    PlaceField(place: $place)
                 }
                 Section {
                     MediaField(video: $video, audio: $audio,
@@ -211,7 +232,7 @@ struct AddHighlightView: View {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Gem") {
                         if var highlight = editing {
-                            highlight.date = date; highlight.text = text; highlight.photos = photos
+                            highlight.date = date; highlight.text = text; highlight.photos = photos; highlight.cover = cover; highlight.place = place
                             let (updated, video, audio) = (highlight, video, audio)
                             Task {
                                 await performSave(saving: $saving, errorMessage: $saveError, dismiss: dismiss) {
@@ -222,11 +243,11 @@ struct AddHighlightView: View {
                             }
                         } else {
                             // Nyt højdepunkt: luk med det samme, upload billeder/video i baggrunden.
-                            let (store, ids, date, text, photos, video, audio) =
+                            let (store, ids, date, text, photos, cover, place, video, audio) =
                                 (state.store, [childId] + alsoFor.map(\.id), date, text, photos, video, audio)
                             performSaveInBackground(label: "højdepunktet", dismiss: dismiss) {
                                 for id in ids {
-                                    let created = try await store.addHighlight(childId: id, date: date, text: text, photos: photos)
+                                    let created = try await store.addHighlight(childId: id, date: date, text: text, photos: photos, cover: cover, place: place)
                                     try await store.setHighlightMedia(childId: id, id: created.id, video: video, audio: audio)
                                 }
                             }
@@ -250,7 +271,7 @@ struct AddHighlightView: View {
             .onAppear {
                 guard !loaded, let h = editing else { return }
                 loaded = true
-                date = h.date ?? h.createdAt; text = h.text; photos = h.photos
+                date = h.date ?? h.createdAt; text = h.text; photos = h.photos; cover = h.coverIndex; place = h.place
             }
         }
     }

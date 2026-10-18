@@ -114,10 +114,10 @@ actor MemoryStore: Store {
         }
     }
 
-    func addHighlight(childId: String, date: Date?, text: String, photos: [Data]) async throws -> Highlight {
+    func addHighlight(childId: String, date: Date?, text: String, photos: [Data], cover: Int, place: Place?) async throws -> Highlight {
         let highlight = Highlight(id: newId("hl"), date: date,
                                   text: text.trimmingCharacters(in: .whitespaces),
-                                  photos: photos, createdAt: Date())
+                                  photos: photos, createdAt: Date(), cover: cover, place: place)
         highlightsByChild[childId, default: []].append(highlight)
         return highlight
     }
@@ -187,11 +187,11 @@ actor MemoryStore: Store {
     }
 
     func addEvent(familyId: String, title: String, date: Date?, details: String,
-                  photos: PhotoSet, place: Place?) async throws -> FamilyEvent {
+                  photos: PhotoSet, place: Place?, childIds: [String], personIds: [String]) async throws -> FamilyEvent {
         let event = FamilyEvent(id: newId("ev"),
                                 title: title.trimmingCharacters(in: .whitespaces),
                                 date: date, details: details.trimmingCharacters(in: .whitespaces),
-                                photos: photos, place: place)
+                                photos: photos, place: place, childIds: childIds, personIds: personIds)
         eventsByFamily[familyId, default: []].append(event)
         return event
     }
@@ -223,12 +223,12 @@ actor MemoryStore: Store {
     }
 
     func addVacation(familyId: String, title: String, start: Date?, end: Date?,
-                     details: String, photos: PhotoSet, place: Place?) async throws -> Vacation {
+                     details: String, photos: PhotoSet, place: Place?, childIds: [String], personIds: [String]) async throws -> Vacation {
         let vacation = Vacation(id: newId("vac"),
                                 title: title.trimmingCharacters(in: .whitespaces),
                                 startDate: start, endDate: end,
                                 details: details.trimmingCharacters(in: .whitespaces),
-                                photos: photos, place: place)
+                                photos: photos, place: place, childIds: childIds, personIds: personIds)
         vacationsByFamily[familyId, default: []].append(vacation)
         return vacation
     }

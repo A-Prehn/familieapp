@@ -268,7 +268,7 @@ enum DailyQuotes {
         "Det er godt at høre sit navn sagt med kærlighed.",
         "Små stunder sammen bliver til store minder om hinanden.",
         "Rejser er bedst, når man kommer hjem sammen.",
-        "Ferier huskes ikke for vejret, men for selskabet.",
+        "Rejser huskes ikke for vejret, men for selskabet.",
         "En tur i skoven kan blive til et helt eventyr.",
         "Det er de små udflugter, der bliver de store historier.",
         "Et barn på dine skuldre ser verden fra et nyt sted — og det gør du også.",

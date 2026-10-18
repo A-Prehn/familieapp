@@ -15,8 +15,10 @@ struct MoreView: View {
     @State private var notificationBusy = false
     @State private var remindersOn = Reminders.isEnabled
     @State private var bellyInterval = Reminders.bellyInterval
+    @State private var bellyReminder = Reminders.bellyEnabled
     @State private var bellyWeekday = Reminders.bellyWeekday
     @State private var interviewReminder = Reminders.interviewEnabled
+    @State private var onThisDay = OnThisDay.isEnabled
     @State private var bellyTime: Date = {
         let m = Reminders.bellyMinutes
         return Calendar.current.date(bySettingHour: m / 60, minute: m % 60, second: 0, of: Date()) ?? Date()
@@ -125,6 +127,17 @@ struct MoreView: View {
                     Label("Påmindelse om billeder", systemImage: "calendar.badge.clock")
                 }
                 if remindersOn {
+                    Toggle(isOn: Binding(
+                        get: { bellyReminder },
+                        set: { on in
+                            bellyReminder = on
+                            Reminders.bellyEnabled = on
+                            Task { await rescheduleReminders() }
+                        })) {
+                        Label("Mavebillede (barn på vej)", systemImage: "leaf")
+                    }
+                }
+                if remindersOn && bellyReminder {
                     Picker(selection: Binding(
                         get: { bellyInterval },
                         set: { value in
@@ -134,7 +147,7 @@ struct MoreView: View {
                         })) {
                         ForEach(Reminders.BellyInterval.allCases) { Text($0.label).tag($0) }
                     } label: {
-                        Label("Mavebillede (barn på vej)", systemImage: "leaf")
+                        Label("Hvor ofte", systemImage: "repeat")
                     }
                     Picker(selection: Binding(
                         get: { bellyWeekday },
@@ -158,6 +171,8 @@ struct MoreView: View {
                         Label("Tidspunkt", systemImage: "clock")
                     }
                     .environment(\.locale, Locale(identifier: "da_DK"))
+                }
+                if remindersOn {
                     Toggle(isOn: Binding(
                         get: { interviewReminder },
                         set: { on in
@@ -167,11 +182,20 @@ struct MoreView: View {
                         })) {
                         Label("Årligt interview", systemImage: "bubble.left.and.text.bubble.right")
                     }
+                    Toggle(isOn: Binding(
+                        get: { onThisDay },
+                        set: { on in
+                            onThisDay = on
+                            OnThisDay.isEnabled = on
+                            NotificationCenter.default.post(name: .storeDidChange, object: nil)   // Hjem planlægger igen
+                        })) {
+                        Label("På denne dag", systemImage: "calendar.badge.clock")
+                    }
                 }
             } header: {
                 Text("Påmindelser")
             } footer: {
-                Text("Billeder: for et født barn hver måned på månedsdagen, og for et barn på vej så ofte, på den ugedag og det tidspunkt, du vælger. Årligt interview: på hvert barns fødselsdag fra \(Reminders.interviewMinAge) år, og en uge efter, hvis I ikke er gået i gang.")
+                Text("Billeder: for et født barn hver måned på månedsdagen, og for et barn på vej så ofte, på den ugedag og det tidspunkt, du vælger — mavebilledet kan slås fra, hvis det ikke er dig, der tager det. Årligt interview: på hvert barns fødselsdag fra \(Reminders.interviewMinAge) år, og en uge efter, hvis I ikke er gået i gang. På denne dag: kl. 9 på årsdagen for et minde fra et tidligere år.")
             }
 
             Section {

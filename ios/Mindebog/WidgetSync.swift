@@ -12,6 +12,10 @@ enum WidgetSync {
         NotificationCenter.default.addObserver(forName: .storeDidChange, object: nil, queue: nil) { _ in dirty = true }
     }()
 
+    /// Kaldes ved opstart, så en gemt fødselsdag altid markerer widgetten som forældet —
+    /// også hvis den gemmes, før Hjem første gang har opdateret widgetten.
+    static func start() { _ = observer }
+
     static func refresh(store: Store, familyId: String, familyName: String, force: Bool = false) async {
         _ = observer
         if !force, !dirty, let last = lastRun, Date().timeIntervalSince(last) < 600 { return }
@@ -46,7 +50,7 @@ enum WidgetSync {
             case .highlight: kind = "Højdepunkt"
             case .diary: kind = "Dagbog"
             case .event: kind = "Begivenhed"
-            case .vacation: kind = "Ferie"
+            case .vacation: kind = "Rejse"
             case .memory: kind = "Minde"
             default: return nil   // "På denne dag" bruger kun de klassiske minder
             }

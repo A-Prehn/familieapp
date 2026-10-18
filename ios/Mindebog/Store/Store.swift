@@ -26,7 +26,7 @@ protocol Store {
 
     // Pr. barn
     func highlights(childId: String) async throws -> [Highlight]
-    func addHighlight(childId: String, date: Date?, text: String, photos: [Data]) async throws -> Highlight
+    func addHighlight(childId: String, date: Date?, text: String, photos: [Data], cover: Int, place: Place?) async throws -> Highlight
     func updateHighlight(childId: String, _ highlight: Highlight) async throws
     func deleteHighlight(childId: String, id: String) async throws
     /// Video og lydnote på et højdepunkt (gemmes separat, så listen ikke henter store filer).
@@ -89,7 +89,7 @@ protocol Store {
     // Pr. familie
     func events(familyId: String) async throws -> [FamilyEvent]
     func addEvent(familyId: String, title: String, date: Date?, details: String,
-                  photos: PhotoSet, place: Place?) async throws -> FamilyEvent
+                  photos: PhotoSet, place: Place?, childIds: [String], personIds: [String]) async throws -> FamilyEvent
 
     func updateEvent(familyId: String, _ event: FamilyEvent) async throws -> FamilyEvent
     func deleteEvent(familyId: String, id: String) async throws
@@ -98,7 +98,7 @@ protocol Store {
     func updateVacation(familyId: String, _ vacation: Vacation) async throws -> Vacation
     func deleteVacation(familyId: String, id: String) async throws
     func addVacation(familyId: String, title: String, start: Date?, end: Date?,
-                     details: String, photos: PhotoSet, place: Place?) async throws -> Vacation
+                     details: String, photos: PhotoSet, place: Place?, childIds: [String], personIds: [String]) async throws -> Vacation
 
     // Hjem: lette oversigter uden billeder, og billede kun til de minder der vises.
     func memorySummaries(familyId: String) async throws -> [MemorySummary]

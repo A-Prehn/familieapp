@@ -142,11 +142,25 @@ struct FamilyAccessView: View {
 
     // MARK: Handlinger
 
+    private struct Cached: Codable { var people: [FamilyParticipant]; var isOwner: Bool }
+
     private func load() async {
         guard let cloud, let familyId = state.familyId else { loaded = true; return }
-        isOwner = await cloud.isShareOwner(familyId: familyId)
-        people = (try? await cloud.participants(familyId: familyId)) ?? []
+        // Vis listen fra sidst med det samme; delingen hentes så i baggrunden.
+        let cacheKey = "access_\(familyId)"
+        if people.isEmpty, let cached = ScreenCache.load(Cached.self, key: cacheKey) {
+            people = cached.people
+            isOwner = cached.isOwner
+            loaded = true
+        }
+        async let ownerTask = cloud.isShareOwner(familyId: familyId)
+        async let peopleTask = cloud.participants(familyId: familyId)
+        let owner = await ownerTask
+        guard let fresh = try? await peopleTask else { loaded = true; return }
+        isOwner = owner
+        people = fresh
         loaded = true
+        ScreenCache.save(Cached(people: fresh, isOwner: owner), key: cacheKey)
     }
 
     private func invite(_ kind: CloudSharing.Invite) async {

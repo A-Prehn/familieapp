@@ -27,7 +27,7 @@ enum HomeAction: String, CaseIterable, Identifiable {
         case .drawing: return "Tegning"
         case .voice: return "Optag stemme"
         case .event: return "Begivenhed"
-        case .vacation: return "Ferie"
+        case .vacation: return "Rejse"
         case .birthday: return "Fødselsdag"
         case .tradition: return "Tradition"
         case .memory: return "Minde"

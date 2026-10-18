@@ -6,6 +6,7 @@ struct MemoriesView: View {
     @EnvironmentObject var state: AppState
     let memories: [FamilyMemory]
     let children: [Child]
+    var members: [AppUser] = []
     var onEdit: (FamilyMemory) -> Void
     var onAdd: () -> Void
     var onLightbox: (LightboxState) -> Void
@@ -17,7 +18,7 @@ struct MemoriesView: View {
                     .font(.system(size: 40, weight: .light))
                     .foregroundStyle(Theme.neutralDark)
                 Text("Jeres minder").font(.serifTitle(22))
-                Text("Det, der ikke er en begivenhed eller ferie, men som I gerne vil huske: en sjov replik, en hyggelig søndag, mormors tale. Alle i familien kan se dem — også bedsteforældre.")
+                Text("Det, der ikke er en begivenhed eller rejse, men som I gerne vil huske: en sjov replik, en hyggelig søndag, mormors tale. Alle i familien kan se dem — også bedsteforældre.")
                     .font(.subheadline).foregroundStyle(Theme.muted)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 20)
@@ -45,6 +46,10 @@ struct MemoriesView: View {
                         Text(memory.text).font(.footnote).foregroundStyle(Theme.text)
                     }
                     CoverPhotoView(set: memory.photos) { onLightbox($0) }
+                    if let place = memory.place {
+                        PlaceLabel(place: place)
+                        PlaceMap(place: place)
+                    }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(14)
@@ -58,7 +63,7 @@ struct MemoriesView: View {
     }
 
     private func names(_ memory: FamilyMemory) -> String {
-        memory.childIds.compactMap { id in children.first { $0.id == id }?.name }.joined(separator: ", ")
+        AboutPicker.names(childIds: memory.childIds, personIds: memory.personIds, children: children, members: members)
     }
 }
 
@@ -68,6 +73,7 @@ struct MemoryEditView: View {
     @Environment(\.dismiss) private var dismiss
     let familyId: String
     let children: [Child]
+    var members: [AppUser] = []
     var editing: FamilyMemory? = nil
 
     @State private var draft = FamilyMemory(id: newId("mem"), title: "")
@@ -100,28 +106,12 @@ struct MemoryEditView: View {
                     TextField("Hvad skete der, hvem var med, hvad blev der sagt …", text: $draft.text, axis: .vertical)
                         .lineLimit(3...12)
                 }
-                if !children.isEmpty {
-                    Section {
-                        ForEach(children) { child in
-                            Button { toggle(child.id) } label: {
-                                HStack {
-                                    ChildAvatar(child: child, size: 28)
-                                    Text(child.name).foregroundStyle(Theme.text)
-                                    Spacer()
-                                    if draft.childIds.contains(child.id) {
-                                        Image(systemName: "checkmark").foregroundStyle(Theme.tint)
-                                    }
-                                }
-                            }
-                        }
-                    } header: {
-                        Text("Handler om (valgfrit)")
-                    } footer: {
-                        Text("Vælg ingen, hvis mindet gælder hele familien.")
-                    }
-                }
+                AboutPicker(children: children, members: members, childIds: $draft.childIds, personIds: $draft.personIds)
                 Section("Billeder") {
                     PhotoSetEditor(set: $draft.photos)
+                }
+                Section("Sted (valgfrit)") {
+                    PlaceField(place: $draft.place)
                 }
                 if editing != nil {
                     Section {
@@ -162,10 +152,6 @@ struct MemoryEditView: View {
                 }
             }
         }
-    }
-
-    private func toggle(_ id: String) {
-        if let i = draft.childIds.firstIndex(of: id) { draft.childIds.remove(at: i) } else { draft.childIds.append(id) }
     }
 
     private func save() {

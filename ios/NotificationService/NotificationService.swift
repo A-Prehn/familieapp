@@ -80,11 +80,15 @@ final class NotificationService: UNNotificationServiceExtension {
             return (record["key"] as? String)?.hasPrefix("vac_") == true ? "en vaccination" : "en milepæl"
         case "Answer": return "et svar i Om dig"
         case "Event": return "en begivenhed"
-        case "Vacation": return "en ferie"
+        case "Vacation": return "en rejse"
         case "Birthday": return "en fødselsdag"
         case "Letter": return "et brev"
         case "Measurement": return "en måling"
         case "Child": return "et barn"
+        case "Memory": return "et minde"
+        case "Tradition": return "en tradition"
+        case "Person": return "en person i stamtræet"
+        case "Interview": return "et svar i det årlige interview"
         default: return nil    // Family, Member, cloudkit.share …
         }
     }

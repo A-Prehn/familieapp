@@ -264,7 +264,8 @@ actor CloudKitStore: Store {
     func highlights(childId: String) async throws -> [Highlight] {
         // Bevidst uden "video"/"audio" — de hentes først ved afspilning (highlightMedia).
         let records = try await childRecords(childId, type: "Highlight",
-                                              keys: ["childRef", "date", "text", "videoDuration", "audioDuration"],
+                                              keys: ["childRef", "date", "text", "videoDuration", "audioDuration", "coverIndex",
+                                                     "placeName", "placeAddress", "location"],
                                               assetKeys: ["photos"])
         return records.map { r in
             Highlight(id: r.recordID.recordName,
@@ -273,7 +274,9 @@ actor CloudKitStore: Store {
                       photos: Self.assetsData(r["photos"]),
                       createdAt: r.creationDate ?? Date(),
                       videoDuration: r["videoDuration"] as? Double,
-                      audioDuration: r["audioDuration"] as? Double)
+                      audioDuration: r["audioDuration"] as? Double,
+                      cover: (r["coverIndex"] as? Int64).map(Int.init) ?? 0,
+                      place: Self.place(from: r))
         }.sorted { ($0.date ?? $0.createdAt) > ($1.date ?? $1.createdAt) }
     }
 
@@ -315,7 +318,7 @@ actor CloudKitStore: Store {
         return (local("video", ext: "mp4"), local("audio", ext: "m4a"))
     }
 
-    func addHighlight(childId: String, date: Date?, text: String, photos: [Data]) async throws -> Highlight {
+    func addHighlight(childId: String, date: Date?, text: String, photos: [Data], cover: Int, place: Place?) async throws -> Highlight {
         let (db, zoneID) = try await locateChild(childId)
         let record = CKRecord(recordType: "Highlight", recordID: CKRecord.ID(recordName: newId("hl"), zoneID: zoneID))
         record["childRef"] = childRef(childId, zoneID)
@@ -323,8 +326,11 @@ actor CloudKitStore: Store {
         record["text"] = text.trimmingCharacters(in: .whitespaces) as CKRecordValue
         let assets = photos.compactMap { Self.asset(from: $0) }
         if !assets.isEmpty { record["photos"] = assets as CKRecordValue }
+        if cover > 0 { record["coverIndex"] = Int64(cover) as CKRecordValue }
+        Self.setPlace(place, on: record)
         let saved = try await persist(record, in: db)
-        return Highlight(id: saved.recordID.recordName, date: date, text: text, photos: photos, createdAt: Date())
+        return Highlight(id: saved.recordID.recordName, date: date, text: text, photos: photos, createdAt: Date(),
+                         cover: cover, place: place)
     }
 
     func updateHighlight(childId: String, _ highlight: Highlight) async throws {
@@ -334,6 +340,8 @@ actor CloudKitStore: Store {
         record["text"] = highlight.text.trimmingCharacters(in: .whitespaces) as CKRecordValue
         let assets = highlight.photos.compactMap { Self.asset(from: $0) }
         record["photos"] = assets.isEmpty ? nil : assets as CKRecordValue
+        record["coverIndex"] = Int64(highlight.coverIndex) as CKRecordValue
+        Self.setPlace(highlight.place, on: record)
         _ = try await persist(record, in: db)
     }
 
@@ -595,19 +603,22 @@ actor CloudKitStore: Store {
     func events(familyId: String) async throws -> [FamilyEvent] {
         let (db, zoneID) = try await locate(familyId)
         return try await all(db: db, zoneID: zoneID, type: "Event",
-                             keys: ["familyRef", "title", "date", "details", "placeName", "placeAddress", "location", "captions", "coverIndex"],
+                             keys: ["familyRef", "title", "date", "details", "placeName", "placeAddress", "location", "captions", "coverIndex",
+                                    "childIds", "personIds"],
                              assetKeys: ["photo", "photos"]).map { r in
             FamilyEvent(id: r.recordID.recordName,
                         title: r["title"] as? String ?? "",
                         date: r["date"] as? Date,
                         details: r["details"] as? String ?? "",
                         photos: Self.photoSet(from: r),
-                        place: Self.place(from: r))
+                        place: Self.place(from: r),
+                        childIds: r["childIds"] as? [String] ?? [],
+                        personIds: r["personIds"] as? [String] ?? [])
         }.sorted { ($0.date ?? .distantPast) > ($1.date ?? .distantPast) }
     }
 
     func addEvent(familyId: String, title: String, date: Date?, details: String,
-                  photos: PhotoSet, place: Place?) async throws -> FamilyEvent {
+                  photos: PhotoSet, place: Place?, childIds: [String], personIds: [String]) async throws -> FamilyEvent {
         let (db, zoneID) = try await locate(familyId)
         let record = CKRecord(recordType: "Event", recordID: CKRecord.ID(recordName: newId("ev"), zoneID: zoneID))
         record["familyRef"] = familyRef(zoneID)
@@ -616,15 +627,23 @@ actor CloudKitStore: Store {
         record["details"] = details.trimmingCharacters(in: .whitespaces) as CKRecordValue
         Self.setPhotos(photos, on: record)
         Self.setPlace(place, on: record)
+        Self.setAbout(childIds: childIds, personIds: personIds, on: record)
         let saved = try await persist(record, in: db)
         return FamilyEvent(id: saved.recordID.recordName, title: title, date: date, details: details,
-                           photos: photos, place: place)
+                           photos: photos, place: place, childIds: childIds, personIds: personIds)
+    }
+
+    /// "Handler om": børn og voksne. Tomme lister fjerner felterne.
+    private static func setAbout(childIds: [String], personIds: [String], on record: CKRecord) {
+        record["childIds"] = childIds.isEmpty ? nil : childIds as CKRecordValue
+        record["personIds"] = personIds.isEmpty ? nil : personIds as CKRecordValue
     }
 
     func vacations(familyId: String) async throws -> [Vacation] {
         let (db, zoneID) = try await locate(familyId)
         return try await all(db: db, zoneID: zoneID, type: "Vacation",
-                             keys: ["familyRef", "title", "startDate", "endDate", "details", "placeName", "placeAddress", "location", "captions", "coverIndex"],
+                             keys: ["familyRef", "title", "startDate", "endDate", "details", "placeName", "placeAddress", "location", "captions", "coverIndex",
+                                    "childIds", "personIds"],
                              assetKeys: ["photo", "photos"]).map { r in
             Vacation(id: r.recordID.recordName,
                      title: r["title"] as? String ?? "",
@@ -632,12 +651,14 @@ actor CloudKitStore: Store {
                      endDate: r["endDate"] as? Date,
                      details: r["details"] as? String ?? "",
                      photos: Self.photoSet(from: r),
-                     place: Self.place(from: r))
+                     place: Self.place(from: r),
+                     childIds: r["childIds"] as? [String] ?? [],
+                     personIds: r["personIds"] as? [String] ?? [])
         }.sorted { ($0.startDate ?? .distantPast) > ($1.startDate ?? .distantPast) }
     }
 
     func addVacation(familyId: String, title: String, start: Date?, end: Date?,
-                     details: String, photos: PhotoSet, place: Place?) async throws -> Vacation {
+                     details: String, photos: PhotoSet, place: Place?, childIds: [String], personIds: [String]) async throws -> Vacation {
         let (db, zoneID) = try await locate(familyId)
         let record = CKRecord(recordType: "Vacation", recordID: CKRecord.ID(recordName: newId("vac"), zoneID: zoneID))
         record["familyRef"] = familyRef(zoneID)
@@ -647,9 +668,10 @@ actor CloudKitStore: Store {
         record["details"] = details.trimmingCharacters(in: .whitespaces) as CKRecordValue
         Self.setPhotos(photos, on: record)
         Self.setPlace(place, on: record)
+        Self.setAbout(childIds: childIds, personIds: personIds, on: record)
         let saved = try await persist(record, in: db)
         return Vacation(id: saved.recordID.recordName, title: title, startDate: start, endDate: end,
-                        details: details, photos: photos, place: place)
+                        details: details, photos: photos, place: place, childIds: childIds, personIds: personIds)
     }
 
     func updateEvent(familyId: String, _ event: FamilyEvent) async throws -> FamilyEvent {
@@ -660,6 +682,7 @@ actor CloudKitStore: Store {
         record["details"] = event.details.trimmingCharacters(in: .whitespaces) as CKRecordValue
         Self.setPhotos(event.photos, on: record)
         Self.setPlace(event.place, on: record)
+        Self.setAbout(childIds: event.childIds, personIds: event.personIds, on: record)
         _ = try await persist(record, in: db)
         return event
     }
@@ -678,6 +701,7 @@ actor CloudKitStore: Store {
         record["details"] = vacation.details.trimmingCharacters(in: .whitespaces) as CKRecordValue
         Self.setPhotos(vacation.photos, on: record)
         Self.setPlace(vacation.place, on: record)
+        Self.setAbout(childIds: vacation.childIds, personIds: vacation.personIds, on: record)
         _ = try await persist(record, in: db)
         return vacation
     }
@@ -1039,7 +1063,8 @@ actor CloudKitStore: Store {
     func memories(familyId: String) async throws -> [FamilyMemory] {
         let (db, zoneID) = try await locate(familyId)
         return try await all(db: db, zoneID: zoneID, type: "Memory",
-                             keys: ["familyRef", "title", "date", "endDate", "text", "childIds", "captions", "coverIndex"],
+                             keys: ["familyRef", "title", "date", "endDate", "text", "childIds", "personIds", "captions", "coverIndex",
+                                    "placeName", "placeAddress", "location"],
                              assetKeys: ["photos", "photo"]).map { r in
             FamilyMemory(id: r.recordID.recordName,
                          title: r["title"] as? String ?? "",
@@ -1047,7 +1072,9 @@ actor CloudKitStore: Store {
                          endDate: r["endDate"] as? Date,
                          text: r["text"] as? String ?? "",
                          photos: Self.photoSet(from: r),
-                         childIds: r["childIds"] as? [String] ?? [])
+                         childIds: r["childIds"] as? [String] ?? [],
+                         personIds: r["personIds"] as? [String] ?? [],
+                         place: Self.place(from: r))
         }
         .sorted { ($0.date ?? .distantPast) > ($1.date ?? .distantPast) }
     }
@@ -1067,7 +1094,9 @@ actor CloudKitStore: Store {
         record["endDate"] = memory.endDate as CKRecordValue?
         record["text"] = memory.text as CKRecordValue
         record["childIds"] = memory.childIds.isEmpty ? nil : memory.childIds as CKRecordValue
+        record["personIds"] = memory.personIds.isEmpty ? nil : memory.personIds as CKRecordValue
         Self.setPhotos(memory.photos, on: record)
+        Self.setPlace(memory.place, on: record)
         _ = try await persist(record, in: db)
     }
 

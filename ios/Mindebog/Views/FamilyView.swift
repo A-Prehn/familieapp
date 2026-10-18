@@ -7,7 +7,7 @@ struct FamilyView: View {
     enum Tab: String, CaseIterable, Identifiable {
         case memories = "Minder"
         case events = "Begivenheder"
-        case vacations = "Ferier"
+        case vacations = "Rejser"
         case birthdays = "Fødselsdage"
         case tree = "Stamtræ"
         case traditions = "Traditioner"
@@ -20,15 +20,15 @@ struct FamilyView: View {
             switch self {
             case .memories: "heart"
             case .events: "calendar"
-            case .vacations: "sun.max"
+            case .vacations: "airplane"
             case .birthdays: "gift"
             case .tree: "tree"
-            case .traditions: "flame"
+            case .traditions: "sparkles"
             }
         }
     }
 
-    @State private var tab: Tab = .events
+    @State private var tab: Tab = .memories
     @State private var events: [FamilyEvent] = []
     @State private var vacations: [Vacation] = []
     @State private var children: [Child] = []
@@ -77,7 +77,7 @@ struct FamilyView: View {
                 }
 
                 switch tab {
-                case .memories: MemoriesView(memories: memories, children: children, onEdit: { editingMemory = $0 },
+                case .memories: MemoriesView(memories: memories, children: children, members: members, onEdit: { editingMemory = $0 },
                                              onAdd: { activeSheet = .memories }, onLightbox: { lightbox = $0 })
                 case .events: eventsList
                 case .vacations: vacationsList
@@ -100,9 +100,9 @@ struct FamilyView: View {
         }
         .sheet(item: $activeSheet, onDismiss: { Task { await load() } }) { which in
             switch which {
-            case .memories: MemoryEditView(familyId: state.familyId ?? "", children: children)
-            case .events: AddEventView(familyId: state.familyId ?? "")
-            case .vacations: AddVacationView(familyId: state.familyId ?? "")
+            case .memories: MemoryEditView(familyId: state.familyId ?? "", children: children, members: members)
+            case .events: AddEventView(familyId: state.familyId ?? "", children: children, members: members)
+            case .vacations: AddVacationView(familyId: state.familyId ?? "", children: children, members: members)
             case .birthdays: AddBirthdayView(familyId: state.familyId ?? "")
             case .tree: PersonEditView(familyId: state.familyId ?? "", persons: persons, children: children,
                                        members: members, birthdays: customBirthdays)
@@ -110,16 +110,16 @@ struct FamilyView: View {
             }
         }
         .sheet(item: $editingEvent, onDismiss: { Task { await load() } }) { event in
-            AddEventView(familyId: state.familyId ?? "", editing: event)
+            AddEventView(familyId: state.familyId ?? "", children: children, members: members, editing: event)
         }
         .sheet(item: $editingVacation, onDismiss: { Task { await load() } }) { vacation in
-            AddVacationView(familyId: state.familyId ?? "", editing: vacation)
+            AddVacationView(familyId: state.familyId ?? "", children: children, members: members, editing: vacation)
         }
         .sheet(item: $editingBirthday, onDismiss: { Task { await load() } }) { birthday in
             AddBirthdayView(familyId: state.familyId ?? "", editing: birthday)
         }
         .sheet(item: $editingMemory, onDismiss: { Task { await load() } }) { m in
-            MemoryEditView(familyId: state.familyId ?? "", children: children, editing: m)
+            MemoryEditView(familyId: state.familyId ?? "", children: children, members: members, editing: m)
         }
         .sheet(item: $editingTradition, onDismiss: { Task { await load() } }) { t in
             TraditionEditView(familyId: state.familyId ?? "", editing: t)
@@ -146,9 +146,7 @@ struct FamilyView: View {
                          year: { $0.date.map { Calendar.current.component(.year, from: $0) } }) { event in
                 VStack(alignment: .leading, spacing: 8) {
                     Text(event.title).font(.serifTitle(16))
-                    if let date = event.date {
-                        Text(Fmt.long(date)).font(.caption).foregroundStyle(Theme.muted)
-                    }
+                    aboutLine(date: event.date.map(Fmt.long), childIds: event.childIds, personIds: event.personIds)
                     if !event.details.isEmpty {
                         Text(event.details).font(.footnote).foregroundStyle(Theme.muted)
                     }
@@ -173,7 +171,7 @@ struct FamilyView: View {
     @ViewBuilder
     private var vacationsList: some View {
         if vacations.isEmpty {
-            ContentUnavailableView("Ingen ferier endnu", systemImage: "beach.umbrella")
+            ContentUnavailableView("Ingen rejser endnu", systemImage: "beach.umbrella")
                 .padding(.top, 40)
         } else {
             // Tidslinje som på websitet: nyeste øverst, årstal hver gang året skifter.
@@ -181,9 +179,7 @@ struct FamilyView: View {
                          year: { $0.startDate.map { Calendar.current.component(.year, from: $0) } }) { vacation in
                     VStack(alignment: .leading, spacing: 8) {
                         Text(vacation.title).font(.serifTitle(16))
-                        if let range = dateRange(vacation) {
-                            Text(range).font(.caption).foregroundStyle(Theme.muted)
-                        }
+                        aboutLine(date: dateRange(vacation), childIds: vacation.childIds, personIds: vacation.personIds)
                         if !vacation.details.isEmpty {
                             Text(vacation.details).font(.footnote).foregroundStyle(Theme.muted)
                         }
@@ -300,6 +296,22 @@ struct FamilyView: View {
         return f.string(from: date)
     }
 
+    /// Dato og "handler om" på én linje under titlen: "15. november 2024 · Nohr, Sheila".
+    @ViewBuilder
+    private func aboutLine(date: String?, childIds: [String], personIds: [String]) -> some View {
+        let names = AboutPicker.names(childIds: childIds, personIds: personIds, children: children, members: members)
+        if date != nil || !names.isEmpty {
+            HStack(spacing: 6) {
+                if let date { Text(date) }
+                if !names.isEmpty {
+                    if date != nil { Text("·") }
+                    Label(names, systemImage: "person")
+                }
+            }
+            .font(.caption).foregroundStyle(Theme.muted)
+        }
+    }
+
     private func dateRange(_ vacation: Vacation) -> String? {
         switch (vacation.startDate, vacation.endDate) {
         case let (start?, end?): return "\(Fmt.long(start)) – \(Fmt.long(end))"
@@ -364,6 +376,8 @@ struct AddEventView: View {
     @EnvironmentObject var state: AppState
     @Environment(\.dismiss) private var dismiss
     let familyId: String
+    var children: [Child] = []
+    var members: [AppUser] = []
     /// Sat ved redigering; nil ved oprettelse.
     var editing: FamilyEvent? = nil
     @State private var title = ""
@@ -371,6 +385,8 @@ struct AddEventView: View {
     @State private var details = ""
     @State private var photos = PhotoSet()
     @State private var place: Place?
+    @State private var childIds: [String] = []
+    @State private var personIds: [String] = []
     @State private var loaded = false
     @State private var confirmDelete = false
     @State private var saving = false
@@ -384,6 +400,7 @@ struct AddEventView: View {
                 Section("Beskrivelse") {
                     TextField("Beskrivelse", text: $details, axis: .vertical).lineLimit(2...5)
                 }
+                AboutPicker(children: children, members: members, childIds: $childIds, personIds: $personIds)
                 Section("Sted") {
                     PlaceField(place: $place)
                 }
@@ -406,16 +423,18 @@ struct AddEventView: View {
                             if var event = editing {
                                 event.title = title; event.date = date; event.details = details
                                 event.photos = photos; event.place = place
+                                event.childIds = childIds; event.personIds = personIds
                                 let updated = event
                                 await performSave(saving: $saving, errorMessage: $saveError, dismiss: dismiss) {
                                     _ = try await state.store.updateEvent(familyId: familyId, updated)
                                 }
                             } else {
-                                let (store, familyId, title, date, details, photos, place) =
-                                    (state.store, familyId, title, date, details, photos, place)
+                                let (store, familyId, title, date, details, photos, place, childIds, personIds) =
+                                    (state.store, familyId, title, date, details, photos, place, childIds, personIds)
                                 performSaveInBackground(label: "begivenheden", dismiss: dismiss) {
                                     _ = try await store.addEvent(familyId: familyId, title: title, date: date,
-                                                                 details: details, photos: photos, place: place)
+                                                                 details: details, photos: photos, place: place,
+                                                                 childIds: childIds, personIds: personIds)
                                 }
                             }
                         }
@@ -440,6 +459,7 @@ struct AddEventView: View {
                 loaded = true
                 title = e.title; date = e.date ?? Date(); details = e.details
                 photos = e.photos; place = e.place
+                childIds = e.childIds; personIds = e.personIds
             }
         }
     }
@@ -449,6 +469,8 @@ struct AddVacationView: View {
     @EnvironmentObject var state: AppState
     @Environment(\.dismiss) private var dismiss
     let familyId: String
+    var children: [Child] = []
+    var members: [AppUser] = []
     /// Sat ved redigering; nil ved oprettelse.
     var editing: Vacation? = nil
     @State private var title = ""
@@ -457,6 +479,8 @@ struct AddVacationView: View {
     @State private var details = ""
     @State private var photos = PhotoSet()
     @State private var place: Place?
+    @State private var childIds: [String] = []
+    @State private var personIds: [String] = []
     @State private var loaded = false
     @State private var confirmDelete = false
     @State private var saving = false
@@ -471,6 +495,7 @@ struct AddVacationView: View {
                 Section("Beskrivelse") {
                     TextField("Beskrivelse", text: $details, axis: .vertical).lineLimit(2...5)
                 }
+                AboutPicker(children: children, members: members, childIds: $childIds, personIds: $personIds)
                 Section("Sted") {
                     PlaceField(place: $place)
                 }
@@ -479,11 +504,11 @@ struct AddVacationView: View {
                 }
                 if editing != nil {
                     Section {
-                        Button("Slet ferie", role: .destructive) { confirmDelete = true }
+                        Button("Slet rejse", role: .destructive) { confirmDelete = true }
                     }
                 }
             }
-            .navigationTitle(editing == nil ? "Ny ferie" : "Redigér ferie")
+            .navigationTitle(editing == nil ? "Ny rejse" : "Redigér rejse")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Annullér") { dismiss() } }
@@ -493,16 +518,18 @@ struct AddVacationView: View {
                             if var vacation = editing {
                                 vacation.title = title; vacation.startDate = start; vacation.endDate = end
                                 vacation.details = details; vacation.photos = photos; vacation.place = place
+                                vacation.childIds = childIds; vacation.personIds = personIds
                                 let updated = vacation
                                 await performSave(saving: $saving, errorMessage: $saveError, dismiss: dismiss) {
                                     _ = try await state.store.updateVacation(familyId: familyId, updated)
                                 }
                             } else {
-                                let (store, familyId, title, start, end, details, photos, place) =
-                                    (state.store, familyId, title, start, end, details, photos, place)
-                                performSaveInBackground(label: "ferien", dismiss: dismiss) {
+                                let (store, familyId, title, start, end, details, photos, place, childIds, personIds) =
+                                    (state.store, familyId, title, start, end, details, photos, place, childIds, personIds)
+                                performSaveInBackground(label: "rejsen", dismiss: dismiss) {
                                     _ = try await store.addVacation(familyId: familyId, title: title, start: start, end: end,
-                                                                    details: details, photos: photos, place: place)
+                                                                    details: details, photos: photos, place: place,
+                                                                    childIds: childIds, personIds: personIds)
                                 }
                             }
                         }
@@ -520,13 +547,14 @@ struct AddVacationView: View {
                     }
                 }
             } message: {
-                Text("Ferien og dens billede slettes for hele familien.")
+                Text("Rejsen og dens billede slettes for hele familien.")
             }
             .onAppear {
                 guard !loaded, let v = editing else { return }
                 loaded = true
                 title = v.title; start = v.startDate ?? Date(); end = v.endDate ?? start
                 details = v.details; photos = v.photos; place = v.place
+                childIds = v.childIds; personIds = v.personIds
             }
         }
     }

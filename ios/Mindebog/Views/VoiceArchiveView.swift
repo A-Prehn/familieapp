@@ -188,7 +188,7 @@ struct RecordVoiceView: View {
     private func save() async {
         await performSave(saving: $saving, errorMessage: $saveError, dismiss: dismiss) {
             let created = try await state.store.addHighlight(childId: child.id, date: date,
-                                                             text: title.trimmingCharacters(in: .whitespaces), photos: [])
+                                                             text: title.trimmingCharacters(in: .whitespaces), photos: [], cover: 0, place: nil)
             try await state.store.setHighlightMedia(childId: child.id, id: created.id, video: .keep, audio: audio)
         }
     }
