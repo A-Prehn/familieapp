@@ -89,6 +89,7 @@ struct MemoryEditView: View {
     var body: some View {
         NavigationStack {
             Form {
+                Group {
                 Section {
                     TextField("Titel (fx Første gang vi så havet)", text: $draft.title)
                     Toggle("Dato", isOn: $hasDate.animation())
@@ -118,7 +119,9 @@ struct MemoryEditView: View {
                         Button("Slet minde", role: .destructive) { confirmDelete = true }
                     }
                 }
+                }.listRowBackground(Theme.card)
             }
+            .themedList()
             .navigationTitle(editing == nil ? "Nyt minde" : "Redigér minde")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

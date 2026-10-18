@@ -446,6 +446,7 @@ struct ChooseChildrenView: View {
     var body: some View {
         NavigationStack {
             List {
+                Group {
                 Section {
                     ForEach(children) { child in
                         Button {
@@ -469,7 +470,9 @@ struct ChooseChildrenView: View {
                         selected = selected.count == children.count ? [] : Set(children.map(\.id))
                     }
                 }
+                }.listRowBackground(Theme.card)
             }
+            .themedList()
             .navigationTitle("Hvem gælder det?")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

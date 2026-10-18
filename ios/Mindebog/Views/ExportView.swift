@@ -11,6 +11,7 @@ struct ExportView: View {
     var body: some View {
         NavigationStack {
             List {
+                Group {
                 Section {
                     VStack(alignment: .leading, spacing: 10) {
                         Image(systemName: "archivebox")
@@ -52,7 +53,9 @@ struct ExportView: View {
                 } footer: {
                     Text(footerText)
                 }
+                }.listRowBackground(Theme.card)
             }
+            .themedList()
             .navigationTitle("Eksportér alt")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

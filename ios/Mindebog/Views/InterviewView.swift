@@ -284,6 +284,7 @@ struct InterviewAnswerEditView: View {
     var body: some View {
         NavigationStack {
             Form {
+                Group {
                 Section {
                     Text(Constants.interviewQuestion(question))
                         .font(.serifTitle(18)).foregroundStyle(Theme.text)
@@ -311,7 +312,9 @@ struct InterviewAnswerEditView: View {
                         Button("Slet svaret", role: .destructive) { confirmDelete = true }
                     }
                 }
+                }.listRowBackground(Theme.card)
             }
+            .themedList()
             .navigationTitle("Svar")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

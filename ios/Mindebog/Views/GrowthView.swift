@@ -181,6 +181,7 @@ struct MeasurementEditView: View {
     var body: some View {
         NavigationStack {
             Form {
+                Group {
                 DatePicker("Dato", selection: $date, in: ...Date(), displayedComponents: .date)
                 Section {
                     field("Vægt", "F.eks. 6450", $weight, "gram", .numberPad)
@@ -194,7 +195,9 @@ struct MeasurementEditView: View {
                         Button("Slet måling", role: .destructive) { confirmDelete = true }
                     }
                 }
+                }.listRowBackground(Theme.card)
             }
+            .themedList()
             .navigationTitle(editing == nil ? "Ny måling" : "Redigér måling")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

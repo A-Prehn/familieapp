@@ -82,11 +82,14 @@ struct AnswerEditView: View {
     var body: some View {
         NavigationStack {
             Form {
+                Group {
                 Section(question) {
                     TextField("Skriv svaret…", text: $answer, axis: .vertical)
                         .lineLimit(3...10)
                 }
+                }.listRowBackground(Theme.card)
             }
+            .themedList()
             .navigationTitle("Svar")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

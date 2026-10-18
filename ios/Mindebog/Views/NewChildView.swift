@@ -22,6 +22,7 @@ struct NewChildView: View {
     var body: some View {
         NavigationStack {
             Form {
+                Group {
                 Section {
                     TextField("Barnets navn", text: $name)
                 }
@@ -53,7 +54,9 @@ struct NewChildView: View {
                 if let errorMessage {
                     Text(errorMessage).font(.footnote).foregroundStyle(Theme.rose)
                 }
+                }.listRowBackground(Theme.card)
             }
+            .themedList()
             .navigationTitle(editing == nil ? "Nyt barn" : "Redigér \(editing?.name ?? "")")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

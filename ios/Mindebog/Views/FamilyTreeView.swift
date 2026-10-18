@@ -180,6 +180,7 @@ struct PersonEditView: View {
     var body: some View {
         NavigationStack {
             Form {
+                Group {
                 if editing == nil, !unlinkedMembers.isEmpty, draft.childId == nil, draft.name.isEmpty {
                     Section {
                         ForEach(unlinkedMembers) { m in
@@ -284,7 +285,9 @@ struct PersonEditView: View {
                         Button("Fjern fra træet", role: .destructive) { confirmDelete = true }
                     }
                 }
+                }.listRowBackground(Theme.card)
             }
+            .themedList()
             .navigationTitle(editing == nil ? "Ny person" : "Redigér person")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

@@ -114,6 +114,7 @@ struct TraditionEditView: View {
     var body: some View {
         NavigationStack {
             Form {
+                Group {
                 Section {
                     TextField("Tradition (fx Juleaften hos mormor)", text: $draft.title)
                     TextField("Hvornår (fx 24. december, hver fødselsdag)", text: $draft.when)
@@ -154,7 +155,9 @@ struct TraditionEditView: View {
                         Button("Slet tradition", role: .destructive) { confirmDelete = true }
                     }
                 }
+                }.listRowBackground(Theme.card)
             }
+            .themedList()
             .navigationTitle(editing == nil ? "Ny tradition" : "Redigér tradition")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

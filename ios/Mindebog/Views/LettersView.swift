@@ -224,6 +224,7 @@ struct LetterEditView: View {
     var body: some View {
         NavigationStack {
             Form {
+                Group {
                 Section {
                     TextField("Overskrift (fx Til dig på din 18-års dag)", text: $title)
                     TextField("Skrevet af", text: $author)
@@ -270,7 +271,9 @@ struct LetterEditView: View {
                         Button("Slet brev", role: .destructive) { confirmDelete = true }
                     }
                 }
+                }.listRowBackground(Theme.card)
             }
+            .themedList()
             .navigationTitle(editing == nil ? "Nyt brev" : "Redigér brev")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

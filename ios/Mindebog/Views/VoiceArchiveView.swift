@@ -151,6 +151,7 @@ struct RecordVoiceView: View {
     var body: some View {
         NavigationStack {
             Form {
+                Group {
                 Section("Hvad er det?") {
                     TextField("Fx Første ord: \"mor\"", text: $title)
                     ScrollView(.horizontal, showsIndicators: false) {
@@ -169,7 +170,9 @@ struct RecordVoiceView: View {
                 Section("Optagelse") {
                     MediaField(video: .constant(.keep), audio: $audio, showVideo: false, audioLabel: "Optag")
                 }
+                }.listRowBackground(Theme.card)
             }
+            .themedList()
             .navigationTitle("Optag stemme")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

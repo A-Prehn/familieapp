@@ -162,6 +162,7 @@ struct VaccineEditView: View {
     var body: some View {
         NavigationStack {
             Form {
+                Group {
                 Section {
                     Text(vaccine.detail).font(.footnote).foregroundStyle(Theme.muted)
                     DatePicker("Givet den", selection: $date, in: ...Date(), displayedComponents: .date)
@@ -171,7 +172,9 @@ struct VaccineEditView: View {
                         Button("Fjern markering", role: .destructive) { Task { await save(nil) } }
                     }
                 }
+                }.listRowBackground(Theme.card)
             }
+            .themedList()
             .navigationTitle(vaccine.name)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -241,6 +244,7 @@ struct CustomVaccineEditView: View {
     var body: some View {
         NavigationStack {
             Form {
+                Group {
                 Section {
                     TextField("Vaccine (fx Hepatitis A)", text: $draft.name)
                     DatePicker("Givet den", selection: $draft.date, in: ...Date(), displayedComponents: .date)
@@ -267,7 +271,9 @@ struct CustomVaccineEditView: View {
                         Button("Slet vaccine", role: .destructive) { confirmDelete = true }
                     }
                 }
+                }.listRowBackground(Theme.card)
             }
+            .themedList()
             .navigationTitle(existing == nil ? "Ny vaccine" : "Redigér vaccine")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

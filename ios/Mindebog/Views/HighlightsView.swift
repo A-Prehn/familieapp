@@ -196,6 +196,7 @@ struct AddHighlightView: View {
     var body: some View {
         NavigationStack {
             Form {
+                Group {
                 ForChildrenNote(names: forNames)
                 DatePicker("Dato", selection: $date, displayedComponents: .date)
                 Section("Tekst") {
@@ -224,7 +225,9 @@ struct AddHighlightView: View {
                         Button("Slet højdepunkt", role: .destructive) { confirmDelete = true }
                     }
                 }
+                }.listRowBackground(Theme.card)
             }
+            .themedList()
             .navigationTitle(editing == nil ? "Nyt højdepunkt" : "Redigér højdepunkt")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

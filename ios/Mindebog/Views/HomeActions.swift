@@ -89,6 +89,7 @@ struct HomeActionsEditor: View {
     var body: some View {
         NavigationStack {
             List {
+                Group {
                 Section {
                     ForEach(chosen) { action in
                         Label(action.title, systemImage: action.symbol).foregroundStyle(Theme.text)
@@ -115,7 +116,9 @@ struct HomeActionsEditor: View {
                         .disabled(chosen.count >= HomeAction.maxCount)
                     }
                 }
+                }.listRowBackground(Theme.card)
             }
+            .themedList()
             .environment(\.editMode, .constant(.active))
             .navigationTitle("Hurtigknapper")
             .navigationBarTitleDisplayMode(.inline)

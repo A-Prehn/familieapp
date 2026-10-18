@@ -70,3 +70,11 @@ extension Font {
         .system(size: size, weight: .medium, design: .serif)
     }
 }
+
+extension View {
+    /// Lister og formularer i appens farver i stedet for iOS' egne (som bliver kulsorte i mørkt tema).
+    /// Rækkerne får Theme.card via `.listRowBackground` på indholdet.
+    func themedList() -> some View {
+        scrollContentBackground(.hidden).background(Theme.bg.ignoresSafeArea())
+    }
+}

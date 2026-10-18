@@ -395,6 +395,7 @@ struct AddEventView: View {
     var body: some View {
         NavigationStack {
             Form {
+                Group {
                 TextField("Titel", text: $title)
                 DatePicker("Dato", selection: $date, displayedComponents: .date)
                 Section("Beskrivelse") {
@@ -412,7 +413,9 @@ struct AddEventView: View {
                         Button("Slet begivenhed", role: .destructive) { confirmDelete = true }
                     }
                 }
+                }.listRowBackground(Theme.card)
             }
+            .themedList()
             .navigationTitle(editing == nil ? "Ny begivenhed" : "Redigér begivenhed")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -489,6 +492,7 @@ struct AddVacationView: View {
     var body: some View {
         NavigationStack {
             Form {
+                Group {
                 TextField("Titel (f.eks. Sommerhus i Skagen)", text: $title)
                 DatePicker("Fra", selection: $start, displayedComponents: .date)
                 DatePicker("Til", selection: $end, in: start..., displayedComponents: .date)
@@ -507,7 +511,9 @@ struct AddVacationView: View {
                         Button("Slet rejse", role: .destructive) { confirmDelete = true }
                     }
                 }
+                }.listRowBackground(Theme.card)
             }
+            .themedList()
             .navigationTitle(editing == nil ? "Ny rejse" : "Redigér rejse")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -577,6 +583,7 @@ struct AddBirthdayView: View {
     var body: some View {
         NavigationStack {
             Form {
+                Group {
                 TextField("Navn (f.eks. Mormor)", text: $name)
                 DatePicker("Fødselsdato", selection: $date, in: ...Date(), displayedComponents: .date)
                 if editing != nil {
@@ -584,7 +591,9 @@ struct AddBirthdayView: View {
                         Button("Slet fødselsdag", role: .destructive) { confirmDelete = true }
                     }
                 }
+                }.listRowBackground(Theme.card)
             }
+            .themedList()
             .navigationTitle(editing == nil ? "Ny fødselsdag" : "Redigér fødselsdag")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

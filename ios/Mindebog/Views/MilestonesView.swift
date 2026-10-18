@@ -112,6 +112,7 @@ struct MilestoneEditView: View {
     var body: some View {
         NavigationStack {
             Form {
+                Group {
                 valueSection
                 Section {
                     PhotoSetEditor(set: $photos)
@@ -120,7 +121,9 @@ struct MilestoneEditView: View {
                 } footer: {
                     Text("Vælg ★ for det billede, der vises på milepælen.")
                 }
+                }.listRowBackground(Theme.card)
             }
+            .themedList()
             .navigationTitle(def.label)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

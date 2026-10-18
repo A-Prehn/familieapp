@@ -34,6 +34,7 @@ struct MoreView: View {
 
     var body: some View {
         List {
+            Group {
             // Er man med i flere familier (fx sin egen og søsterens), kan man skifte her.
             if allFamilies.count > 1 {
                 Section {
@@ -285,7 +286,9 @@ struct MoreView: View {
                     .font(.footnote).foregroundStyle(Theme.muted)
                 Button("Log ud / skift bruger", role: .destructive) { state.signOut() }
             }
+            }.listRowBackground(Theme.card)
         }
+        .themedList()
         .navigationTitle("Mere")
         .navigationBarTitleDisplayMode(.inline)
         .sheet(isPresented: $showQR) {

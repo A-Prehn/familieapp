@@ -126,6 +126,7 @@ struct PlaceSearchView: View {
     var body: some View {
         NavigationStack {
             List {
+                Group {
                 if model.query.isEmpty {
                     Text("Søg efter et sted, fx \"Skagen\" eller navnet på kirken.")
                         .font(.footnote).foregroundStyle(Theme.muted)
@@ -150,7 +151,9 @@ struct PlaceSearchView: View {
                     }
                     .disabled(resolving)
                 }
+                }.listRowBackground(Theme.card)
             }
+            .themedList()
             .searchable(text: $model.query, placement: .navigationBarDrawer(displayMode: .always), prompt: "Søg sted")
             .navigationTitle("Vælg sted")
             .navigationBarTitleDisplayMode(.inline)

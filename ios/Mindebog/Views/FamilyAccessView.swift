@@ -18,6 +18,7 @@ struct FamilyAccessView: View {
 
     var body: some View {
         List {
+            Group {
             Section {
                 if !loaded {
                     HStack { Spacer(); ProgressView(); Spacer() }
@@ -61,7 +62,9 @@ struct FamilyAccessView: View {
             if let error {
                 Section { Text(error).font(.footnote).foregroundStyle(Theme.rose) }
             }
+            }.listRowBackground(Theme.card)
         }
+        .themedList()
         .navigationTitle("Familie og adgang")
         .navigationBarTitleDisplayMode(.inline)
         .overlay { if busy { ProgressView().controlSize(.large) } }

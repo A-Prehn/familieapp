@@ -270,6 +270,7 @@ struct AddGalleryItemView: View {
     var body: some View {
         NavigationStack {
             Form {
+                Group {
                 ForChildrenNote(names: forNames)
                 Section(kind.captionLabel) {
                     TextField(kind.captionPlaceholder, text: $caption)
@@ -299,7 +300,9 @@ struct AddGalleryItemView: View {
                         Button("Slet foto", role: .destructive) { confirmDelete = true }
                     }
                 }
+                }.listRowBackground(Theme.card)
             }
+            .themedList()
             .navigationTitle(editing == nil ? "Nyt foto" : "Redigér foto")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

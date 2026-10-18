@@ -108,6 +108,7 @@ struct AddDiaryView: View {
     var body: some View {
         NavigationStack {
             Form {
+                Group {
                 ForChildrenNote(names: forNames)
                 DatePicker("Dato", selection: $date, displayedComponents: .date)
                 Section("Tekst") {
@@ -123,7 +124,9 @@ struct AddDiaryView: View {
                         Button("Slet indlæg", role: .destructive) { confirmDelete = true }
                     }
                 }
+                }.listRowBackground(Theme.card)
             }
+            .themedList()
             .navigationTitle(editing == nil ? "Nyt indlæg" : "Redigér indlæg")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
