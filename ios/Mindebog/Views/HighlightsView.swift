@@ -244,7 +244,7 @@ struct AddHighlightView: View {
                         } else {
                             // Nyt højdepunkt: luk med det samme, upload billeder/video i baggrunden.
                             let (store, ids, date, text, photos, cover, place, video, audio) =
-                                (state.store, [childId] + alsoFor.map(\.id), date, text, photos, video, audio)
+                                (state.store, [childId] + alsoFor.map(\.id), date, text, photos, cover, place, video, audio)
                             performSaveInBackground(label: "højdepunktet", dismiss: dismiss) {
                                 for id in ids {
                                     let created = try await store.addHighlight(childId: id, date: date, text: text, photos: photos, cover: cover, place: place)
