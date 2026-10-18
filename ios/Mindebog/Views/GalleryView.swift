@@ -26,6 +26,26 @@ struct GalleryView: View {
     @State private var scanning = false
     @State private var scanError: String?
     @State private var loading = true
+    @State private var makingMovie = false
+    @State private var movieShare: ShareSheet?
+    @State private var movieError: String?
+
+    /// "Måned for måned som film": ældste først, billedteksten (fx "3 måneder") som overskrift og datoen under.
+    private func makeMovie() async {
+        makingMovie = true
+        defer { makingMovie = false }
+        let frames = items.sorted { $0.shownDate < $1.shownDate }.compactMap { item -> MovieMaker.Frame? in
+            guard let photo = item.photo else { return nil }
+            return MovieMaker.Frame(photo: photo, caption: item.caption, subtitle: Fmt.long(item.shownDate))
+        }
+        do {
+            let url = try await MovieMaker.make(title: child.name, subtitle: kind.title, frames: frames)
+            Haptics.success()
+            movieShare = ShareSheet(url: url)
+        } catch {
+            movieError = error.localizedDescription
+        }
+    }
 
     private let columns = [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)]
 
@@ -76,10 +96,16 @@ struct GalleryView: View {
                         Label("Nyeste først", systemImage: "arrow.down").tag(false)
                         Label("Ældste først", systemImage: "arrow.up").tag(true)
                     }
+                    if items.count >= 2 {
+                        Button { Task { await makeMovie() } } label: {
+                            Label(makingMovie ? "Laver film…" : "Lav film af serien", systemImage: "film")
+                        }
+                        .disabled(makingMovie)
+                    }
                 } label: {
-                    Image(systemName: "arrow.up.arrow.down")
+                    Image(systemName: "ellipsis.circle")
                 }
-                .accessibilityLabel("Rækkefølge")
+                .accessibilityLabel("Rækkefølge og film")
             }
             ToolbarItem(placement: .topBarTrailing) {
                 if state.canEdit {
@@ -109,6 +135,22 @@ struct GalleryView: View {
             AddGalleryItemView(childId: child.id, kind: kind, editing: item)
         }
         .fullScreenCover(item: $lightbox) { LightboxView(state: $0).zoomTarget(id: $0.sourceId, in: zoomNS) }
+        .sheet(item: $movieShare) { $0 }
+        .overlay {
+            if makingMovie {
+                VStack(spacing: 10) {
+                    ProgressView()
+                    Text("Laver film af \(items.count) billeder…").font(.footnote).foregroundStyle(Theme.muted)
+                }
+                .padding(20)
+                .background(Theme.card)
+                .clipShape(RoundedRectangle(cornerRadius: 14))
+                .overlay(RoundedRectangle(cornerRadius: 14).stroke(Theme.sep))
+            }
+        }
+        .alert("Filmen kunne ikke laves", isPresented: Binding(get: { movieError != nil }, set: { if !$0 { movieError = nil } })) {
+            Button("OK") {}
+        } message: { Text(movieError ?? "") }
         .refreshable { await load() }
         .task { await load() }
         .reloadOnStoreChange { await load() }
