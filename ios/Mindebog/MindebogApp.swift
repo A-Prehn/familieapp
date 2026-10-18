@@ -5,6 +5,7 @@ import CloudKit
 struct MindebogApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @StateObject private var state = AppState()
+    @AppStorage(Appearance.key) private var appearance = Appearance.system.rawValue
 
     init() {
         // Sættes før fanebjælken findes — ellers vises ikonerne sorte, indtil siden tegnes igen.
@@ -18,8 +19,8 @@ struct MindebogApp: App {
             RootView()
                 .environmentObject(state)
                 .tint(Theme.tint)
-                // Temaet er designet lyst (cream); et rigtigt mørkt tema kommer senere.
-                .preferredColorScheme(.light)
+                // Lyst, mørkt eller følg system — vælges under Mere → Udseende.
+                .preferredColorScheme(Appearance(rawValue: appearance)?.colorScheme)
                 .task { await state.bootstrap() }
                 .onReceive(NotificationCenter.default.publisher(for: .cloudKitShareAccepted)) { note in
                     if let zoneName = note.object as? String {

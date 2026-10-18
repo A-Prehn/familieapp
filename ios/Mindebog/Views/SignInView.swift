@@ -27,11 +27,12 @@ struct SignInView: View {
                     Task { await state.signIn(name: name) }
                 } label: {
                     Label("Fortsæt med Apple", systemImage: "apple.logo")
+                        .foregroundStyle(Theme.appleButtonLabel)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 6)
                 }
                 .buttonStyle(.borderedProminent)
-                .tint(.black)
+                .tint(Theme.appleButton)
             }
             .padding(.horizontal, 24)
             .padding(.top, 8)

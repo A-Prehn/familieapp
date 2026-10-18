@@ -19,6 +19,7 @@ struct MoreView: View {
     @State private var bellyWeekday = Reminders.bellyWeekday
     @State private var interviewReminder = Reminders.interviewEnabled
     @State private var onThisDay = OnThisDay.isEnabled
+    @AppStorage(Appearance.key) private var appearance = Appearance.system.rawValue
     @State private var bellyTime: Date = {
         let m = Reminders.bellyMinutes
         return Calendar.current.date(bySettingHour: m / 60, minute: m % 60, second: 0, of: Date()) ?? Date()
@@ -196,6 +197,19 @@ struct MoreView: View {
                 Text("Påmindelser")
             } footer: {
                 Text("Billeder: for et født barn hver måned på månedsdagen, og for et barn på vej så ofte, på den ugedag og det tidspunkt, du vælger — mavebilledet kan slås fra, hvis det ikke er dig, der tager det. Årligt interview: på hvert barns fødselsdag fra \(Reminders.interviewMinAge) år, og en uge efter, hvis I ikke er gået i gang. På denne dag: kl. 9 på årsdagen for et minde fra et tidligere år.")
+            }
+
+            Section {
+                Picker(selection: $appearance) {
+                    ForEach(Appearance.allCases) { Text($0.label).tag($0.rawValue) }
+                } label: {
+                    Label("Udseende", systemImage: "circle.lefthalf.filled")
+                }
+                .pickerStyle(.segmented)
+            } header: {
+                Text("Udseende")
+            } footer: {
+                Text("Følg system skifter sammen med telefonen mellem lyst og mørkt.")
             }
 
             Section {

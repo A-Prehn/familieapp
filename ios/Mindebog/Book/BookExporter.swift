@@ -16,10 +16,11 @@ enum BookExporter {
     nonisolated private static func sans(_ size: CGFloat, _ weight: UIFont.Weight = .regular) -> UIFont {
         UIFont.systemFont(ofSize: size, weight: weight)
     }
-    nonisolated(unsafe) private static let ink = UIColor(Theme.text)
-    nonisolated(unsafe) private static let muted = UIColor(Theme.muted)
-    nonisolated(unsafe) private static let accent = UIColor(Theme.neutralDark)
-    nonisolated(unsafe) private static let sep = UIColor(Theme.sep)
+    // Altid de lyse farver: bogen skal se ens ud, uanset om telefonen står på mørkt tema.
+    nonisolated(unsafe) private static let ink = Theme.lightUIColor(Theme.text)
+    nonisolated(unsafe) private static let muted = Theme.lightUIColor(Theme.muted)
+    nonisolated(unsafe) private static let accent = Theme.lightUIColor(Theme.neutralDark)
+    nonisolated(unsafe) private static let sep = Theme.lightUIColor(Theme.sep)
 
     /// Bygger bogen for ét barn og returnerer stien til PDF-filen.
     static func make(child: Child, store: Store, familyName: String) async throws -> URL {

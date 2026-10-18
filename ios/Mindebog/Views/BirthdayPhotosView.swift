@@ -51,7 +51,7 @@ struct BirthdayPhotosView: View {
                                 VStack(spacing: 2) {
                                     Text(a == 1 ? "1 år" : "\(a) år").font(.system(size: 15, weight: .semibold))
                                     Text(count(a) == 0 ? "–" : "\(count(a))").font(.caption2)
-                                        .foregroundStyle(age == a ? Theme.bg.opacity(0.8) : Theme.muted)
+                                        .foregroundStyle(age == a ? Color.white.opacity(0.8) : Theme.muted)
                                 }
                                 .frame(minWidth: 52)
                                 .padding(.vertical, 8).padding(.horizontal, 10)
