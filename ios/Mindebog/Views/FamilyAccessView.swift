@@ -7,6 +7,7 @@ struct FamilyAccessView: View {
     let familyName: String
 
     @State private var people: [FamilyParticipant] = []
+    @State private var children: [Child] = []
     @State private var isOwner = false
     @State private var busy = false
     @State private var loaded = false
@@ -48,6 +49,24 @@ struct FamilyAccessView: View {
                     Text("Invitér")
                 } footer: {
                     Text("Invitationen sendes via Beskeder eller mail. Personen skal have en iPhone og trykke på linket for at komme med.")
+                }
+                Section {
+                    ForEach(children) { child in
+                        NavigationLink { ChildAccessView(child: child) } label: {
+                            HStack(spacing: 12) {
+                                ChildAvatar(child: child, size: 32)
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(child.name).font(.subheadline.weight(.medium)).foregroundStyle(Theme.text)
+                                    Text(child.ownZone == nil ? "Ikke delt uden for familien" : "Delt — forælderen ser kun \(child.name), ikke resten af familien")
+                                        .font(.caption).foregroundStyle(Theme.muted)
+                                }
+                            }
+                        }
+                    }
+                } header: {
+                    Text("Forælder uden for familien")
+                } footer: {
+                    Text("Til sammenbragte familier: et barns anden forælder, der ikke er med i familien her, kan få adgang til KUN dét barn. De ser ikke andre børn, minder, begivenheder, rejser eller hvem der er i familien. Vælg barnet for at invitere.")
                 }
             } else if loaded {
                 Section {
@@ -158,6 +177,7 @@ struct FamilyAccessView: View {
         }
         async let ownerTask = cloud.isShareOwner(familyId: familyId)
         async let peopleTask = cloud.participants(familyId: familyId)
+        children = (try? await state.store.children(familyId: familyId)) ?? []
         let owner = await ownerTask
         guard let fresh = try? await peopleTask else { loaded = true; return }
         isOwner = owner

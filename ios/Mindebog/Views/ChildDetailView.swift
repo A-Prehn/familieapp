@@ -88,7 +88,7 @@ struct ChildDetailView: View {
                     }
                     if canShareChild {
                         Button { showAccess = true } label: {
-                            Label(child.ownZone == nil ? "Del med den anden forælder" : "Delt med den anden forælder",
+                            Label(child.ownZone == nil ? "Forælder uden for familien" : "Delt med forælder uden for familien",
                                   systemImage: "person.2.badge.key")
                         }
                     }

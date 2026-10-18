@@ -23,7 +23,7 @@ struct ChildAccessView: View {
         List {
             Group {
             Section {
-                Text("Den, du inviterer her, ser kun \(child.name): dagbog, højdepunkter, billeder, interview og det andet under \(child.name). Resten af familien — minder, begivenheder, rejser og andre børn — kan de ikke se.")
+                Text("Til \(child.name)s anden forælder, som ikke er med i familien her. Den, du inviterer, ser kun \(child.name): dagbog, højdepunkter, billeder, interview og det andet under \(child.name). Resten af familien — minder, begivenheder, rejser og andre børn — kan de ikke se.")
                     .font(.footnote).foregroundStyle(Theme.muted)
                 if !shared && loaded {
                     Text("Første gang flyttes \(child.name)s mindebog til sin egen plads i iCloud. Det tager et øjeblik, og alle i familien ser stadig \(child.name) som før.")
@@ -48,15 +48,15 @@ struct ChildAccessView: View {
 
             Section {
                 Button { Task { await invite(.edit) } } label: {
-                    inviteLabel("Invitér til at redigere", "Den anden forælder kan skrive, lægge billeder op og rette.",
+                    inviteLabel("Invitér til at redigere", "Ser kun \(child.name) og kan skrive, lægge billeder op og rette.",
                                 "person.badge.plus", Theme.tint)
                 }
                 Button { Task { await invite(.view) } } label: {
-                    inviteLabel("Invitér med kun visning", "Kan se alt om \(child.name), men ikke ændre noget.",
+                    inviteLabel("Invitér med kun visning", "Ser kun \(child.name) og kan ikke ændre noget.",
                                 "eye", Theme.green)
                 }
             } header: {
-                Text("Invitér")
+                Text("Invitér forælder uden for familien")
             } footer: {
                 Text("Invitationen sendes via Beskeder eller mail. Personen skal have en iPhone og trykke på linket.")
             }
@@ -67,7 +67,7 @@ struct ChildAccessView: View {
             }.listRowBackground(Theme.card)
         }
         .themedList()
-        .navigationTitle("Del \(child.name)")
+        .navigationTitle("\(child.name)s anden forælder")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Luk") { dismiss() } } }
         .interactiveDismissDisabled(moving)
