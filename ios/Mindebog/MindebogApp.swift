@@ -20,6 +20,11 @@ struct MindebogApp: App {
             RootView()
                 .environmentObject(state)
                 .environmentObject(comments)
+                .sheet(item: $comments.open) { target in
+                    CommentsSheet(targetId: target.id, title: target.title)
+                        .environmentObject(state)
+                        .environmentObject(comments)
+                }
                 // Kommentarer fra de andre i familien: hent igen, når noget er gemt, og ved familieskift.
                 .onReceive(NotificationCenter.default.publisher(for: .storeDidChange)) { _ in
                     Task { await comments.load(state: state, force: true) }

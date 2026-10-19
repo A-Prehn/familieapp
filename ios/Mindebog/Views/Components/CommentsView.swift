@@ -8,6 +8,9 @@ import SwiftUI
 @MainActor
 final class CommentsModel: ObservableObject {
     @Published private(set) var byTarget: [String: [Comment]] = [:]
+    /// Det åbne ark. Vises fra appens rod (ikke inde fra kortet, hvor det arvede kortets bredde).
+    @Published var open: OpenTarget?
+    struct OpenTarget: Identifiable { let id: String; let title: String }
     private var loadedFamily: String?
     private var loading = false
 
@@ -65,13 +68,12 @@ struct CommentsBar: View {
     @EnvironmentObject var comments: CommentsModel
     let targetId: String
     let title: String
-    @State private var open = false
 
     var body: some View {
         let list = comments.comments(for: targetId)
         let reactions = list.filter(\.isReaction)
         let texts = list.filter { !$0.isReaction }
-        Button { open = true } label: {
+        Button { comments.open = .init(id: targetId, title: title) } label: {
             HStack(spacing: 8) {
                 if reactions.isEmpty && texts.isEmpty {
                     Label("Reagér", systemImage: "heart")
@@ -88,7 +90,6 @@ struct CommentsBar: View {
             .padding(.vertical, 2)
         }
         .buttonStyle(.borderless)
-        .sheet(isPresented: $open) { CommentsSheet(targetId: targetId, title: title) }
         .task { await comments.load(state: state) }
     }
 }
@@ -168,6 +169,7 @@ struct CommentsSheet: View {
                     }
                 }
                 .padding(16)
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
             .background(Theme.bg.ignoresSafeArea())
             .safeAreaInset(edge: .bottom) {
@@ -197,6 +199,7 @@ struct CommentsSheet: View {
             .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Luk") { dismiss() } } }
         }
         .presentationDetents([.medium, .large])
+        .presentationBackground(Theme.bg)
     }
 }
 
