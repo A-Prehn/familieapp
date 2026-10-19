@@ -9,7 +9,7 @@ struct ChildrenView: View {
     @State private var showNewChild = false
     @State private var paywall: PaywallReason?
 
-    /// Gratis-versionen har plads til ét barn — barn nr. 2 kræver Premium.
+    /// Gratis-versionen har plads til to børn — barn nr. 3 kræver Premium.
     private func addChild() {
         if !state.isPremium && children.count >= AppState.freeChildLimit { paywall = .child } else { showNewChild = true }
     }

@@ -17,7 +17,7 @@ enum PaywallReason: String, Identifiable {
     var detail: String {
         switch self {
         case .general: return "Premium låser alt op — for hele familien."
-        case .child: return "Gratis-versionen har plads til ét barn. Med Premium kan I føre bog om alle jeres børn."
+        case .child: return "Gratis-versionen har plads til to børn. Med Premium kan I føre bog om alle jeres børn."
         case .sharing: return "Invitér partneren, bedsteforældre og resten af familien. De skal ikke selv betale."
         case .video: return "Gem videoer på højdepunkter, i videobreve og i det årlige interview."
         case .book: return "Lav en flot PDF-mindebog med alt indholdet — klar til at printe."

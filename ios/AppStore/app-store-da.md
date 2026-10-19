@@ -61,7 +61,7 @@ Kan ændres uden ny version — brug den til sæsoner og nyheder.
 > Alt gemmes i jeres egen iCloud og deles kun med dem, I inviterer. Vi har ingen server og kan ikke se jeres billeder. I kan til enhver tid eksportere alt som en ZIP-fil med billeder, video, tekster og PDF-mindebøger.
 >
 > **GRATIS OG PREMIUM**
-> Gratis med ét barn. Premium giver flere børn, deling med familien, video og PDF-mindebog — 19 kr. om måneden eller 199 kr. én gang for altid, og gælder for hele familien.
+> Gratis med to børn. Premium giver flere børn, deling med familien, video og PDF-mindebog — 19 kr. om måneden eller 199 kr. én gang for altid, og gælder for hele familien.
 >
 > Lyst eller mørkt tema efter eget valg.
 

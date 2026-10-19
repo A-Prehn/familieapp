@@ -70,8 +70,8 @@ final class AppState: ObservableObject {
 
     /// Premium, hvis man selv har købt — eller hvis en anden i familien har (gemt på familien i iCloud).
     @Published private(set) var isPremium: Bool = UserDefaults.standard.bool(forKey: "mindebog.premium")
-    /// Gratis-versionen: ét barn. Resten (deling, video, PDF-bog) kræver Premium.
-    static let freeChildLimit = 1
+    /// Gratis-versionen: to børn. Flere børn, deling, video og PDF-bog kræver Premium.
+    static let freeChildLimit = 2
 
     func refreshPremium() async {
         let purchases = Purchases.shared
