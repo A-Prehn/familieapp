@@ -35,13 +35,12 @@ targets:
         # TestFlight-workflowet sætter APP_PROFILE (navnet på App Store-profilen).
         PROVISIONING_PROFILE_SPECIFIER: "$(APP_PROFILE)"
         GENERATE_INFOPLIST_FILE: "YES"
-        TARGETED_DEVICE_FAMILY: "1,2"
+        TARGETED_DEVICE_FAMILY: "1"
         INFOPLIST_KEY_CFBundleDisplayName: "Vores familie"
         INFOPLIST_KEY_UILaunchScreen_Generation: "YES"
         INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents: "YES"
-        # iPhone: portræt. iPad: alle fire (Apple kræver det til multitasking).
+        # Kun iPhone (portræt). iPad er slået fra, så App Store ikke kræver iPad-skærmbilleder.
         INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone: "UIInterfaceOrientationPortrait"
-        INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad: "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight"
         # Ingen egen kryptering (kun Apples/HTTPS) → TestFlight spørger ikke om export compliance
         INFOPLIST_KEY_ITSAppUsesNonExemptEncryption: "NO"
         # Kræves for "Gem i Fotos" (kun tilføje — appen kan ikke læse brugerens billeder).
@@ -72,7 +71,7 @@ targets:
         INFOPLIST_FILE: Widget/Info.plist
         CODE_SIGN_ENTITLEMENTS: Widget/Widget.entitlements
         PROVISIONING_PROFILE_SPECIFIER: "$(WIDGET_PROFILE)"
-        TARGETED_DEVICE_FAMILY: "1,2"
+        TARGETED_DEVICE_FAMILY: "1"
         SKIP_INSTALL: "YES"
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: ""
     dependencies:
@@ -93,7 +92,7 @@ targets:
         INFOPLIST_FILE: NotificationService/Info.plist
         CODE_SIGN_ENTITLEMENTS: NotificationService/NotificationService.entitlements
         PROVISIONING_PROFILE_SPECIFIER: "$(NSE_PROFILE)"
-        TARGETED_DEVICE_FAMILY: "1,2"
+        TARGETED_DEVICE_FAMILY: "1"
         SKIP_INSTALL: "YES"
     dependencies:
       - sdk: UserNotifications.framework
