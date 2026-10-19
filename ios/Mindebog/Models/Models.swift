@@ -280,6 +280,23 @@ struct InterviewAnswer: Identifiable, Hashable, Codable {
 }
 
 /// En familietradition: juleaften, fødselsdagssangen, mormors boller …
+/// Familiens opskrifter: mormors frikadeller, fars boller — med hvem den er fra, ingredienser,
+/// fremgangsmåde og billeder (også den håndskrevne opskrift, scannet ind).
+struct Recipe: Identifiable, Hashable, Codable {
+    let id: String
+    var title: String
+    var fromWhom: String = ""      // "Mormor Inger"
+    var servings: String = ""      // "4 personer"
+    var ingredients: String = ""   // én pr. linje
+    var method: String = ""
+    var story: String = ""         // historien bag: hvornår den laves, hvem der elsker den
+    var photos: PhotoSet = PhotoSet()
+    var photo: Data? { photos.coverPhoto }
+    var ingredientLines: [String] {
+        ingredients.split(whereSeparator: \.isNewline).map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
+    }
+}
+
 struct Tradition: Identifiable, Hashable, Codable {
     let id: String
     var title: String

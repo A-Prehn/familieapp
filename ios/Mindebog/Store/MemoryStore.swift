@@ -434,6 +434,16 @@ actor MemoryStore: Store {
     }
     func deleteTradition(familyId: String, id: String) async throws { traditionsByFamily[familyId]?.removeAll { $0.id == id } }
 
+    // MARK: Opskrifter
+    private var recipesByFamily: [String: [Recipe]] = [:]
+    func recipes(familyId: String) async throws -> [Recipe] { (recipesByFamily[familyId] ?? []).sorted { $0.title < $1.title } }
+    func saveRecipe(familyId: String, _ recipe: Recipe) async throws {
+        var list = recipesByFamily[familyId] ?? []
+        if let i = list.firstIndex(where: { $0.id == recipe.id }) { list[i] = recipe } else { list.append(recipe) }
+        recipesByFamily[familyId] = list
+    }
+    func deleteRecipe(familyId: String, id: String) async throws { recipesByFamily[familyId]?.removeAll { $0.id == id } }
+
     // MARK: Reaktioner og kommentarer
     private var commentsByFamily: [String: [Comment]] = [:]
     func comments(familyId: String) async throws -> [Comment] { commentsByFamily[familyId] ?? [] }

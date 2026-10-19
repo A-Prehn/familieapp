@@ -368,3 +368,26 @@ DEFINE SCHEMA
         GRANT CREATE TO "_icloud",
         GRANT READ TO "_world"
     );
+
+    RECORD TYPE Recipe (
+        "___createTime" TIMESTAMP,
+        "___createdBy"  REFERENCE,
+        "___etag"       STRING,
+        "___modTime"    TIMESTAMP,
+        "___modifiedBy" REFERENCE,
+        "___recordID"   REFERENCE QUERYABLE,
+        familyRef       REFERENCE QUERYABLE,
+        title           STRING,
+        fromWhom        STRING,
+        servings        STRING,
+        ingredients     STRING,
+        method          STRING,
+        story           STRING,
+        photo           ASSET,
+        photos          LIST<ASSET>,
+        captions        LIST<STRING>,
+        coverIndex      INT64,
+        GRANT WRITE TO "_creator",
+        GRANT CREATE TO "_icloud",
+        GRANT READ TO "_world"
+    );

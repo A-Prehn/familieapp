@@ -79,6 +79,11 @@ protocol Store {
     func deleteTradition(familyId: String, id: String) async throws
     func traditionAudio(familyId: String, id: String) async throws -> URL?
 
+    // Opskrifter (pr. familie)
+    func recipes(familyId: String) async throws -> [Recipe]
+    func saveRecipe(familyId: String, _ recipe: Recipe) async throws   // opret eller opdatér
+    func deleteRecipe(familyId: String, id: String) async throws
+
     // Reaktioner og kommentarer (pr. familie, på tværs af alt indhold)
     func comments(familyId: String) async throws -> [Comment]
     func addComment(familyId: String, _ comment: Comment) async throws

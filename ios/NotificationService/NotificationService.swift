@@ -86,6 +86,7 @@ final class NotificationService: UNNotificationServiceExtension {
         case "Measurement": return "en måling"
         case "Child": return "et barn"
         case "Memory": return "et minde"
+        case "Recipe": return "en opskrift"
         case "Tradition": return "en tradition"
         case "Person": return "en person i stamtræet"
         case "Interview": return "et svar i det årlige interview"

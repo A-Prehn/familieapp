@@ -1381,6 +1381,51 @@ actor CloudKitStore: Store {
         try await remove(CKRecord.ID(recordName: id, zoneID: zoneID), in: db)
     }
 
+    // MARK: - Opskrifter
+
+    func recipes(familyId: String) async throws -> [Recipe] {
+        let (db, zoneID) = try await locate(familyId)
+        return try await all(db: db, zoneID: zoneID, type: "Recipe",
+                             keys: ["familyRef", "title", "fromWhom", "servings", "ingredients", "method", "story",
+                                    "captions", "coverIndex"],
+                             assetKeys: ["photos", "photo"]).map { r in
+            Recipe(id: r.recordID.recordName,
+                   title: r["title"] as? String ?? "",
+                   fromWhom: r["fromWhom"] as? String ?? "",
+                   servings: r["servings"] as? String ?? "",
+                   ingredients: r["ingredients"] as? String ?? "",
+                   method: r["method"] as? String ?? "",
+                   story: r["story"] as? String ?? "",
+                   photos: Self.photoSet(from: r))
+        }
+        .sorted { $0.title.localizedCompare($1.title) == .orderedAscending }
+    }
+
+    func saveRecipe(familyId: String, _ recipe: Recipe) async throws {
+        let (db, zoneID) = try await locate(familyId)
+        let recordID = CKRecord.ID(recordName: recipe.id, zoneID: zoneID)
+        let record: CKRecord
+        if let existing = try? await db.records(for: [recordID], desiredKeys: ["title"])[recordID]?.get() {
+            record = existing
+        } else {
+            record = CKRecord(recordType: "Recipe", recordID: recordID)
+            record["familyRef"] = familyRef(zoneID)
+        }
+        record["title"] = recipe.title.trimmingCharacters(in: .whitespaces) as CKRecordValue
+        record["fromWhom"] = recipe.fromWhom.trimmingCharacters(in: .whitespaces) as CKRecordValue
+        record["servings"] = recipe.servings.trimmingCharacters(in: .whitespaces) as CKRecordValue
+        record["ingredients"] = recipe.ingredients as CKRecordValue
+        record["method"] = recipe.method as CKRecordValue
+        record["story"] = recipe.story as CKRecordValue
+        Self.setPhotos(recipe.photos, on: record)
+        _ = try await persist(record, in: db)
+    }
+
+    func deleteRecipe(familyId: String, id: String) async throws {
+        let (db, zoneID) = try await locate(familyId)
+        try await remove(CKRecord.ID(recordName: id, zoneID: zoneID), in: db)
+    }
+
     // MARK: - Reaktioner og kommentarer
 
     func comments(familyId: String) async throws -> [Comment] {

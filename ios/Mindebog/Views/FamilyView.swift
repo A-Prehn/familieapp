@@ -11,6 +11,7 @@ struct FamilyView: View {
         case birthdays = "Fødselsdage"
         case tree = "Stamtræ"
         case traditions = "Traditioner"
+        case recipes = "Opskrifter"
         var id: String { rawValue }
 
         /// Fanerne, der vises. Stamtræet er taget ud, indtil tegningen af det er færdig.
@@ -24,6 +25,7 @@ struct FamilyView: View {
             case .birthdays: "gift"
             case .tree: "tree"
             case .traditions: "sparkles"
+            case .recipes: "fork.knife"
             }
         }
     }
@@ -37,6 +39,8 @@ struct FamilyView: View {
     @State private var editingPerson: Person?
     @State private var members: [AppUser] = []
     @State private var traditions: [Tradition] = []
+    @State private var recipes: [Recipe] = []
+    @State private var editingRecipe: Recipe?
     @State private var memories: [FamilyMemory] = []
     @State private var editingMemory: FamilyMemory?
     @State private var editingTradition: Tradition?
@@ -86,6 +90,8 @@ struct FamilyView: View {
                                            onEdit: { editingPerson = $0 }, onAdd: { activeSheet = .tree })
                 case .traditions: TraditionsView(traditions: traditions, onEdit: { editingTradition = $0 },
                                                  onAdd: { activeSheet = .traditions }, onLightbox: { lightbox = $0 })
+                case .recipes: RecipesView(recipes: recipes, onEdit: { editingRecipe = $0 },
+                                           onAdd: { activeSheet = .recipes }, onLightbox: { lightbox = $0 })
                 }
             }
             .padding(16)
@@ -107,6 +113,7 @@ struct FamilyView: View {
             case .tree: PersonEditView(familyId: state.familyId ?? "", persons: persons, children: children,
                                        members: members, birthdays: customBirthdays)
             case .traditions: TraditionEditView(familyId: state.familyId ?? "")
+            case .recipes: RecipeEditView(familyId: state.familyId ?? "")
             }
         }
         .sheet(item: $editingEvent, onDismiss: { Task { await load() } }) { event in
@@ -123,6 +130,9 @@ struct FamilyView: View {
         }
         .sheet(item: $editingTradition, onDismiss: { Task { await load() } }) { t in
             TraditionEditView(familyId: state.familyId ?? "", editing: t)
+        }
+        .sheet(item: $editingRecipe, onDismiss: { Task { await load() } }) { r in
+            RecipeEditView(familyId: state.familyId ?? "", editing: r)
         }
         .sheet(item: $editingPerson, onDismiss: { Task { await load() } }) { person in
             PersonEditView(familyId: state.familyId ?? "", persons: persons, children: children,
@@ -331,6 +341,7 @@ struct FamilyView: View {
         var persons: [Person] = []
         var traditions: [Tradition] = []
         var memories: [FamilyMemory] = []
+        var recipes: [Recipe] = []
     }
 
     private func load() async {
@@ -346,6 +357,7 @@ struct FamilyView: View {
             persons = cached.persons
             traditions = cached.traditions
             memories = cached.memories
+            recipes = cached.recipes
         }
         // Alle syv opslag kører samtidig — ventetiden bliver som det langsomste, ikke summen.
         // Behold det viste ved netværksfejl i stedet for at tømme listerne.
@@ -358,6 +370,7 @@ struct FamilyView: View {
         async let membersTask = store.members(familyId: familyId)
         async let traditionsTask = store.traditions(familyId: familyId)
         async let memoriesTask = store.memories(familyId: familyId)
+        async let recipesTask = store.recipes(familyId: familyId)
         if let v = try? await eventsTask { events = v }
         if let v = try? await vacationsTask { vacations = v }
         if let v = try? await childrenTask { children = v; ChildPalette.update(v) }
@@ -366,8 +379,9 @@ struct FamilyView: View {
         if let v = try? await membersTask { members = v }
         if let v = try? await traditionsTask { traditions = v }
         if let v = try? await memoriesTask { memories = v }
+        if let v = try? await recipesTask { recipes = v }
         ScreenCache.save(Cached(events: events, vacations: vacations, children: children, birthdays: customBirthdays,
-                                persons: persons, traditions: traditions, memories: memories),
+                                persons: persons, traditions: traditions, memories: memories, recipes: recipes),
                          key: cacheKey)
     }
 }
