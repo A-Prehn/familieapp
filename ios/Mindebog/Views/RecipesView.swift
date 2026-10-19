@@ -11,14 +11,35 @@ struct RecipesView: View {
     var onAdd: () -> Void
     var onLightbox: (LightboxState) -> Void
     @State private var search = ""
+    @State private var category: String?   // nil = alle
+
+    /// Kun de kategorier, der faktisk bruges — i fast rækkefølge, egne kategorier til sidst.
+    private var usedCategories: [String] {
+        let used = Set(recipes.map(\.category).filter { !$0.isEmpty })
+        return Recipe.categories.filter(used.contains) + used.subtracting(Recipe.categories).sorted()
+    }
 
     private var shown: [Recipe] {
+        var list = recipes
+        if let category { list = list.filter { $0.category == category } }
         let q = search.trimmingCharacters(in: .whitespaces)
-        guard !q.isEmpty else { return recipes }
-        return recipes.filter {
+        guard !q.isEmpty else { return list }
+        return list.filter {
             $0.title.localizedCaseInsensitiveContains(q) || $0.fromWhom.localizedCaseInsensitiveContains(q)
-                || $0.ingredients.localizedCaseInsensitiveContains(q)
+                || $0.ingredients.localizedCaseInsensitiveContains(q) || $0.category.localizedCaseInsensitiveContains(q)
         }
+    }
+
+    private func chip(_ label: String, selected: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: { withAnimation(.easeInOut(duration: 0.15)) { action() } }) {
+            Text(label)
+                .font(.system(size: 13, weight: .semibold))
+                .padding(.horizontal, 12).padding(.vertical, 7)
+                .background(Capsule().fill(selected ? Theme.rose : Theme.card))
+                .overlay(Capsule().stroke(selected ? Theme.rose : Theme.sep))
+                .foregroundStyle(selected ? Color.white : Theme.text)
+        }
+        .buttonStyle(.plain)
     }
 
     var body: some View {
@@ -51,6 +72,21 @@ struct RecipesView: View {
                     .clipShape(RoundedRectangle(cornerRadius: 12))
                     .overlay(RoundedRectangle(cornerRadius: 12).stroke(Theme.sep))
                 }
+                if usedCategories.count > 1 {
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 8) {
+                            chip("Alle", selected: category == nil) { category = nil }
+                            ForEach(usedCategories, id: \.self) { c in
+                                chip(c, selected: category == c) { category = category == c ? nil : c }
+                            }
+                        }
+                        .padding(.horizontal, 2)
+                    }
+                    .noTabSwipe()
+                }
+                if shown.isEmpty {
+                    Text("Ingen opskrifter matcher.").font(.footnote).foregroundStyle(Theme.muted).padding(.top, 20)
+                }
                 ForEach(Array(shown.enumerated()), id: \.element.id) { i, r in
                     NavigationLink { RecipeDetailView(recipe: r, onEdit: onEdit) } label: { card(r) }
                         .buttonStyle(.plain)
@@ -74,7 +110,8 @@ struct RecipesView: View {
                     Label(r.fromWhom, systemImage: "heart").font(.caption).foregroundStyle(Theme.neutralDark)
                 }
                 let n = r.ingredientLines.count
-                if n > 0 { Text("\(n) ingrediens\(n == 1 ? "" : "er")").font(.caption2).foregroundStyle(Theme.muted) }
+                let meta = [r.category, n > 0 ? "\(n) ingrediens\(n == 1 ? "" : "er")" : ""].filter { !$0.isEmpty }
+                if !meta.isEmpty { Text(meta.joined(separator: " · ")).font(.caption2).foregroundStyle(Theme.muted) }
             }
             Spacer(minLength: 0)
             Image(systemName: "chevron.right").font(.caption).foregroundStyle(Theme.muted)
@@ -191,6 +228,14 @@ struct RecipeEditView: View {
                     TextField("Opskrift (fx Mormors frikadeller)", text: $draft.title)
                     TextField("Fra hvem (fx Mormor Inger)", text: $draft.fromWhom)
                     TextField("Til hvor mange (fx 4 personer)", text: $draft.servings)
+                    Picker("Kategori", selection: $draft.category) {
+                        Text("Ingen").tag("")
+                        ForEach(Recipe.categories, id: \.self) { Text($0).tag($0) }
+                        // En kategori fra en ældre/anden version, der ikke står i listen, mistes ikke.
+                        if !draft.category.isEmpty && !Recipe.categories.contains(draft.category) {
+                            Text(draft.category).tag(draft.category)
+                        }
+                    }
                 }
                 Section {
                     TextField("500 g hakket svinekød\n1 løg\n2 æg\n…", text: $draft.ingredients, axis: .vertical)

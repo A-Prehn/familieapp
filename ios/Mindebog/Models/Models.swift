@@ -290,7 +290,10 @@ struct Recipe: Identifiable, Hashable, Codable {
     var ingredients: String = ""   // én pr. linje
     var method: String = ""
     var story: String = ""         // historien bag: hvornår den laves, hvem der elsker den
+    var category: String = ""      // fx "Kager" — en af `Recipe.categories` eller egen
     var photos: PhotoSet = PhotoSet()
+
+    static let categories = ["Aftensmad", "Frokost", "Morgenmad", "Kager", "Brød", "Desserter", "Jul", "Tilbehør", "Drikke"]
     var photo: Data? { photos.coverPhoto }
     var ingredientLines: [String] {
         ingredients.split(whereSeparator: \.isNewline).map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }

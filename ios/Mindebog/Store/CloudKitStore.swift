@@ -1386,7 +1386,7 @@ actor CloudKitStore: Store {
     func recipes(familyId: String) async throws -> [Recipe] {
         let (db, zoneID) = try await locate(familyId)
         return try await all(db: db, zoneID: zoneID, type: "Recipe",
-                             keys: ["familyRef", "title", "fromWhom", "servings", "ingredients", "method", "story",
+                             keys: ["familyRef", "title", "fromWhom", "servings", "ingredients", "method", "story", "category",
                                     "captions", "coverIndex"],
                              assetKeys: ["photos", "photo"]).map { r in
             Recipe(id: r.recordID.recordName,
@@ -1396,6 +1396,7 @@ actor CloudKitStore: Store {
                    ingredients: r["ingredients"] as? String ?? "",
                    method: r["method"] as? String ?? "",
                    story: r["story"] as? String ?? "",
+                   category: r["category"] as? String ?? "",
                    photos: Self.photoSet(from: r))
         }
         .sorted { $0.title.localizedCompare($1.title) == .orderedAscending }
@@ -1417,6 +1418,7 @@ actor CloudKitStore: Store {
         record["ingredients"] = recipe.ingredients as CKRecordValue
         record["method"] = recipe.method as CKRecordValue
         record["story"] = recipe.story as CKRecordValue
+        record["category"] = recipe.category as CKRecordValue
         Self.setPhotos(recipe.photos, on: record)
         _ = try await persist(record, in: db)
     }

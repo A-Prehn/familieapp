@@ -383,6 +383,7 @@ DEFINE SCHEMA
         ingredients     STRING,
         method          STRING,
         story           STRING,
+        category        STRING,
         photo           ASSET,
         photos          LIST<ASSET>,
         captions        LIST<STRING>,
