@@ -131,7 +131,7 @@ struct HomeView: View {
 
     private var emptyState: some View {
         VStack(spacing: 12) {
-            Text("Tilføj jeres første barn under Familie, så fylder vi forsiden med minder.")
+            Text("Tilføj jeres første barn under Børn, så fylder vi forsiden med minder.")
                 .font(.footnote).foregroundStyle(Theme.muted)
                 .multilineTextAlignment(.center)
         }
