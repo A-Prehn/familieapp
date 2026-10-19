@@ -302,7 +302,7 @@ struct MoreView: View {
             } footer: {
                 Text(state.isPremium
                      ? "Premium gælder for hele familien, også dem I har delt med."
-                     : "Gratis: ét barn med alle sektioner. Premium: flere børn, deling med familien, video og PDF-mindebog.")
+                     : "Gratis: to børn med alle sektioner, og din partner kan være med. Premium: flere børn, deling med bedsteforældre og resten af familien, video, film og PDF-mindebog.")
             }
 
             Section {
