@@ -4,6 +4,8 @@ struct MoreView: View {
     @EnvironmentObject var state: AppState
     @State private var family: Family?
     @State private var allFamilies: [Family] = []
+    @State private var showNewFamily = false
+    @State private var newFamilyName = ""
     @State private var members: [AppUser] = []
     @State private var invite: String?
     @State private var busy = false
@@ -60,6 +62,30 @@ struct MoreView: View {
                 } footer: {
                     Text("Du er med i flere familier. Vælg, hvilken du vil se. Hjem, Børn og Familie viser den valgte.")
                 }
+            }
+
+            // En familie mere — fx en demofamilie til skærmbilleder. Den nye er tom og ikke delt med nogen.
+            Section {
+                Button { newFamilyName = ""; showNewFamily = true } label: {
+                    Label("Opret ny familie", systemImage: "plus.circle")
+                }
+            } footer: {
+                Text("Fx en demofamilie. Den er helt adskilt fra jeres familie og ses kun af dig. Skift mellem familierne ovenfor.")
+            }
+            .alert("Ny familie", isPresented: $showNewFamily) {
+                TextField("Navn (fx Demo)", text: $newFamilyName)
+                Button("Annullér", role: .cancel) {}
+                Button("Opret") {
+                    let name = newFamilyName.trimmingCharacters(in: .whitespaces)
+                    Task {
+                        ScreenCache.clear()
+                        await state.createFamily(name: name.isEmpty ? "Ny familie" : name)
+                        NotificationCenter.default.post(name: .storeDidChange, object: nil)
+                        await load()
+                    }
+                }
+            } message: {
+                Text("Du skifter til den nye familie. Jeres nuværende familie bliver liggende urørt.")
             }
 
             Section {
