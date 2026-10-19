@@ -441,14 +441,14 @@ struct MoreView: View {
     }
 
     private func openSharing() async {
-        // Deling er Premium — men den, der allerede er med i en delt familie, skal ikke stoppes.
-        if !state.isPremium && members.count <= 1 { paywall = .sharing; return }
+        // Gratis: én partner, der kan redigere. Flere personer og kun-visning kræver Premium.
+        if !state.isPremium && members.count > 1 { paywall = .sharing; return }
         guard let cloud = state.store as? CloudKitStore, let familyId = state.familyId else { return }
         busy = true
         state.errorMessage = nil
         do {
             let (share, container) = try await cloud.shareForSharing(familyId: familyId)
-            CloudSharing.present(share: share, container: container) {
+            CloudSharing.present(share: share, container: container, invite: state.isPremium ? .all : .edit) {
                 Task { await load() }
             }
         } catch {

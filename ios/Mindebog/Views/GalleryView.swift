@@ -29,9 +29,11 @@ struct GalleryView: View {
     @State private var makingMovie = false
     @State private var movieShare: ShareSheet?
     @State private var movieError: String?
+    @State private var paywall: PaywallReason?
 
     /// "Måned for måned som film": ældste først, billedteksten (fx "3 måneder") som overskrift og datoen under.
     private func makeMovie() async {
+        guard state.isPremium else { paywall = .movie; return }   // filmen er Premium
         makingMovie = true
         defer { makingMovie = false }
         let frames = items.sorted { $0.shownDate < $1.shownDate }.compactMap { item -> MovieMaker.Frame? in
@@ -136,6 +138,7 @@ struct GalleryView: View {
         }
         .fullScreenCover(item: $lightbox) { LightboxView(state: $0).zoomTarget(id: $0.sourceId, in: zoomNS) }
         .sheet(item: $movieShare) { $0 }
+        .sheet(item: $paywall) { PaywallView(reason: $0) }
         .overlay {
             if makingMovie {
                 VStack(spacing: 10) {

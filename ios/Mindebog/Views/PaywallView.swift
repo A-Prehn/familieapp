@@ -3,7 +3,7 @@ import StoreKit
 
 /// Hvorfor paywallen vises — bruges til overskriften, så den passer til det, man prøvede.
 enum PaywallReason: String, Identifiable {
-    case general, child, sharing, video, book
+    case general, child, sharing, video, book, movie
     var id: String { rawValue }
     var headline: String {
         switch self {
@@ -12,15 +12,17 @@ enum PaywallReason: String, Identifiable {
         case .sharing: return "Del med familien"
         case .video: return "Gem videoerne"
         case .book: return "Lav mindebogen"
+        case .movie: return "Lav filmen"
         }
     }
     var detail: String {
         switch self {
         case .general: return "Premium låser alt op — for hele familien."
         case .child: return "Gratis-versionen har plads til to børn. Med Premium kan I føre bog om alle jeres børn."
-        case .sharing: return "Invitér partneren, bedsteforældre og resten af familien. De skal ikke selv betale."
+        case .sharing: return "Din partner er gratis. Med Premium kan I også invitere bedsteforældre, resten af familien og en forælder uden for familien. De skal ikke selv betale."
         case .video: return "Gem videoer på højdepunkter, i videobreve og i det årlige interview."
         case .book: return "Lav en flot PDF-mindebog med alt indholdet — klar til at printe."
+        case .movie: return "Lav en film af billedserien med bløde overgange — klar til at dele med familien."
         }
     }
 }
@@ -37,9 +39,10 @@ struct PaywallView: View {
 
     private static let features: [(String, String)] = [
         ("person.2", "Ubegrænset antal børn"),
-        ("person.badge.plus", "Del med partner, bedsteforældre og familie — de betaler ikke selv"),
+        ("person.badge.plus", "Del med bedsteforældre, familie og en forælder uden for familien — de betaler ikke selv"),
         ("video", "Video på højdepunkter, videobreve og interview"),
         ("book.closed", "PDF-mindebog, klar til at printe"),
+        ("film", "Film af billedserierne — måned for måned og maven"),
     ]
 
     var body: some View {

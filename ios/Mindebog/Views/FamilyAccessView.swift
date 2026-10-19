@@ -38,11 +38,11 @@ struct FamilyAccessView: View {
             if isOwner {
                 Section {
                     Button { Task { await invite(.edit) } } label: {
-                        inviteLabel("Invitér til at redigere", "Fx din partner. Kan lægge op, ændre og slette.",
+                        inviteLabel("Invitér til at redigere", "Fx din partner (gratis). Kan lægge op, ændre og slette.",
                                     "person.badge.plus", Theme.tint)
                     }
                     Button { Task { await invite(.view) } } label: {
-                        inviteLabel("Invitér med kun visning", "Fx bedsteforældre. Kan se alt, men ikke ændre noget.",
+                        inviteLabel("Invitér med kun visning", "Fx bedsteforældre (Premium). Kan se alt, men ikke ændre noget.",
                                     "eye", Theme.green)
                     }
                 } header: {
@@ -187,8 +187,11 @@ struct FamilyAccessView: View {
     }
 
     private func invite(_ kind: CloudSharing.Invite) async {
-        // Deling er Premium — men en familie, der allerede er delt, skal ikke stoppes.
-        if !state.isPremium && people.count <= 1 { paywall = .sharing; return }
+        // Gratis: én partner, der kan redigere. Bedsteforældre (kun visning) og flere personer kræver Premium.
+        if !state.isPremium {
+            let others = people.filter { $0.access != .owner }
+            if kind != .edit || !others.isEmpty { paywall = .sharing; return }
+        }
         guard let cloud, let familyId = state.familyId else { return }
         busy = true
         error = nil
