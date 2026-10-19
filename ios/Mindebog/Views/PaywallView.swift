@@ -179,6 +179,6 @@ struct PaywallView: View {
 enum AppLinks {
     /// Apples standard-licensaftale for apps (gælder, når man ikke har sin egen).
     static let terms = URL(string: "https://www.apple.com/legal/internet-services/itunes/dev/stdeula/")!
-    /// Privatlivspolitikken (public/privacy.html) — skal ligge på en offentlig adresse før App Store.
-    static let privacy = URL(string: "https://github.com/A-Prehn/familieapp/blob/develop/public/privacy.html")!
+    /// Privatlivspolitikken — offentlig side på familie.prehn.net (samme adresse står i App Store Connect).
+    static let privacy = URL(string: "https://familie.prehn.net/privatliv/")!
 }
