@@ -165,26 +165,13 @@ final class FamilyExport: ObservableObject {
             for r in recipes {
                 let name = Self.safe(r.title)
                 let files = try writePhotoSet(r.photos, name: name, in: rDir)
-                var text = r.title + "
-"
-                if !r.fromWhom.isEmpty { text += "Fra: (r.fromWhom)
-" }
-                if !r.category.isEmpty { text += "Kategori: (r.category)
-" }
-                if !r.servings.isEmpty { text += "Til: (r.servings)
-" }
-                if !r.ingredients.isEmpty { text += "
-INGREDIENSER
-" + r.ingredients + "
-" }
-                if !r.method.isEmpty { text += "
-FREMGANGSMÅDE
-" + r.method + "
-" }
-                if !r.story.isEmpty { text += "
-HISTORIEN BAG
-" + r.story + "
-" }
+                var text = r.title + "\n"
+                if !r.fromWhom.isEmpty { text += "Fra: \(r.fromWhom)\n" }
+                if !r.category.isEmpty { text += "Kategori: \(r.category)\n" }
+                if !r.servings.isEmpty { text += "Til: \(r.servings)\n" }
+                if !r.ingredients.isEmpty { text += "\nINGREDIENSER\n" + r.ingredients + "\n" }
+                if !r.method.isEmpty { text += "\nFREMGANGSMÅDE\n" + r.method + "\n" }
+                if !r.story.isEmpty { text += "\nHISTORIEN BAG\n" + r.story + "\n" }
                 try write(text, to: rDir.appendingPathComponent(name + ".txt"))
                 rJSON.append(["titel": r.title, "fra": r.fromWhom, "kategori": r.category, "antal": r.servings,
                               "ingredienser": r.ingredientLines, "fremgangsmåde": r.method, "historie": r.story, "filer": files])
