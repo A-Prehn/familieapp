@@ -366,21 +366,38 @@ struct OnThisDayView: View {
         .sorted { $0.date > $1.date }
     }
 
+    /// Det lille billede, appen har gemt i App Group'en til dette minde (hvis der er et).
+    private func photo(_ m: WidgetSnapshot.Memory) -> UIImage? {
+        guard let file = m.photoFile, let url = AppGroup.containerURL?.appendingPathComponent(file),
+              let data = try? Data(contentsOf: url) else { return nil }
+        return UIImage(data: data)
+    }
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Label("På denne dag", systemImage: "clock.arrow.circlepath")
-                .font(.caption2.weight(.semibold)).foregroundStyle(WTheme.muted)
-            if let m = today.first {
-                let years = Calendar.current.component(.year, from: entry.date) - Calendar.current.component(.year, from: m.date)
-                Text(years == 1 ? "For 1 år siden" : "For \(years) år siden")
-                    .font(.caption.weight(.medium)).foregroundStyle(WTheme.rose)
-                Text(m.text).font(WTheme.serif(15)).foregroundStyle(WTheme.text).lineLimit(3)
-                Text("\(m.who) · \(m.kind)").font(.caption2).foregroundStyle(WTheme.muted)
-            } else {
-                Text(DailyQuotes.today(entry.date))
-                    .font(WTheme.serif(14, .regular).italic()).foregroundStyle(WTheme.accent).lineLimit(4)
+        HStack(alignment: .top, spacing: 12) {
+            VStack(alignment: .leading, spacing: 6) {
+                Label("På denne dag", systemImage: "clock.arrow.circlepath")
+                    .font(.caption2.weight(.semibold)).foregroundStyle(WTheme.muted)
+                if let m = today.first {
+                    let years = Calendar.current.component(.year, from: entry.date) - Calendar.current.component(.year, from: m.date)
+                    Text(years == 1 ? "For 1 år siden" : "For \(years) år siden")
+                        .font(.caption.weight(.medium)).foregroundStyle(WTheme.rose)
+                    Text(m.text).font(WTheme.serif(15)).foregroundStyle(WTheme.text).lineLimit(3)
+                    Text("\(m.who) · \(m.kind)").font(.caption2).foregroundStyle(WTheme.muted)
+                } else {
+                    Text(DailyQuotes.today(entry.date))
+                        .font(WTheme.serif(14, .regular).italic()).foregroundStyle(WTheme.accent).lineLimit(4)
+                }
+                Spacer(minLength: 0)
             }
-            Spacer(minLength: 0)
+            // Mindets billede til højre, når appen har lagt et klar.
+            if let m = today.first, let image = photo(m) {
+                Image(uiImage: image)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: 96, height: 96)
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+            }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
         .containerBackground(WTheme.bg, for: .widget)
