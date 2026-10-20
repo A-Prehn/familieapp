@@ -11,7 +11,7 @@ Bugs tages før features. Når et punkt er lavet, flyttes det til "Lavet" med bu
 ## Features og forbedringer
 
 - [ ] Web-version til at kigge med (fx bedsteforældre på Android eller computer): read-only via CloudKit JS.
-      Første version uden egen server; login med Apple-konto. Se idénoten fra tidligere.
+      Første version uden egen server; login med Apple-konto. Plan: docs/web-kigger-plan.md (venter på 3 beslutninger).
 
 ## Til test
 
