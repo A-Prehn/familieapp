@@ -1,6 +1,6 @@
 # Backlog — Vores familie
 
-Bugs og ønsker til appen. Skriv "Notér: …" i chatten, så lægges punktet her.
+Bugs og ønsker til appen. Skriv "Noter …" i chatten, så lægges punktet her.
 Bugs tages før features. Når et punkt er lavet, flyttes det til "Lavet" med build-nummeret.
 
 ## Bugs
