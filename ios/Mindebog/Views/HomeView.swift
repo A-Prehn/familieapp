@@ -28,6 +28,10 @@ struct HomeView: View {
     @State private var showInvite = false
     @State private var importChild: Child?
     @State private var chooseImportChild = false
+    // Skoleferie, der er ved at slutte: "har I et billede eller to, I vil gemme?" — kan afvises.
+    @State private var holiday: SchoolHolidays.Holiday? = SchoolHolidays.endingSoon().flatMap { SchoolHolidays.isDismissed($0) ? nil : $0 }
+    @State private var holidayChild: Child?
+    @State private var chooseHolidayChild = false
     private var bornChildren: [Child] { children.filter { $0.birthDate != nil } }
 
     var body: some View {
@@ -49,6 +53,7 @@ struct HomeView: View {
                     if state.canEdit { quickAddSection.softAppear(index: 3) }
                     if showFirstSteps { firstSteps.softAppear(index: 4) }
                     yearCards.softAppear(index: 4)
+                    if let holiday, state.canEdit { holidayCard(holiday).softAppear(index: 4) }
                     if !onThisDay.isEmpty {
                         memorySection("På denne dag", onThisDay) { m in
                             "\(yearsAgo(m.date)) · \(m.childName) · \(m.kind)"
@@ -109,6 +114,16 @@ struct HomeView: View {
             AddDiaryView(childId: child.id, initialText: "Det, jeg husker fra dagen, \(child.name) kom til verden:\n\n")
         }
         .sheet(item: $importChild) { FirstYearImportView(child: $0) }
+        .sheet(item: $holidayChild) { child in
+            if let h = holiday {
+                PhotoSuggestionsView(range: h.range, allowMultiple: true, maxSelection: 20, title: h.title) { photos in
+                    saveHoliday(h, child: child, photos: photos)
+                }
+            }
+        }
+        .confirmationDialog("Hvilket barn?", isPresented: $chooseHolidayChild, titleVisibility: .visible) {
+            ForEach(children) { child in Button(child.name) { holidayChild = child } }
+        }
         .confirmationDialog("Hvilket barn?", isPresented: $chooseImportChild, titleVisibility: .visible) {
             ForEach(bornChildren) { child in Button(child.name) { importChild = child } }
         }
@@ -195,6 +210,50 @@ struct HomeView: View {
                 }
             }
         }
+    }
+
+    // MARK: Skoleferie, der er ved at slutte
+    private func holidayCard(_ h: SchoolHolidays.Holiday) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 12) {
+                Image(systemName: "sun.max").font(.system(size: 20)).foregroundStyle(Theme.green).frame(width: 32)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("\(h.title.prefix(1).uppercased() + h.title.dropFirst()) er ved at være slut")
+                        .font(.subheadline.weight(.semibold)).foregroundStyle(Theme.text)
+                    Text("Har I et billede eller to, I vil gemme? Vi viser jer billederne fra feriens dage.")
+                        .font(.caption).foregroundStyle(Theme.muted).fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer(minLength: 0)
+            }
+            HStack(spacing: 10) {
+                Button {
+                    if children.count == 1 { holidayChild = children[0] } else { chooseHolidayChild = true }
+                } label: {
+                    Label("Vælg fra Fotos", systemImage: "photo.on.rectangle").font(.caption.weight(.semibold))
+                        .padding(.horizontal, 12).padding(.vertical, 8)
+                        .background(Theme.bgDark).clipShape(Capsule())
+                }
+                Button("Ikke nu") { SchoolHolidays.dismiss(h); withAnimation { holiday = nil } }
+                    .font(.caption).foregroundStyle(Theme.muted)
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Theme.card).clipShape(RoundedRectangle(cornerRadius: 14))
+        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Theme.sep))
+    }
+
+    /// Billederne fra ferien bliver ét højdepunkt for barnet med feriens navn.
+    private func saveHoliday(_ h: SchoolHolidays.Holiday, child: Child, photos: [Data]) {
+        guard !photos.isEmpty else { return }
+        let store = state.store
+        let date = photos.compactMap(ImageTools.captureDate).min() ?? h.start
+        SaveQueue.shared.enqueue(label: h.title) {
+            _ = try await store.addHighlight(childId: child.id, date: date, text: h.title, photos: photos, cover: 0, place: nil)
+        }
+        SchoolHolidays.dismiss(h)
+        withAnimation { holiday = nil }
     }
 
     // MARK: De første skridt

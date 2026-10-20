@@ -86,6 +86,7 @@ struct MoreView: View {
     @State private var interviewReminder = Reminders.interviewEnabled
     @State private var onThisDay = OnThisDay.isEnabled
     @State private var weeklyQuestion = WeeklyQuestion.isEnabled
+    @State private var winterWeek = SchoolHolidays.winterWeek
     @AppStorage(Appearance.key) private var appearance = Appearance.system.rawValue
     @State private var bellyTime: Date = {
         let m = Reminders.bellyMinutes
@@ -301,6 +302,19 @@ struct MoreView: View {
                         })) {
                         Label("Ugens spørgsmål", systemImage: "questionmark.bubble")
                     }
+                    // Skoleferierne bruges til ugens spørgsmål og et kort på Hjem; kun vinterferien varierer.
+                    Picker(selection: Binding(
+                        get: { winterWeek },
+                        set: { w in
+                            winterWeek = w
+                            SchoolHolidays.winterWeek = w
+                            Task { await rescheduleReminders() }
+                        })) {
+                        Text("Uge 7").tag(7)
+                        Text("Uge 8").tag(8)
+                    } label: {
+                        Label("Vinterferie", systemImage: "snowflake")
+                    }
                     Toggle(isOn: Binding(
                         get: { onThisDay },
                         set: { on in
@@ -314,7 +328,7 @@ struct MoreView: View {
             } header: {
                 Text("Påmindelser")
             } footer: {
-                Text("Billeder: for et født barn hver måned på månedsdagen, og for et barn på vej så ofte, på den ugedag og det tidspunkt, du vælger — mavebilledet kan slås fra, hvis det ikke er dig, der tager det. Årligt interview: på hvert barns fødselsdag fra \(Reminders.interviewMinAge) år, og en uge efter, hvis I ikke er gået i gang. Ugens spørgsmål: lørdag kl. 10 et spørgsmål, der passer til barnets alder — tryk, og dagbogen åbner med spørgsmålet. På denne dag: kl. 9 på årsdagen for et minde fra et tidligere år.")
+                Text("Billeder: for et født barn hver måned på månedsdagen, og for et barn på vej så ofte, på den ugedag og det tidspunkt, du vælger — mavebilledet kan slås fra, hvis det ikke er dig, der tager det. Årligt interview: på hvert barns fødselsdag fra \(Reminders.interviewMinAge) år, og en uge efter, hvis I ikke er gået i gang. Ugens spørgsmål: lørdag kl. 10 et spørgsmål, der passer til barnets alder — tryk, og dagbogen åbner med spørgsmålet. På denne dag: kl. 9 på årsdagen for et minde fra et tidligere år. Vinterferie: uge 7 i det meste af landet, uge 8 i København og omegn — bruges til ugens spørgsmål efter ferien.")
             }
 
             Section {

@@ -115,7 +115,9 @@ enum WeeklyQuestion {
             guard let date = cal.date(byAdding: .day, value: n * 7, to: day),
                   let fire = cal.date(bySettingHour: 10, minute: 0, second: 0, of: date), fire > now else { continue }
             let week = cal.component(.weekOfYear, from: fire) + cal.component(.year, from: fire) * 53
-            let q = question(for: child, week: week)
+            // Lørdagen efter en skoleferie: spørg til ferien i stedet for ugens almindelige spørgsmål.
+            let q = SchoolHolidays.justEnded(before: fire).map { "Hvad var det bedste ved \($0.name) for \(child.name)?" }
+                ?? question(for: child, week: week)
             let content = UNMutableNotificationContent()
             content.title = "Ugens spørgsmål om \(child.name) ✏️"
             content.body = q
