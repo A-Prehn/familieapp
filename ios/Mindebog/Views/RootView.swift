@@ -89,6 +89,7 @@ struct MainTabView: View {
     /// tegning af fanerne lige efter opstart, så de får appens farver med det samme.
     @State private var tabRedraw = 0
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
         TabView(selection: $selection) {
@@ -137,10 +138,21 @@ struct MainTabView: View {
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: .openNotificationTarget)) { note in
-            if let e = note.object as? NotificationLogEntry { DeepLink.pendingEntry = nil; Task { await open(e) } }
+            // Fra klokken (appen er aktiv). Fra låseskærmen er appen endnu ikke aktiv, og arket kan ikke
+            // vises — så venter vi på scenePhase herunder.
+            guard scenePhase == .active, let e = note.object as? NotificationLogEntry else { return }
+            DeepLink.pendingEntry = nil
+            Task { await open(e) }
         }
-        .task {
-            if let e = DeepLink.pendingEntry { DeepLink.pendingEntry = nil; await open(e) }
+        .task { await openPendingEntry() }
+        // Appen blev åbnet fra en notifikation (låseskærm/notifikationscenter): navigér, når vinduet er klar.
+        .onChange(of: scenePhase) { _, phase in
+            guard phase == .active else { return }
+            Task {
+                await openPendingEntry()
+                await openPendingInterview()
+                await openPendingPrompt()
+            }
         }
         .task {
             // To gentegninger: én så snart første billede er vist, og én lidt senere, hvis glas-tabbaren var sen.
@@ -161,6 +173,12 @@ struct MainTabView: View {
         let child: Child
         let text: String
         var id: String { child.id + text }
+    }
+
+    private func openPendingEntry() async {
+        guard let e = DeepLink.pendingEntry else { return }
+        DeepLink.pendingEntry = nil
+        await open(e)
     }
 
     private func openPendingPrompt() async {
