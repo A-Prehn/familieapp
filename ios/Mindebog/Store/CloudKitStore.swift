@@ -86,13 +86,15 @@ actor CloudKitStore: Store {
         guard db === privateDB else { throw StoreError.notOwner }
         let childZones = ((try? await all(db: db, zoneID: zoneID, type: "Child", keys: ["ownZone"])) ?? [])
             .compactMap { $0["ownZone"] as? String }.filter { !$0.isEmpty }
+        // Familiezonen først: går det galt her, er intet slettet. Barnezonerne bagefter — de er
+        // uden familie alligevel, og en fejl dér efterlader ingen halv familie.
+        _ = try await privateDB.deleteRecordZone(withID: zoneID)
+        forgetZone(familyId)
         for name in childZones {
             let id = CKRecordZone.ID(zoneName: name, ownerName: CKCurrentUserDefaultName)
             _ = try? await privateDB.deleteRecordZone(withID: id)
             forgetZone(name)
         }
-        _ = try await privateDB.deleteRecordZone(withID: zoneID)
-        forgetZone(familyId)
     }
 
     private func forgetZone(_ zoneName: String) {

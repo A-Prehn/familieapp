@@ -102,12 +102,15 @@ final class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate {
                 DeepLink.pendingPrompt = DeepLink.Prompt(childId: childId, text: text)
                 NotificationCenter.default.post(name: .openDiaryPrompt, object: nil)
             }
-        } else if !Reminders.isReminder(response.notification.request.identifier),
-                  let newest = NotificationLog.load().first {
-            // Nyt fra familien: udvidelsen har gemt, hvad det handler om — åbn det.
-            await MainActor.run {
-                DeepLink.pendingEntry = newest
-                NotificationCenter.default.post(name: .openNotificationTarget, object: newest)
+        } else if !Reminders.isReminder(response.notification.request.identifier) {
+            // Nyt fra familien: udvidelsen har gemt, hvad det handler om — åbn netop den.
+            let log = NotificationLog.load()
+            let entry = (info["logEntryId"] as? String).flatMap { id in log.first { $0.id == id } } ?? log.first
+            if let entry {
+                await MainActor.run {
+                    DeepLink.pendingEntry = entry
+                    NotificationCenter.default.post(name: .openNotificationTarget, object: entry)
+                }
             }
         }
         if Reminders.isReminder(response.notification.request.identifier) {

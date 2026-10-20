@@ -29,8 +29,11 @@ final class NotificationService: UNNotificationServiceExtension {
             case .text(let body, let newest):
                 content.body = body
                 // Gem den i loggen til klokken på Hjem, så man kan finde den igen og trykke ind på den.
+                // Id'et lægges også i selve notifikationen, så et tryk på låseskærmen åbner netop denne.
+                let entryId = newest.recordID.recordName + "_" + String(Int((newest.modificationDate ?? Date()).timeIntervalSince1970))
+                content.userInfo["logEntryId"] = entryId
                 NotificationLog.append(NotificationLogEntry(
-                    id: newest.recordID.recordName + "_" + String(Int((newest.modificationDate ?? Date()).timeIntervalSince1970)),
+                    id: entryId,
                     date: newest.modificationDate ?? Date(),
                     title: content.title,
                     body: body,
