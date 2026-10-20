@@ -26,6 +26,8 @@ struct WidgetSnapshot: Codable {
         var kind: String        // "Højdepunkt", "Begivenhed" …
         var text: String
         var date: Date
+        /// Filnavn i App Group'en på et lille billede (kun for minder, der snart er "på denne dag").
+        var photoFile: String? = nil
     }
 
     struct ChildInfo: Codable, Hashable {

@@ -151,8 +151,8 @@ actor CloudKitStore: Store {
                 }
                 if name.isEmpty { name = p.role == .owner ? "Ejer" : "Deltager" }
 
+                // Kun det, der er nyttigt at se: "dig", "kun visning" og "inviteret" — ikke "ejer".
                 var tags: [String] = []
-                if p.role == .owner { tags.append("ejer") }
                 if p == me { tags.append("dig") }
                 if p.role != .owner && p.permission == .readOnly { tags.append("kun visning") }
                 if p.acceptanceStatus == .pending { tags.append("inviteret") }
