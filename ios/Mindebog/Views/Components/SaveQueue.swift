@@ -29,6 +29,7 @@ final class SaveQueue: ObservableObject {
             do {
                 try await work()
                 Haptics.success()
+                ReviewPrompt.noteSaved()
             } catch {
                 failed.append(Failed(label: label, message: SaveError.message(for: error), work: work))
             }

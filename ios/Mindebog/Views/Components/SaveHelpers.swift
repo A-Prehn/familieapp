@@ -44,6 +44,7 @@ func performSave(saving: Binding<Bool>, errorMessage: Binding<String?>,
         Haptics.success()
         dismiss()
         NotificationCenter.default.post(name: .storeDidChange, object: nil)
+        ReviewPrompt.noteSaved()
     } catch {
         errorMessage.wrappedValue = SaveError.message(for: error)
     }
