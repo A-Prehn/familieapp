@@ -541,7 +541,7 @@ struct HomeView: View {
         }
 
         // Seneste i familien: alt, hvad der er lagt op eller ændret — det nyeste først.
-        var newRecent = Array(all.sorted { changed($0) > changed($1) }.prefix(5))
+        var newRecent = Array(Self.groupedPhotos(all.sorted { changed($0) > changed($1) }).prefix(5))
 
         // På denne dag: samme dag og måned i et tidligere år — kun de klassiske minder.
         let classic: Set<MemorySummary.Kind> = [.highlight, .diary, .event, .vacation, .memory]
@@ -592,6 +592,28 @@ struct HomeView: View {
     }
 
     /// Hvornår noget sidst blev lagt op eller ændret (falder tilbage på oprettelsen).
+    /// Flere billeder lagt op samme dag til samme serie for samme barn (fx fem fødselsdagsbilleder)
+    /// bliver ét opslag: "9 · 5 billeder". Listen er sorteret nyeste først; det nyeste billede vises.
+    private static func groupedPhotos(_ list: [RecentMemory]) -> [RecentMemory] {
+        let cal = Calendar.current
+        func key(_ m: RecentMemory) -> String? {
+            guard let s = m.summary, s.kind == .photo else { return nil }
+            return [s.childId ?? "", s.detail, s.text, Fmt.iso(cal.startOfDay(for: s.createdAt))].joined(separator: "|")
+        }
+        var counts: [String: Int] = [:]
+        for m in list { if let k = key(m) { counts[k, default: 0] += 1 } }
+        var seen: Set<String> = []
+        return list.compactMap { m in
+            guard let k = key(m) else { return m }
+            guard seen.insert(k).inserted else { return nil }
+            let n = counts[k] ?? 1
+            guard n > 1 else { return m }
+            let text = m.text.isEmpty ? "\(n) billeder" : "\(m.text) · \(n) billeder"
+            return RecentMemory(id: m.id, summary: m.summary, childName: m.childName, kind: m.kind, symbol: m.symbol,
+                                date: m.date, sortDate: m.sortDate, text: text, photo: m.photo)
+        }
+    }
+
     private func changed(_ m: RecentMemory) -> Date {
         guard let s = m.summary else { return m.sortDate }
         return max(s.modifiedAt, s.createdAt)
