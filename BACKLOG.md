@@ -10,10 +10,6 @@ Bugs tages før features. Når et punkt er lavet, flyttes det til "Lavet" med bu
 
 ## Features og forbedringer
 
-- [ ] Påmindelser, der swipes væk på låseskærmen, kommer ikke med i klokken på Hjem
-      (kræver en liste over planlagte påmindelser i App Group'en).
-- [ ] Versionsnummer: appen hedder 0.1.0 internt — sæt til 1.1 til næste App Store-version.
-- [ ] Milepæle og årligt interview: tryk fra notifikation åbner skærmen, men scroller ikke til det enkelte punkt.
 - [ ] Web-version til at kigge med (fx bedsteforældre på Android eller computer): read-only via CloudKit JS.
       Første version uden egen server; login med Apple-konto. Se idénoten fra tidligere.
 
@@ -41,6 +37,9 @@ Bugs tages før features. Når et punkt er lavet, flyttes det til "Lavet" med bu
 - Lukket kendt risiko: samtidige skrivninger til notifikationsloggen fra app og udvidelse (sjældent, ufarligt).
 
 ## Lavet
+
+- Klar til næste build (1.1): påmindelser, der swipes væk, kommer i klokken; milepæle, vaccinationer og interview åbner det rigtige punkt fra notifikationer.
+- Build 80 (version 1.0): ny startskærm uden falsk Apple-login, iCloud-forklaring, prøv uden iCloud.
 
 - Build 79: skoleferier, scroll til opslag, samlede billedopslag, fødselsdagsfane efter billedets alder.
 - Build 77: eksport med opskrifter, De første skridt, import af første år, Året der gik, widget-billede,
