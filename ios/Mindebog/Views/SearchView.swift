@@ -74,8 +74,10 @@ struct SearchView: View {
                 ForEach(children) { chip($0.name, $0.id) }
                 chip("Familie", "family")
             }
-            .padding(.horizontal, 16).padding(.vertical, 6)
+            .padding(.horizontal, 16).padding(.vertical, 8)
         }
+        // Fast højde: ellers får den vandrette rullebjælke for lidt plads under søgefeltet, og chippene klippes.
+        .frame(height: 52)
         .background(Theme.bg)
     }
 
