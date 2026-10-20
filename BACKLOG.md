@@ -25,6 +25,11 @@ Bugs tages før features. Når et punkt er lavet, flyttes det til "Lavet" med bu
 ## Udgivelse og firma
 
 - [ ] 1.0 (build 80) sendt til App Review. Når den er godkendt: sæt MARKETING_VERSION til 1.1 i ios/project.yml før næste build.
+- [ ] apps.prehn.net: opret GitLab-repo prehn-apps + Cloudflare Pages + domæne (siderne ligger klar i Development/PrehnApps).
+- [ ] Efter godkendelse af 1.0: Privacy Policy URL → https://apps.prehn.net/vores-familie/privatliv/ og
+      Support URL → https://apps.prehn.net/vores-familie/ i App Store Connect.
+- [ ] Appens link til privatlivspolitikken (AppLinks.privacy i PaywallView.swift) → ny adresse i 1.1.
+- [ ] Først når 1.1 er ude og adresserne er skiftet: familie.prehn.net/privatliv/ må fjernes (ingen viderestilling).
 - [x] CVR 40316191 (Prehn apps, PMV, 20. okt. 2026). Skal IKKE i App Store Connect så længe kontoen er personlig og PMV ikke er momsregistreret — først ved momsregistrering eller skift til organisation-konto.
 - [ ] Aktivér Digital Post for "Prehn apps": virk.dk-login virker, men Digital Post giver HTTP 401 (20. okt.). Prøv igen 21.–22. okt. i Digital Post-appen eller mit.dk; virker det stadig ikke, ring til Digitaliseringsstyrelsens support.
 - [ ] NemKonto: dansk konto skal tilknyttes CVR 40316191 af banken (netbank → NemKonto, eller skriv til banken). nemkonto.dk viser kun status.
