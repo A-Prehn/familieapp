@@ -176,9 +176,10 @@ jobs:
           # altool kan afslutte med kode 0 selv om upload fejlede (set i kørsel #9),
           # så vi tjekker outputtet eksplicit.
           set -o pipefail
+          IPA=$(ls build/export/*.ipa | head -1)
           xcrun altool --upload-app \
             --type ios \
-            --file "4096ls build/export/*.ipa | head -1)" \
+            --file "$IPA" \
             --apiKey "${{ secrets.ASC_KEY_ID }}" \
             --apiIssuer "${{ secrets.ASC_ISSUER_ID }}" 2>&1 | tee altool.log
           if grep -q "UPLOAD FAILED\|ERROR:" altool.log; then
