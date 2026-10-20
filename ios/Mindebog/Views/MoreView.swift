@@ -439,17 +439,11 @@ struct MoreView: View {
         guard let familyId = state.familyId else { return }
         let fetched = (try? await state.store.families(for: state.user?.id ?? "")) ?? []
         family = fetched.first { $0.id == familyId }
-        // Skjul tomme egne familier (fx gamle testfamilier): vis den valgte, dem der er delt med en,
-        // og egne familier med mindst ét barn.
-        var visible: [Family] = []
-        for f in fetched {
-            if f.id == familyId || f.ownerId != state.user?.id {
-                visible.append(f)
-            } else if let kids = try? await state.store.children(familyId: f.id), !kids.isEmpty {
-                visible.append(f)
-            }
+        // Alle familier vises — også tomme egne (fx en testfamilie), så de kan vælges og slettes.
+        allFamilies = fetched.sorted { a, b in
+            if (a.id == familyId) != (b.id == familyId) { return a.id == familyId }
+            return a.name.localizedCompare(b.name) == .orderedAscending
         }
-        allFamilies = visible
         members = (try? await state.store.members(familyId: familyId)) ?? []
         if let id = UserDefaults.standard.string(forKey: myBirthdayKey(familyId)),
            let found = (try? await state.store.birthdays(familyId: familyId))?.first(where: { $0.id == id }) {
