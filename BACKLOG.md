@@ -24,7 +24,7 @@ Bugs tages før features. Når et punkt er lavet, flyttes det til "Lavet" med bu
 
 ## Udgivelse og firma
 
-- [ ] 1.0 (build 71) genindsendt med EULA-link — venter på App Review. Derefter 1.1 med det nyeste build.
+- [ ] 1.0 (build 80) sendt til App Review. Når den er godkendt: sæt MARKETING_VERSION til 1.1 i ios/project.yml før næste build.
 - [x] CVR 40316191 (Prehn apps, PMV, 20. okt. 2026). Skal IKKE i App Store Connect så længe kontoen er personlig og PMV ikke er momsregistreret — først ved momsregistrering eller skift til organisation-konto.
 - [ ] Aktivér Digital Post for "Prehn apps": virk.dk-login virker, men Digital Post giver HTTP 401 (20. okt.). Prøv igen 21.–22. okt. i Digital Post-appen eller mit.dk; virker det stadig ikke, ring til Digitaliseringsstyrelsens support.
 - [ ] NemKonto: dansk konto skal tilknyttes CVR 40316191 af banken (netbank → NemKonto, eller skriv til banken). nemkonto.dk viser kun status.
