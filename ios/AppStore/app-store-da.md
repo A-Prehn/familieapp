@@ -64,6 +64,11 @@ Kan ændres uden ny version — brug den til sæsoner og nyheder.
 > Gratis med to børn og din partner. Premium giver flere børn, deling med bedsteforældre og resten af familien, video, film og PDF-mindebog — 19 kr. om måneden eller 199 kr. én gang for altid, og gælder for hele familien.
 >
 > Lyst eller mørkt tema efter eget valg.
+>
+> Abonnementet fornyes automatisk, medmindre det opsiges senest 24 timer før periodens udløb. Betalingen trækkes via din Apple-konto, og du kan administrere eller opsige abonnementet under Indstillinger.
+>
+> Privatlivspolitik: https://familie.prehn.net/privatliv/
+> Vilkår (EULA): https://www.apple.com/legal/internet-services/itunes/dev/stdeula/
 
 (ca. 2.400 tegn)
 
