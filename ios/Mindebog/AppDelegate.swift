@@ -7,6 +7,7 @@ extension Notification.Name {
 }
 
 // Nødvendig for at modtage CloudKit-delelinks (iOS kalder scene-delegaten).
+@MainActor
 final class AppDelegate: NSObject, UIApplicationDelegate {
     private let notificationDelegate = NotificationDelegate()
 
