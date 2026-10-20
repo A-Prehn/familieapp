@@ -178,7 +178,7 @@ jobs:
           set -o pipefail
           xcrun altool --upload-app \
             --type ios \
-            --file "build/export/Mindebog.ipa" \
+            --file "4096ls build/export/*.ipa | head -1)" \
             --apiKey "${{ secrets.ASC_KEY_ID }}" \
             --apiIssuer "${{ secrets.ASC_ISSUER_ID }}" 2>&1 | tee altool.log
           if grep -q "UPLOAD FAILED\|ERROR:" altool.log; then

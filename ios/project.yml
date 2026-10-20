@@ -32,6 +32,9 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: net.prehn.mindebog
+        # Appens filnavn (vises bl.a. i nedbrudsrapporter). Modulnavnet bliver Mindebog, så koden er uændret.
+        PRODUCT_NAME: "Vores familie"
+        PRODUCT_MODULE_NAME: Mindebog
         # TestFlight-workflowet sætter APP_PROFILE (navnet på App Store-profilen).
         PROVISIONING_PROFILE_SPECIFIER: "$(APP_PROFILE)"
         GENERATE_INFOPLIST_FILE: "YES"
