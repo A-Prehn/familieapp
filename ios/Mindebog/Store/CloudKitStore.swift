@@ -1038,17 +1038,22 @@ actor CloudKitStore: Store {
         let (db, zoneID) = try await locate(familyId)
         var out: [MemorySummary] = []
         func childId(_ r: CKRecord) -> String? { (r["childRef"] as? CKRecord.Reference)?.recordID.recordName }
+        /// Ekstra tekstfelter samlet til søgningen (tomme felter springes over).
+        func searchText(_ r: CKRecord, _ keys: [String]) -> String? {
+            let parts = keys.compactMap { r[$0] as? String }.filter { !$0.isEmpty }
+            return parts.isEmpty ? nil : parts.joined(separator: " ")
+        }
 
-        // De fire opslag kører samtidig.
-        async let highlights = all(db: db, zoneID: zoneID, type: "Highlight", keys: ["childRef", "date", "text"])
+        // Opslagene kører samtidig. Kun tekst: beskrivelser og stednavne følger med til søgningen.
+        async let highlights = all(db: db, zoneID: zoneID, type: "Highlight", keys: ["childRef", "date", "text", "placeName"])
         async let diary = all(db: db, zoneID: zoneID, type: "Diary", keys: ["childRef", "date", "text"])
-        async let events = all(db: db, zoneID: zoneID, type: "Event", keys: ["title", "date"])
-        async let vacations = all(db: db, zoneID: zoneID, type: "Vacation", keys: ["title", "startDate"])
+        async let events = all(db: db, zoneID: zoneID, type: "Event", keys: ["title", "date", "details", "placeName"])
+        async let vacations = all(db: db, zoneID: zoneID, type: "Vacation", keys: ["title", "startDate", "details", "placeName"])
         async let photos = all(db: db, zoneID: zoneID, type: "GalleryItem", keys: ["childRef", "kind", "caption", "note", "date"])
-        async let interviews = all(db: db, zoneID: zoneID, type: "Interview", keys: ["childRef", "question", "age", "date"])
-        async let traditions = all(db: db, zoneID: zoneID, type: "Tradition", keys: ["title", "when"])
+        async let interviews = all(db: db, zoneID: zoneID, type: "Interview", keys: ["childRef", "question", "age", "date", "text"])
+        async let traditions = all(db: db, zoneID: zoneID, type: "Tradition", keys: ["title", "when", "details"])
         async let letters = all(db: db, zoneID: zoneID, type: "Letter", keys: ["childRef", "title", "writtenAt", "openDate"])
-        async let freeMemories = all(db: db, zoneID: zoneID, type: "Memory", keys: ["title", "date"])
+        async let freeMemories = all(db: db, zoneID: zoneID, type: "Memory", keys: ["title", "date", "text", "placeName"])
 
         var highlightsR = try await highlights
         var diaryR = try await diary
@@ -1071,10 +1076,10 @@ actor CloudKitStore: Store {
             lettersR.removeAll { movedIds.contains(childId($0) ?? "") }
             for (_, zone) in moved {
                 guard let (cdb, cz) = try? await locate(zone) else { continue }
-                highlightsR += (try? await all(db: cdb, zoneID: cz, type: "Highlight", keys: ["childRef", "date", "text"])) ?? []
+                highlightsR += (try? await all(db: cdb, zoneID: cz, type: "Highlight", keys: ["childRef", "date", "text", "placeName"])) ?? []
                 diaryR += (try? await all(db: cdb, zoneID: cz, type: "Diary", keys: ["childRef", "date", "text"])) ?? []
                 photosR += (try? await all(db: cdb, zoneID: cz, type: "GalleryItem", keys: ["childRef", "kind", "caption", "note", "date"])) ?? []
-                interviewsR += (try? await all(db: cdb, zoneID: cz, type: "Interview", keys: ["childRef", "question", "age", "date"])) ?? []
+                interviewsR += (try? await all(db: cdb, zoneID: cz, type: "Interview", keys: ["childRef", "question", "age", "date", "text"])) ?? []
                 lettersR += (try? await all(db: cdb, zoneID: cz, type: "Letter", keys: ["childRef", "title", "writtenAt", "openDate"])) ?? []
             }
         }
@@ -1082,7 +1087,8 @@ actor CloudKitStore: Store {
         for r in highlightsR {
             out.append(MemorySummary(id: r.recordID.recordName, kind: .highlight, childId: childId(r),
                                      date: r["date"] as? Date, createdAt: r.creationDate ?? Date(),
-                                     text: r["text"] as? String ?? "", modifiedAt: r.modificationDate ?? .distantPast))
+                                     text: r["text"] as? String ?? "", modifiedAt: r.modificationDate ?? .distantPast,
+                                     search: searchText(r, ["placeName"])))
         }
         for r in diaryR {
             out.append(MemorySummary(id: r.recordID.recordName, kind: .diary, childId: childId(r),
@@ -1092,12 +1098,14 @@ actor CloudKitStore: Store {
         for r in try await events {
             out.append(MemorySummary(id: r.recordID.recordName, kind: .event, childId: nil,
                                      date: r["date"] as? Date, createdAt: r.creationDate ?? Date(),
-                                     text: r["title"] as? String ?? "", modifiedAt: r.modificationDate ?? .distantPast))
+                                     text: r["title"] as? String ?? "", modifiedAt: r.modificationDate ?? .distantPast,
+                                     search: searchText(r, ["details", "placeName"])))
         }
         for r in try await vacations {
             out.append(MemorySummary(id: r.recordID.recordName, kind: .vacation, childId: nil,
                                      date: r["startDate"] as? Date, createdAt: r.creationDate ?? Date(),
-                                     text: r["title"] as? String ?? "", modifiedAt: r.modificationDate ?? .distantPast))
+                                     text: r["title"] as? String ?? "", modifiedAt: r.modificationDate ?? .distantPast,
+                                     search: searchText(r, ["details", "placeName"])))
         }
         // De nyere typer: kun til "Seneste i familien" — en fejl her må ikke tømme forsiden.
         for r in photosR {
@@ -1114,17 +1122,20 @@ actor CloudKitStore: Store {
             out.append(MemorySummary(id: r.recordID.recordName, kind: .interview, childId: childId(r),
                                      date: r["date"] as? Date, createdAt: r.creationDate ?? Date(),
                                      text: "\(age == 1 ? "1 år" : "\(age) år"): \(Constants.interviewQuestion(r["question"] as? String ?? ""))",
-                                     modifiedAt: r.modificationDate ?? .distantPast))
+                                     modifiedAt: r.modificationDate ?? .distantPast,
+                                     search: searchText(r, ["text"])))
         }
         for r in (try? await traditions) ?? [] {
             out.append(MemorySummary(id: r.recordID.recordName, kind: .tradition, childId: nil,
                                      date: nil, createdAt: r.creationDate ?? Date(),
-                                     text: r["title"] as? String ?? "", modifiedAt: r.modificationDate ?? .distantPast))
+                                     text: r["title"] as? String ?? "", modifiedAt: r.modificationDate ?? .distantPast,
+                                     search: searchText(r, ["when", "details"])))
         }
         for r in (try? await freeMemories) ?? [] {
             out.append(MemorySummary(id: r.recordID.recordName, kind: .memory, childId: nil,
                                      date: r["date"] as? Date, createdAt: r.creationDate ?? Date(),
-                                     text: r["title"] as? String ?? "", modifiedAt: r.modificationDate ?? .distantPast))
+                                     text: r["title"] as? String ?? "", modifiedAt: r.modificationDate ?? .distantPast,
+                                     search: searchText(r, ["text", "placeName"])))
         }
         for r in lettersR {
             let title = r["title"] as? String ?? ""

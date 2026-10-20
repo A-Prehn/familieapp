@@ -240,6 +240,8 @@ struct MemorySummary: Identifiable, Hashable, Codable {
     var modifiedAt: Date = .distantPast
     /// Ekstra oplysning, fx billedseriens type ("belly", "monthly", "drawings").
     var detail: String = ""
+    /// Ekstra tekst kun til søgning (beskrivelse, sted, interviewsvar). Valgfri, så gamle caches stadig kan læses.
+    var search: String? = nil
 }
 
 struct CustomBirthday: Identifiable, Hashable, Codable {

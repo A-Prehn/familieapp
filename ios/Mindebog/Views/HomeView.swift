@@ -20,6 +20,7 @@ struct HomeView: View {
     @State private var refreshing = false   // viser "Henter nyeste", mens listen fra sidst opdateres
     @State private var loadGeneration = 0
     @State private var lastLoad: Date?
+    @State private var showSearch = false
     // "De første skridt": tre konkrete forslag, mens mindebogen stadig er næsten tom.
     @State private var memoryCount = Int.max      // Int.max indtil første hentning, så kortet ikke blinker
     @State private var memberCount: Int?
@@ -79,7 +80,13 @@ struct HomeView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .principal) { FamilyTitleMenu(title: "Hjem") }
-            ToolbarItem(placement: .topBarTrailing) { NotificationBell() }
+            ToolbarItem(placement: .topBarTrailing) {
+                HStack(spacing: 4) {
+                    Button { showSearch = true } label: { Image(systemName: "magnifyingglass").foregroundStyle(Theme.text) }
+                        .accessibilityLabel("Søg i alt")
+                    NotificationBell()
+                }
+            }
         }
         .navigationDestination(for: Child.self) { ChildDetailView(child: $0) }
         .sheet(item: $quickAdd, onDismiss: { Task { await load() } }) { item in
@@ -109,6 +116,7 @@ struct HomeView: View {
             }
         }
         .sheet(isPresented: $showActionsEditor) { HomeActionsEditor() }
+        .sheet(isPresented: $showSearch) { SearchView() }
         // De første skridt: fødselsminde med en overskrift at skrive videre på, og invitation af partneren.
         .sheet(item: $birthDiary, onDismiss: { Task { await load() } }) { child in
             AddDiaryView(childId: child.id, initialText: "Det, jeg husker fra dagen, \(child.name) kom til verden:\n\n")
