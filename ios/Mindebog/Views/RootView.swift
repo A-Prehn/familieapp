@@ -163,8 +163,11 @@ struct MainTabView: View {
         }
         .task { await openPendingEntry() }
         // Appen blev åbnet fra en notifikation (låseskærm/notifikationscenter): navigér, når vinduet er klar.
+        // Billeder delt fra Fotos ("Del → Vores familie") gemmes, når appen åbnes eller kommer frem.
+        .task { ShareImporter.importPending(store: state.store) }
         .onChange(of: scenePhase) { _, phase in
             guard phase == .active else { return }
+            ShareImporter.importPending(store: state.store)
             Task {
                 await openPendingEntry()
                 await openPendingInterview()

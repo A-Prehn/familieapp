@@ -29,6 +29,7 @@ targets:
       # Udvidelserne indlejres automatisk i appen (PlugIns/).
       - target: VoresFamilieWidget
       - target: VoresFamilieNotifications
+      - target: VoresFamilieShare
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: net.prehn.mindebog
@@ -100,3 +101,24 @@ targets:
     dependencies:
       - sdk: UserNotifications.framework
       - sdk: CloudKit.framework
+
+  # "Del → Vores familie" fra Fotos: billeder lægges i App Group-indbakken (ShareInbox),
+  # og appen gemmer dem som højdepunkter, næste gang den åbnes.
+  VoresFamilieShare:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: ShareExtension
+      - path: Shared
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: net.prehn.mindebog.share
+        PRODUCT_NAME: VoresFamilieShare
+        INFOPLIST_FILE: ShareExtension/Info.plist
+        CODE_SIGN_ENTITLEMENTS: ShareExtension/ShareExtension.entitlements
+        PROVISIONING_PROFILE_SPECIFIER: "$(SHARE_PROFILE)"
+        TARGETED_DEVICE_FAMILY: "1"
+        SKIP_INSTALL: "YES"
+    dependencies:
+      - sdk: UniformTypeIdentifiers.framework
+      - sdk: SwiftUI.framework

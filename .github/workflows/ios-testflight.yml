@@ -98,6 +98,8 @@ jobs:
             echo "::error::Kunne ikke hente profil for $BUNDLE_ID.widget — opret App ID'et (med App Groups) i developer.apple.com."; exit 1; }
           fetch_profile "$BUNDLE_ID.notifications" Notifications_AppStore.mobileprovision || {
             echo "::error::Kunne ikke hente profil for $BUNDLE_ID.notifications — opret App ID'et (med App Groups + iCloud) i developer.apple.com."; exit 1; }
+          fetch_profile "$BUNDLE_ID.share" Share_AppStore.mobileprovision || {
+            echo "::error::Kunne ikke hente profil for $BUNDLE_ID.share — opret App ID'et (med App Groups) i developer.apple.com."; exit 1; }
           rm -f /tmp/asc_key.json
 
           decode() { security cms -D -i "ios/profiles/$1"; }
@@ -107,7 +109,7 @@ jobs:
             exit 1
           fi
           # Widget og notifikationer deler data med appen via App Group'en.
-          for p in Mindebog_AppStore Widget_AppStore Notifications_AppStore; do
+          for p in Mindebog_AppStore Widget_AppStore Notifications_AppStore Share_AppStore; do
             if ! decode "$p.mobileprovision" | grep -q "group.net.prehn.mindebog"; then
               echo "::error::$p mangler App Group'en group.net.prehn.mindebog — slå App Groups til på App ID'et og vælg gruppen."
               exit 1
@@ -117,12 +119,13 @@ jobs:
           echo "APP_PROFILE=$(name Mindebog_AppStore.mobileprovision)" >> "$GITHUB_ENV"
           echo "WIDGET_PROFILE=$(name Widget_AppStore.mobileprovision)" >> "$GITHUB_ENV"
           echo "NSE_PROFILE=$(name Notifications_AppStore.mobileprovision)" >> "$GITHUB_ENV"
+          echo "SHARE_PROFILE=$(name Share_AppStore.mobileprovision)" >> "$GITHUB_ENV"
 
       - name: Arkivér (manuel signering)
         working-directory: ios
         run: |
           set -o pipefail
-          echo "Profiler: app=$APP_PROFILE · widget=$WIDGET_PROFILE · notifikationer=$NSE_PROFILE"
+          echo "Profiler: app=$APP_PROFILE · widget=$WIDGET_PROFILE · notifikationer=$NSE_PROFILE · del=$SHARE_PROFILE"
           xcodebuild archive \
             -project Mindebog.xcodeproj \
             -scheme Mindebog \
@@ -137,6 +140,7 @@ jobs:
             APP_PROFILE="$APP_PROFILE" \
             WIDGET_PROFILE="$WIDGET_PROFILE" \
             NSE_PROFILE="$NSE_PROFILE" \
+            SHARE_PROFILE="$SHARE_PROFILE" \
             OTHER_CODE_SIGN_FLAGS="--keychain $KEYCHAIN_PATH" \
             CURRENT_PROJECT_VERSION="${{ github.run_number }}"
 
@@ -158,6 +162,7 @@ jobs:
               <key>$BUNDLE_ID</key><string>$APP_PROFILE</string>
               <key>$BUNDLE_ID.widget</key><string>$WIDGET_PROFILE</string>
               <key>$BUNDLE_ID.notifications</key><string>$NSE_PROFILE</string>
+              <key>$BUNDLE_ID.share</key><string>$SHARE_PROFILE</string>
             </dict>
             <key>uploadSymbols</key><true/>
           </dict>
