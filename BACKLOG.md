@@ -25,7 +25,7 @@ Bugs tages før features. Når et punkt er lavet, flyttes det til "Lavet" med bu
 
 ## Udgivelse og firma
 
-- [ ] FØR næste build: opret App ID net.prehn.mindebog.share med App Groups (group.net.prehn.mindebog) i developer.apple.com — ellers fejler buildet ved profilen til del-udvidelsen.
+- [x] App ID net.prehn.mindebog.share oprettet med App Groups (20. okt. 2026).
 - [ ] 1.0 (build 80) sendt til App Review. Når den er godkendt: sæt MARKETING_VERSION til 1.1 i ios/project.yml før næste build.
 - [x] apps.prehn.net kører (GitHub A-Prehn/prehn-apps → Cloudflare Pages prehn-apps, main = produktion).
 - [ ] Efter godkendelse af 1.0: Privacy Policy URL → https://apps.prehn.net/vores-familie/privatliv/ og
