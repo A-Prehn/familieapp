@@ -317,13 +317,21 @@ struct HomeView: View {
                             .overlay(Image(systemName: memory.symbol).foregroundStyle(Theme.neutralDark))
                     }
                     VStack(alignment: .leading, spacing: 3) {
-                        Text(meta(memory))
-                            .font(.caption).foregroundStyle(Theme.muted)
-                        Text(memory.text.isEmpty ? "Uden tekst" : memory.text)
-                            .font(.footnote).foregroundStyle(Theme.text).lineLimit(2)
-                        if let date = memory.date {
-                            Text(Fmt.long(date)).font(.caption2).foregroundStyle(Theme.muted)
+                        // Tryk på teksten: åbn den skærm, opslaget hører til (som fra en notifikation).
+                        Button { open(memory) } label: {
+                            VStack(alignment: .leading, spacing: 3) {
+                                Text(meta(memory))
+                                    .font(.caption).foregroundStyle(Theme.muted)
+                                Text(memory.text.isEmpty ? "Uden tekst" : memory.text)
+                                    .font(.footnote).foregroundStyle(Theme.text).lineLimit(2)
+                                if let date = memory.date {
+                                    Text(Fmt.long(date)).font(.caption2).foregroundStyle(Theme.muted)
+                                }
+                            }
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .contentShape(Rectangle())
                         }
+                        .buttonStyle(.plain)
                         CommentsBar(targetId: memory.id, title: memory.text)
                     }
                     Spacer(minLength: 0)
@@ -335,6 +343,26 @@ struct HomeView: View {
             }
         }
         .animation(.easeInOut(duration: 0.25), value: refreshing)
+    }
+
+    /// Åbner det, et opslag handler om — via samme vej som et tryk på en notifikation (RootView.open).
+    private func open(_ memory: RecentMemory) {
+        guard let s = memory.summary else { return }
+        let kind: String
+        switch s.kind {
+        case .highlight: kind = "Highlight"
+        case .diary: kind = "Diary"
+        case .event: kind = "Event"
+        case .vacation: kind = "Vacation"
+        case .photo: kind = "GalleryItem"
+        case .interview: kind = "Interview"
+        case .tradition: kind = "Tradition"
+        case .letter: kind = "Letter"
+        case .memory: kind = "Memory"
+        }
+        let entry = NotificationLogEntry(id: "open_" + s.id, date: Date(), title: "", body: memory.text, kind: kind,
+                                         recordId: s.id, childId: s.childId, info: ["galleryKind": s.detail])
+        NotificationCenter.default.post(name: .openNotificationTarget, object: entry)
     }
 
     // MARK: Data
