@@ -22,13 +22,13 @@ Bugs tages før features. Når et punkt er lavet, flyttes det til "Lavet" med bu
 - [ ] Build 79: "9 · 5 billeder" i Seneste i familien, tryk åbner fødselsdag 9 år.
 - [ ] Build 79: tryk på notifikation (klokke og låseskærm) scroller til selve opslaget.
 - [ ] Build 79: Mere → Påmindelser → Vinterferie uge 7/8.
-- [ ] Build 77+: "Året der gik" på barnets side, widget "På denne dag" med billede, "De første skridt" i en tom familie.
+- [x] Build 77+: "Året der gik" på barnets side, widget "På denne dag" med billede, "De første skridt" i en tom familie.
 - [ ] Juleferien 2026: kortet på Hjem i feriens sidste dage og ugens spørgsmål lørdagen efter.
 - [ ] Del ét barn med den anden forælder (på et testbarn).
 
 ## Udgivelse og firma
 
-- [ ] Vent på App Review af 1.0 (build 71). Derefter 1.1 med det nyeste build.
+- [ ] 1.0 (build 71) genindsendt med EULA-link — venter på App Review. Derefter 1.1 med det nyeste build.
 - [ ] CVR-nummer (sag B26-FL-00-UD) → App Store Connect: Business/skat og DAC7.
 - [ ] Tilmeld Apple Small Business Program (15 % i stedet for 30 %).
 - [ ] Forny PMV-registreringen inden oktober 2029.
