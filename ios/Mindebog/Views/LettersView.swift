@@ -22,12 +22,13 @@ struct LettersView: View {
             } else {
                 VStack(spacing: 12) {
                     ForEach(letters) { letter in
-                        card(letter)
+                        card(letter).id(letter.id)
                     }
                 }
                 .padding(16)
             }
         }
+        .jumpsToPendingRecord()
         .background(Theme.bg.ignoresSafeArea())
         .navigationTitle("Breve til dig")
         .navigationBarTitleDisplayMode(.inline)

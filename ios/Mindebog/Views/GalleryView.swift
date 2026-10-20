@@ -82,12 +82,13 @@ struct GalleryView: View {
             } else {
                 LazyVGrid(columns: columns, spacing: 10) {
                     ForEach(Array(sorted.enumerated()), id: \.element.id) { i, item in
-                        cell(item).softAppear(index: i)
+                        cell(item).softAppear(index: i).id(item.id)
                     }
                 }
                 .padding(16)
             }
         }
+        .jumpsToPendingRecord()
         .background(Theme.bg.ignoresSafeArea())
         .navigationTitle(kind.title)
         .navigationBarTitleDisplayMode(.inline)

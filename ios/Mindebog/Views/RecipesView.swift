@@ -91,6 +91,7 @@ struct RecipesView: View {
                     NavigationLink { RecipeDetailView(recipe: r, onEdit: onEdit) } label: { card(r) }
                         .buttonStyle(.plain)
                         .softAppear(index: i)
+                        .id(r.id)
                 }
             }
         }

@@ -31,6 +31,7 @@ struct TraditionsView: View {
                 ForEach(traditions) { t in
                     TraditionCard(tradition: t, onLightbox: onLightbox)
                         .onTapGesture { if state.canEdit { onEdit(t) } }
+                        .id(t.id)
                 }
             }
         }

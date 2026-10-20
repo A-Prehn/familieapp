@@ -73,6 +73,7 @@ struct MainTabView: View {
         let familyTabs: [String: FamilyView.Tab] = [
             "Memory": .memories, "Event": .events, "Vacation": .vacations, "Birthday": .birthdays,
             "Tradition": .traditions, "Recipe": .recipes, "Person": .tree]
+        JumpRequest.shared.recordId = e.recordId   // listen scroller hen til opslaget (jumpsToPendingRecord)
         if let tab = familyTabs[e.kind] {
             selection = .shared
             FamilyTabLink.pending = tab.rawValue

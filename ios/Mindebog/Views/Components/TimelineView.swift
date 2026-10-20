@@ -25,6 +25,7 @@ struct TimelineView<Item: Identifiable, Card: View>: View {
                         .padding(.top, 22)
                     card(item).softAppear(index: index)
                 }
+                .id(item.id)
             }
         }
         .background(alignment: .topLeading) {

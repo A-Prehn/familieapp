@@ -26,6 +26,7 @@ struct DiaryView: View {
                 .padding(16)
             }
         }
+        .jumpsToPendingRecord()
         .background(Theme.bg.ignoresSafeArea())
         .navigationTitle(child.onTheWay ? "Svangerskabsdagbog" : "Dagbog")
         .navigationBarTitleDisplayMode(.inline)

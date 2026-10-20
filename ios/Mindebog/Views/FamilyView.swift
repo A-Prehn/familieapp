@@ -96,6 +96,7 @@ struct FamilyView: View {
             }
             .padding(16)
         }
+        .jumpsToPendingRecord()
         .background(Theme.bg.ignoresSafeArea())
         .navigationTitle("Familie")
         .navigationBarTitleDisplayMode(.inline)

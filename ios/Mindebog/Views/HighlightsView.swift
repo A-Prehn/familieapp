@@ -30,6 +30,7 @@ struct HighlightsView: View {
                 .padding(16)
             }
         }
+        .jumpsToPendingRecord()
         .background(Theme.bg.ignoresSafeArea())
         .navigationTitle("Højdepunkter")
         .navigationBarTitleDisplayMode(.inline)
