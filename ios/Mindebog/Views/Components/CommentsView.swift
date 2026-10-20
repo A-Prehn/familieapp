@@ -11,22 +11,32 @@ final class CommentsModel: ObservableObject {
     /// Det åbne ark. Vises fra appens rod (ikke inde fra kortet, hvor det arvede kortets bredde).
     @Published var open: OpenTarget?
     struct OpenTarget: Identifiable { let id: String; let title: String }
+    /// Fejl ved sidste gem (fx "Kun visning") — vises i arket.
+    @Published var lastError: String?
     private var loadedFamily: String?
     private var loading = false
+    private var reloadWanted = false
 
     func comments(for targetId: String) -> [Comment] { byTarget[targetId] ?? [] }
 
     func load(state: AppState, force: Bool = false) async {
-        guard let familyId = state.familyId, !loading else { return }
+        guard let familyId = state.familyId else { return }
+        if loading { if force { reloadWanted = true }; return }   // kører allerede: hent igen bagefter
         if !force, loadedFamily == familyId { return }
         loading = true
         defer { loading = false }
         let cacheKey = "comments_\(familyId)"
         if byTarget.isEmpty, let cached = ScreenCache.load([Comment].self, key: cacheKey) { apply(cached) }
-        guard let fresh = try? await state.store.comments(familyId: familyId) else { return }
-        apply(fresh)
-        loadedFamily = familyId
-        ScreenCache.save(fresh, key: cacheKey)
+        if let fresh = try? await state.store.comments(familyId: familyId) {
+            apply(fresh)
+            loadedFamily = familyId
+            ScreenCache.save(fresh, key: cacheKey)
+        }
+        if reloadWanted {
+            reloadWanted = false
+            loading = false
+            await load(state: state, force: true)
+        }
     }
 
     private func apply(_ list: [Comment]) {
@@ -36,29 +46,37 @@ final class CommentsModel: ObservableObject {
     /// Slår en reaktion til eller fra for den, der er logget ind.
     func toggleReaction(_ emoji: String, on targetId: String, state: AppState) async {
         guard let familyId = state.familyId, let user = state.user else { return }
+        // Vises med det samme; går gemningen galt, rulles det tilbage, og fejlen vises i arket.
+        lastError = nil
         if let mine = comments(for: targetId).first(where: { $0.isReaction && $0.emoji == emoji && $0.authorId == user.id }) {
             byTarget[targetId]?.removeAll { $0.id == mine.id }
-            try? await state.store.deleteComment(familyId: familyId, id: mine.id)
+            do { try await state.store.deleteComment(familyId: familyId, id: mine.id) }
+            catch { byTarget[targetId, default: []].append(mine); lastError = SaveError.message(for: error) }
         } else {
             let c = Comment(id: newId("re"), targetId: targetId, emoji: emoji, authorId: user.id, authorName: user.name)
             byTarget[targetId, default: []].append(c)
             Haptics.light()
-            try? await state.store.addComment(familyId: familyId, c)
+            do { try await state.store.addComment(familyId: familyId, c) }
+            catch { byTarget[targetId]?.removeAll { $0.id == c.id }; lastError = SaveError.message(for: error) }
         }
     }
 
     func add(text: String, on targetId: String, state: AppState) async {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty, let familyId = state.familyId, let user = state.user else { return }
+        lastError = nil
         let c = Comment(id: newId("co"), targetId: targetId, text: trimmed, authorId: user.id, authorName: user.name)
         byTarget[targetId, default: []].append(c)
-        try? await state.store.addComment(familyId: familyId, c)
+        do { try await state.store.addComment(familyId: familyId, c) }
+        catch { byTarget[targetId]?.removeAll { $0.id == c.id }; lastError = SaveError.message(for: error) }
     }
 
     func delete(_ comment: Comment, state: AppState) async {
         guard let familyId = state.familyId else { return }
+        lastError = nil
         byTarget[comment.targetId]?.removeAll { $0.id == comment.id }
-        try? await state.store.deleteComment(familyId: familyId, id: comment.id)
+        do { try await state.store.deleteComment(familyId: familyId, id: comment.id) }
+        catch { byTarget[comment.targetId, default: []].append(comment); lastError = SaveError.message(for: error) }
     }
 }
 
@@ -166,6 +184,9 @@ struct CommentsSheet: View {
                     if !state.canEdit {
                         Text("Med \"Kun visning\" kan man ikke reagere eller kommentere. Bed ejeren om adgangen \"Kan redigere\".")
                             .font(.caption).foregroundStyle(Theme.muted)
+                    }
+                    if let err = comments.lastError {
+                        Text("Kunne ikke gemme: \(err)").font(.caption).foregroundStyle(Theme.rose)
                     }
                 }
                 .padding(16)

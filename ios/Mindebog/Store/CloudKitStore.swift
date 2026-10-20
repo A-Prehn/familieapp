@@ -47,21 +47,35 @@ actor CloudKitStore: Store {
     // MARK: - Familie
 
     func families(for userId: String) async throws -> [Family] {
-        var result: [Family] = []
-        for db in [privateDB, sharedDB] {
-            let zones = try await db.allRecordZones()
+        // Begge databaser og alle zoner på én gang; familie-posten hentes direkte på sit id ("family"),
+        // ikke med en søgning — det er hurtigere og uafhængigt af søgeindekset.
+        async let privateZones = privateDB.allRecordZones()
+        async let sharedZones = sharedDB.allRecordZones()
+        let zoneSets: [(CKDatabase, [CKRecordZone])] = [(privateDB, try await privateZones), (sharedDB, (try? await sharedZones) ?? [])]
+        var familyZones: [(CKDatabase, CKRecordZone.ID)] = []
+        for (db, zones) in zoneSets {
             // Barnezoner (børn delt med fx den anden forælder) huskes også, så locate() finder dem.
             for zone in zones where zone.zoneID.zoneName.hasPrefix(Self.childZonePrefix) { remember(zone.zoneID, in: db) }
-            for zone in zones where zone.zoneID.zoneName.hasPrefix("family_") {
-                let query = CKQuery(recordType: "Family", predicate: NSPredicate(value: true))
-                let (matches, _) = try await db.records(matching: query, inZoneWith: zone.zoneID, resultsLimit: 1)
-                if let record = matches.compactMap({ try? $0.1.get() }).first {
-                    remember(zone.zoneID, in: db)
-                    result.append(Self.family(from: record, zoneName: zone.zoneID.zoneName))
+            for zone in zones where zone.zoneID.zoneName.hasPrefix("family_") { familyZones.append((db, zone.zoneID)) }
+        }
+        let records: [(CKRecordZone.ID, CKRecord)?] = await withTaskGroup(of: (CKRecordZone.ID, CKRecord)?.self) { group in
+            for (db, zoneID) in familyZones {
+                group.addTask {
+                    guard let r = try? await db.record(for: CKRecord.ID(recordName: "family", zoneID: zoneID)) else { return nil }
+                    return (zoneID, r)
                 }
             }
+            var out: [(CKRecordZone.ID, CKRecord)?] = []
+            for await r in group { out.append(r) }
+            return out
         }
-        return result
+        var result: [Family] = []
+        for case let (zoneID, record)? in records {
+            let db = familyZones.first { $0.1 == zoneID }?.0 ?? privateDB
+            remember(zoneID, in: db)
+            result.append(Self.family(from: record, zoneName: zoneID.zoneName))
+        }
+        return result.sorted { $0.id < $1.id }
     }
 
     func createFamily(userId: String, name: String) async throws -> Family {
@@ -293,7 +307,10 @@ actor CloudKitStore: Store {
         if (try? await locate(zoneName)) != nil { return }
         guard let shareURL, let url = URL(string: shareURL) else { return }
         guard let metadata = try? await container.shareMetadata(for: url) else { return }
-        if metadata.participantStatus != .accepted { _ = try? await container.accept(metadata) }
+        if metadata.participantStatus != .accepted {
+            // Husk kun zonen, når accepten lykkedes — ellers ville locate() pege på en zone, vi ikke kan læse.
+            guard (try? await container.accept(metadata)) != nil else { return }
+        }
         remember(metadata.share.recordID.zoneID, in: sharedDB)
     }
 
@@ -328,11 +345,11 @@ actor CloudKitStore: Store {
 
         // 2) Alle barnets records, i bidder af 20 (billeder/video følger med som CKAsset).
         let ref = childRef(childId, familyZone)
-        var expected: [String: Int] = [:]
+        var copiedIds: [String: [CKRecord.ID]] = [:]
         for type in Self.childRecordTypes {
             let records = try await all(db: db, zoneID: familyZone, type: type,
                                         predicate: NSPredicate(format: "childRef == %@", ref))
-            expected[type] = records.count
+            copiedIds[type] = records.map { CKRecord.ID(recordName: $0.recordID.recordName, zoneID: zoneID) }
             var batch: [CKRecord] = []
             for r in records {
                 let copy = CKRecord(recordType: type, recordID: CKRecord.ID(recordName: r.recordID.recordName, zoneID: zoneID))
@@ -349,12 +366,19 @@ actor CloudKitStore: Store {
             if !batch.isEmpty { try await saveBatch(batch, in: privateDB) }
         }
 
-        // 3) Bekræft: lige så mange i den nye zone som i den gamle.
-        let newRef = childRef(childId, zoneID)
+        // 3) Bekræft: hver kopieret record kan hentes på sit id i den nye zone. (Ikke med en søgning —
+        //    iClouds søgeindeks halter nogle sekunder efter, og så ville antallet se for lille ud.)
         for type in Self.childRecordTypes {
-            let count = try await all(db: privateDB, zoneID: zoneID, type: type, keys: ["childRef"],
-                                      predicate: NSPredicate(format: "childRef == %@", newRef)).count
-            guard count >= (expected[type] ?? 0) else { throw StoreError.moveIncomplete(type) }
+            let ids = copiedIds[type] ?? []
+            var i = 0
+            while i < ids.count {
+                let chunk = Array(ids[i..<min(i + 50, ids.count)])
+                i += 50
+                let fetched = try await privateDB.records(for: chunk, desiredKeys: ["childRef"])
+                for id in chunk {
+                    guard (try? fetched[id]?.get()) != nil else { throw StoreError.moveIncomplete(type) }
+                }
+            }
         }
 
         // 4) Markér barnet som flyttet — herfra læser alle fra den nye zone.
@@ -1796,12 +1820,20 @@ actor CloudKitStore: Store {
         let map = UserDefaults.standard.dictionary(forKey: Self.childZoneKey) as? [String: String] ?? [:]
         if let zoneName = map[childId], let found = try? await locate(zoneName) { return found }
         if zoneCache.isEmpty { _ = try await families(for: "") }
-        for (_, entry) in zoneCache {
+        // Et barn i egen zone findes også som "skilt" i familiezonen — barnets egen zone vinder altid.
+        if let own = try? await locate(Self.childZonePrefix + childId) {
+            rememberChild(childId, zoneName: own.1.zoneName)
+            return own
+        }
+        for (_, entry) in zoneCache where entry.zone.zoneName.hasPrefix("family_") {
             let id = CKRecord.ID(recordName: childId, zoneID: entry.zone)
-            if (try? await entry.db.record(for: id)) != nil {
-                rememberChild(childId, zoneName: entry.zone.zoneName)
-                return (entry.db, entry.zone)
+            guard let record = try? await entry.db.record(for: id) else { continue }
+            if let zoneName = record["ownZone"] as? String, !zoneName.isEmpty, let own = try? await locate(zoneName) {
+                rememberChild(childId, zoneName: zoneName)
+                return own
             }
+            rememberChild(childId, zoneName: entry.zone.zoneName)
+            return (entry.db, entry.zone)
         }
         throw StoreError.notFound
     }

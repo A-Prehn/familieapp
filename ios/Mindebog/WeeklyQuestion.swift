@@ -19,7 +19,8 @@ enum WeeklyQuestion {
     /// spørgsmål, så listen i Notifikationscenter ikke skifter, hver gang den planlægges igen.
     static func question(for child: Child, week: Int) -> String {
         let list = questions(for: child)
-        let seed = abs(child.id.hashValue) % max(list.count, 1)
+        // Stabil "hash" (Swifts hashValue skifter ved hver appstart).
+        let seed = child.id.unicodeScalars.reduce(0) { ($0 + Int($1.value)) % 1_000_003 } % max(list.count, 1)
         return list[(seed + week) % list.count].replacingOccurrences(of: "{navn}", with: child.name)
     }
 

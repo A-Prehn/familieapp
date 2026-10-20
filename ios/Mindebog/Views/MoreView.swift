@@ -108,6 +108,7 @@ struct MoreView: View {
                     ForEach(allFamilies) { f in
                         Button {
                             state.switchFamily(f.id)
+                            family = nil; members = []; allFamilies = []   // så den nye families data vises, ikke den gamles
                             Task { await load() }
                         } label: {
                             HStack {
@@ -131,9 +132,15 @@ struct MoreView: View {
             // En familie mere (fx søskendes eller en demofamilie). Mere end én egen familie kræver Premium.
             Section {
                 Button {
-                    let ownCount = allFamilies.filter { $0.ownerId == state.user?.id }.count
-                    if !state.isPremium && ownCount >= 1 { paywall = .family; return }
-                    newFamilyName = ""; showNewFamily = true
+                    Task {
+                        // Familierne hentes, hvis listen ikke er indlæst endnu — ellers kunne man snige sig forbi Premium.
+                        var own = allFamilies.filter { $0.ownerId == state.user?.id }
+                        if allFamilies.isEmpty, let fetched = try? await state.store.families(for: state.user?.id ?? "") {
+                            own = fetched.filter { $0.ownerId == state.user?.id }
+                        }
+                        if !state.isPremium && !own.isEmpty { paywall = .family; return }
+                        newFamilyName = ""; showNewFamily = true
+                    }
                 } label: {
                     Label("Opret ny familie", systemImage: "plus.circle")
                 }
@@ -437,20 +444,44 @@ struct MoreView: View {
             displayName = current == "Forælder" ? "" : current
         }
         guard let familyId = state.familyId else { return }
-        let fetched = (try? await state.store.families(for: state.user?.id ?? "")) ?? []
-        family = fetched.first { $0.id == familyId }
-        // Alle familier vises — også tomme egne (fx en testfamilie), så de kan vælges og slettes.
-        allFamilies = fetched.sorted { a, b in
-            if (a.id == familyId) != (b.id == familyId) { return a.id == familyId }
-            return a.name.localizedCompare(b.name) == .orderedAscending
+        // Vis det sidst viste med det samme; alt hentes så samtidig i baggrunden.
+        let cacheKey = "more_\(familyId)"
+        if family == nil, let cached = ScreenCache.load(MoreCache.self, key: cacheKey) {
+            family = cached.family; allFamilies = cached.families; members = cached.members
+            myBirthday = cached.myBirthday; invite = cached.invite; shareIsPublic = cached.shareIsPublic
+            if let b = cached.myBirthday { birthdayDraft = b.date }
         }
-        members = (try? await state.store.members(familyId: familyId)) ?? []
-        if let id = UserDefaults.standard.string(forKey: myBirthdayKey(familyId)),
-           let found = (try? await state.store.birthdays(familyId: familyId))?.first(where: { $0.id == id }) {
+        let store = state.store
+        let userId = state.user?.id ?? ""
+        let birthdayId = UserDefaults.standard.string(forKey: myBirthdayKey(familyId))
+        async let familiesTask = store.families(for: userId)
+        async let membersTask = store.members(familyId: familyId)
+        async let birthdaysTask: [CustomBirthday]? = birthdayId == nil ? nil : (try? await store.birthdays(familyId: familyId))
+        async let shareTask: (Bool, String?)? = {
+            guard let cloud = store as? CloudKitStore, let (share, _) = try? await cloud.shareForSharing(familyId: familyId) else { return nil }
+            return (share.publicPermission != .none, share.url?.absoluteString)
+        }()
+        if let fetched = try? await familiesTask {
+            family = fetched.first { $0.id == familyId }
+            // Alle familier vises — også tomme egne (fx en testfamilie), så de kan vælges og slettes.
+            allFamilies = fetched.sorted { a, b in
+                if (a.id == familyId) != (b.id == familyId) { return a.id == familyId }
+                return a.name.localizedCompare(b.name) == .orderedAscending
+            }
+        }
+        if let m = try? await membersTask { members = m }
+        if let id = birthdayId, let found = (await birthdaysTask)?.first(where: { $0.id == id }) {
             myBirthday = found
             birthdayDraft = found.date
         }
-        await refreshShare()
+        if let (isPublic, url) = await shareTask { shareIsPublic = isPublic; invite = url }
+        ScreenCache.save(MoreCache(family: family, families: allFamilies, members: members, myBirthday: myBirthday,
+                                   invite: invite, shareIsPublic: shareIsPublic), key: cacheKey)
+    }
+
+    private struct MoreCache: Codable {
+        var family: Family?; var families: [Family]; var members: [AppUser]; var myBirthday: CustomBirthday?
+        var invite: String?; var shareIsPublic: Bool
     }
 
     private func myBirthdayKey(_ familyId: String) -> String { "mindebog.myBirthday.\(familyId)" }
@@ -548,7 +579,7 @@ struct MoreView: View {
 
     private func rescheduleReminders() async {
         let kids = (try? await state.store.children(familyId: state.familyId ?? "")) ?? []
-        await Reminders.schedule(children: kids)
+        await Reminders.schedule(children: kids, force: true)
     }
 
     private func setReminders(_ on: Bool) async {

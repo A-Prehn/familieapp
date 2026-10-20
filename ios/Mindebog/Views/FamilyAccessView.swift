@@ -157,10 +157,7 @@ struct FamilyAccessView: View {
     private func icon(_ a: FamilyParticipant.Access) -> String {
         switch a { case .owner: "crown"; case .editor: "pencil"; case .viewer: "eye" }
     }
-    private func initials(_ name: String) -> String {
-        let letters = name.split(separator: " ").prefix(2).compactMap(\.first).map(String.init).joined()
-        return letters.isEmpty ? "?" : letters.uppercased()
-    }
+    private func initials(_ name: String) -> String { AboutPicker.initials(name) }
 
     // MARK: Handlinger
 

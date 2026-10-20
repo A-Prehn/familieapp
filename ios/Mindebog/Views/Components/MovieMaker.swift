@@ -37,12 +37,16 @@ enum MovieMaker {
         guard writer.startWriting() else { throw writer.error ?? CocoaError(.fileWriteUnknown) }
         writer.startSession(atSourceTime: .zero)
 
-        // Alle "kort" tegnes færdigt først (titel + hvert billede), så overgangene kun blander to billeder.
-        var cards: [CGImage] = [renderTitle(title, subtitle: subtitle)]
-        for f in frames {
-            if let img = UIImage(data: f.photo) { cards.append(renderPhoto(img, caption: f.caption, subtitle: f.subtitle)) }
+        // Kortene tegnes først, når de skal bruges (kun det aktuelle og det næste er i hukommelsen ad gangen) —
+        // 50 færdigtegnede kort ville fylde flere hundrede MB.
+        let photoFrames = frames.filter { UIImage(data: $0.photo) != nil }
+        let cardCount = photoFrames.count + 2
+        func renderCard(_ i: Int) -> CGImage {
+            if i == 0 { return renderTitle(title, subtitle: subtitle) }
+            if i == cardCount - 1 { return renderTitle("Vores familie", subtitle: "") }
+            let f = photoFrames[i - 1]
+            return renderPhoto(UIImage(data: f.photo)!, caption: f.caption, subtitle: f.subtitle)
         }
-        cards.append(renderTitle("Vores familie", subtitle: ""))
 
         var frameIndex: Int64 = 0
         func append(_ image: CGImage, blendingTo next: CGImage?, progress: Double) async throws {
@@ -71,10 +75,13 @@ enum MovieMaker {
 
         let hold = Int(holdSeconds * Double(fps))
         let fade = Int(fadeSeconds * Double(fps))
-        for (i, card) in cards.enumerated() {
+        var card = renderCard(0)
+        for i in 0..<cardCount {
             for _ in 0..<hold { try await append(card, blendingTo: nil, progress: 0) }
-            if i + 1 < cards.count {
-                for f in 0..<fade { try await append(card, blendingTo: cards[i + 1], progress: Double(f + 1) / Double(fade)) }
+            if i + 1 < cardCount {
+                let next = renderCard(i + 1)
+                for f in 0..<fade { try await append(card, blendingTo: next, progress: Double(f + 1) / Double(fade)) }
+                card = next
             }
         }
         input.markAsFinished()

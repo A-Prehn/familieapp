@@ -120,7 +120,7 @@ enum Reminders {
         let granted = (try? await UNUserNotificationCenter.current()
             .requestAuthorization(options: [.alert, .sound, .badge])) ?? false
         UserDefaults.standard.set(granted, forKey: enabledKey)
-        if granted { await schedule(children: children) }
+        if granted { await schedule(children: children, force: true) }
         return granted
     }
 
@@ -130,8 +130,19 @@ enum Reminders {
     }
 
     /// Erstatter alle planlagte påmindelser med nye ud fra børnene.
-    static func schedule(children: [Child]) async {
+    /// Hvad der sidst blev planlagt (børn + indstillinger) og hvornår — så Hjem og Børn ikke
+    /// sletter og genopretter alle påmindelser ved hver visning (og ikke kan overhale hinanden).
+    private static var lastSignature = ""
+    private static var lastRun = Date.distantPast
+
+    static func schedule(children: [Child], force: Bool = false) async {
         guard isEnabled else { return }
+        let signature = children.map { "\($0.id)|\($0.name)|\($0.birthDate?.timeIntervalSince1970 ?? 0)|\($0.dueDate?.timeIntervalSince1970 ?? 0)" }
+            .sorted().joined(separator: ";")
+            + "|\(bellyEnabled)|\(bellyInterval.rawValue)|\(bellyWeekday)|\(bellyMinutes)|\(interviewEnabled)|\(WeeklyQuestion.isEnabled)"
+        if !force, signature == lastSignature, Date().timeIntervalSince(lastRun) < 3600 { return }
+        lastSignature = signature
+        lastRun = Date()
         await removeAll()
         let center = UNUserNotificationCenter.current()
         // iOS tillader højst 64 planlagte notifikationer pr. app — fordel dem,
