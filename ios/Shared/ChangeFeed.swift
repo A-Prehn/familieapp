@@ -37,7 +37,7 @@ enum ChangeFeed {
             op.changeTokenUpdatedBlock = { setDatabaseToken($0, scope) }
             op.fetchDatabaseChangesResultBlock = { result in
                 if case .success(let (token, _)) = result { setDatabaseToken(token, scope) }
-                continuation.resume(returning: zones.filter { $0.zoneName.hasPrefix("family_") })
+                continuation.resume(returning: zones.filter { $0.zoneName.hasPrefix("family_") || $0.zoneName.hasPrefix("child_") })
             }
             db.add(op)
         }

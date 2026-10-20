@@ -142,6 +142,13 @@ struct FamilyView: View {
         .refreshable { await load() }
         .task { await load() }
         .reloadOnStoreChange { await load() }
+        // Fra en notifikation: vis det rigtige faneblad (også hvis skærmen først oprettes nu).
+        .onReceive(NotificationCenter.default.publisher(for: .openFamilyTab)) { note in
+            if let raw = note.object as? String, let t = Tab(rawValue: raw) { tab = t; FamilyTabLink.pending = nil }
+        }
+        .onAppear {
+            if let raw = FamilyTabLink.pending, let t = Tab(rawValue: raw) { tab = t; FamilyTabLink.pending = nil }
+        }
     }
 
     // MARK: Begivenheder

@@ -78,7 +78,12 @@ enum NotificationManager {
 final class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate {
     func userNotificationCenter(_ center: UNUserNotificationCenter,
                                 willPresent notification: UNNotification) async -> UNNotificationPresentationOptions {
-        Reminders.isReminder(notification.request.identifier) ? [.banner, .sound] : []
+        // Påmindelser vises (og gemmes til klokken på Hjem); nyt fra familien gemmes af udvidelsen.
+        if Reminders.isReminder(notification.request.identifier) {
+            NotificationInbox.record(notification.request, date: notification.date)
+            return [.banner, .sound]
+        }
+        return []
     }
 
     /// Tryk på en interview-påmindelse: åbn interviewet for barnet med den rigtige alder.
@@ -97,6 +102,16 @@ final class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate {
                 DeepLink.pendingPrompt = DeepLink.Prompt(childId: childId, text: text)
                 NotificationCenter.default.post(name: .openDiaryPrompt, object: nil)
             }
+        } else if !Reminders.isReminder(response.notification.request.identifier),
+                  let newest = NotificationLog.load().first {
+            // Nyt fra familien: udvidelsen har gemt, hvad det handler om — åbn det.
+            await MainActor.run {
+                DeepLink.pendingEntry = newest
+                NotificationCenter.default.post(name: .openNotificationTarget, object: newest)
+            }
+        }
+        if Reminders.isReminder(response.notification.request.identifier) {
+            NotificationInbox.record(response.notification.request, date: response.notification.date)
         }
     }
 }
@@ -112,4 +127,6 @@ enum DeepLink {
     static var pendingInterview: Interview?
     struct Prompt: Equatable { let childId: String; let text: String }
     static var pendingPrompt: Prompt?
+    /// Tryk på en notifikation om nyt i familien, før hovedskærmen lytter.
+    static var pendingEntry: NotificationLogEntry?
 }

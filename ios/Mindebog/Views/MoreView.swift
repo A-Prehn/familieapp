@@ -6,6 +6,70 @@ struct MoreView: View {
     @State private var allFamilies: [Family] = []
     @State private var showNewFamily = false
     @State private var newFamilyName = ""
+    @State private var showDeleteFamily = false
+    @State private var deleteConfirmName = ""
+    @State private var deleting = false
+    @State private var deleteError: String?
+
+    private var isFamilyOwner: Bool { family != nil && family?.ownerId == state.user?.id }
+
+    /// Sletning af familien: man skal skrive familiens navn præcist, så man ikke sletter den forkerte.
+    private var deleteFamilySheet: some View {
+        let name = family?.name ?? ""
+        let matches = !name.isEmpty && deleteConfirmName.trimmingCharacters(in: .whitespaces) == name
+        return NavigationStack {
+            Form {
+                Group {
+                Section {
+                    Label("Det kan ikke fortrydes", systemImage: "exclamationmark.triangle.fill")
+                        .foregroundStyle(Theme.rose).font(.headline)
+                    Text("Hele familien \"\(name)\" slettes for altid: alle børn, billeder, video, dagbøger, minder, opskrifter og kommentarer. Den forsvinder også for alle, den er delt med\(members.count > 1 ? " (\(members.count - 1) andre)" : "").")
+                        .font(.subheadline)
+                    Text("Tag evt. en eksport først under Mere → Eksportér.")
+                        .font(.footnote).foregroundStyle(Theme.muted)
+                }
+                Section {
+                    TextField(name, text: $deleteConfirmName)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
+                } header: {
+                    Text("Skriv familiens navn for at bekræfte")
+                }
+                if let deleteError {
+                    Section { Text(deleteError).font(.footnote).foregroundStyle(Theme.rose) }
+                }
+                Section {
+                    Button(role: .destructive) {
+                        Task {
+                            deleting = true
+                            defer { deleting = false }
+                            do {
+                                try await state.deleteFamily(state.familyId ?? "")
+                                Haptics.success()
+                                showDeleteFamily = false
+                                await load()
+                            } catch {
+                                deleteError = SaveError.message(for: error)
+                            }
+                        }
+                    } label: {
+                        HStack {
+                            Spacer()
+                            if deleting { ProgressView() } else { Text("Slet familien for altid").bold() }
+                            Spacer()
+                        }
+                    }
+                    .disabled(!matches || deleting)
+                }
+                }.listRowBackground(Theme.card)
+            }
+            .themedList()
+            .navigationTitle("Slet familie")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Annullér") { showDeleteFamily = false } } }
+            .interactiveDismissDisabled(deleting)
+        }
+    }
     @State private var members: [AppUser] = []
     @State private var invite: String?
     @State private var busy = false
@@ -64,14 +128,24 @@ struct MoreView: View {
                 }
             }
 
-            // En familie mere — fx en demofamilie til skærmbilleder. Den nye er tom og ikke delt med nogen.
+            // En familie mere (fx søskendes eller en demofamilie). Mere end én egen familie kræver Premium.
             Section {
-                Button { newFamilyName = ""; showNewFamily = true } label: {
+                Button {
+                    let ownCount = allFamilies.filter { $0.ownerId == state.user?.id }.count
+                    if !state.isPremium && ownCount >= 1 { paywall = .family; return }
+                    newFamilyName = ""; showNewFamily = true
+                } label: {
                     Label("Opret ny familie", systemImage: "plus.circle")
                 }
+                if isFamilyOwner {
+                    Button(role: .destructive) { deleteConfirmName = ""; showDeleteFamily = true } label: {
+                        Label("Slet \(family?.name ?? "familien")", systemImage: "trash")
+                    }
+                }
             } footer: {
-                Text("Fx en demofamilie. Den er helt adskilt fra jeres familie og ses kun af dig. Skift mellem familierne ovenfor.")
+                Text("Hver familie er helt adskilt og har sine egne børn, minder og deling. Mere end én egen familie kræver Premium. Kun den, der har oprettet en familie, kan slette den.")
             }
+            .sheet(isPresented: $showDeleteFamily) { deleteFamilySheet }
             .alert("Ny familie", isPresented: $showNewFamily) {
                 TextField("Navn (fx Demo)", text: $newFamilyName)
                 Button("Annullér", role: .cancel) {}

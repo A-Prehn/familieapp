@@ -79,6 +79,32 @@ actor CloudKitStore: Store {
         return Self.family(from: saved, zoneName: zoneName)
     }
 
+    /// Sletter familiens zone (og zonerne for børn, der er flyttet til deres egen) i ejerens iCloud.
+    /// iCloud fjerner så også delingen for alle, den var delt med.
+    func deleteFamily(familyId: String) async throws {
+        let (db, zoneID) = try await locate(familyId)
+        guard db === privateDB else { throw StoreError.notOwner }
+        let childZones = ((try? await all(db: db, zoneID: zoneID, type: "Child", keys: ["ownZone"])) ?? [])
+            .compactMap { $0["ownZone"] as? String }.filter { !$0.isEmpty }
+        for name in childZones {
+            let id = CKRecordZone.ID(zoneName: name, ownerName: CKCurrentUserDefaultName)
+            _ = try? await privateDB.deleteRecordZone(withID: id)
+            forgetZone(name)
+        }
+        _ = try await privateDB.deleteRecordZone(withID: zoneID)
+        forgetZone(familyId)
+    }
+
+    private func forgetZone(_ zoneName: String) {
+        zoneCache[zoneName] = nil
+        var index = UserDefaults.standard.dictionary(forKey: Self.zoneIndexKey) as? [String: String] ?? [:]
+        index[zoneName] = nil
+        UserDefaults.standard.set(index, forKey: Self.zoneIndexKey)
+        var map = UserDefaults.standard.dictionary(forKey: Self.childZoneKey) as? [String: String] ?? [:]
+        map = map.filter { $0.value != zoneName }
+        UserDefaults.standard.set(map, forKey: Self.childZoneKey)
+    }
+
     func members(familyId: String) async throws -> [AppUser] {
         let (db, zoneID) = try await locate(familyId)
         var members: [AppUser] = []

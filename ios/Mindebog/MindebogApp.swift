@@ -166,6 +166,16 @@ final class AppState: ObservableObject {
         } catch { errorMessage = error.localizedDescription }
     }
 
+    /// Sletter familien (kun ejeren) og skifter til en anden familie — eller til opstart, hvis der ikke er flere.
+    func deleteFamily(_ id: String) async throws {
+        guard let user else { return }
+        try await store.deleteFamily(familyId: id)
+        ScreenCache.clear()
+        let rest = ((try? await store.families(for: user.id)) ?? []).filter { $0.id != id }
+        setFamily(rest.first?.id)
+        NotificationCenter.default.post(name: .storeDidChange, object: nil)
+    }
+
     func acceptInvite(code: String) async {
         guard let user else { return }
         do {

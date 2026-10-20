@@ -26,8 +26,18 @@ final class NotificationService: UNNotificationServiceExtension {
             let records = await ChangeFeed.changes(scope: note.databaseScope)
             let result = Self.describe(records)
             switch result {
-            case .text(let body):
+            case .text(let body, let newest):
                 content.body = body
+                // Gem den i loggen til klokken på Hjem, så man kan finde den igen og trykke ind på den.
+                NotificationLog.append(NotificationLogEntry(
+                    id: newest.recordID.recordName + "_" + String(Int((newest.modificationDate ?? Date()).timeIntervalSince1970)),
+                    date: newest.modificationDate ?? Date(),
+                    title: content.title,
+                    body: body,
+                    kind: newest.recordType,
+                    recordId: newest.recordID.recordName,
+                    childId: (newest["childRef"] as? CKRecord.Reference)?.recordID.recordName,
+                    info: ["galleryKind": newest["kind"] as? String ?? ""]))
                 contentHandler(content)
             case .onlyOwnChanges:
                 contentHandler(UNNotificationContent())   // tom = vises ikke
@@ -43,7 +53,7 @@ final class NotificationService: UNNotificationServiceExtension {
 
     // MARK: Tekst
 
-    enum Description { case text(String), onlyOwnChanges, unknown }
+    enum Description { case text(String, CKRecord), onlyOwnChanges, unknown }
 
     private static func describe(_ records: [CKRecord]) -> Description {
         // Kun indhold — ikke delings-/navne-/familie-records.
@@ -63,7 +73,7 @@ final class NotificationService: UNNotificationServiceExtension {
             text += " for \(child)"
         }
         if others.count > 1 { text += " (og \(others.count - 1) mere)" }
-        return .text(text)
+        return .text(text, newest)
     }
 
     private static func author(_ record: CKRecord) -> String? {

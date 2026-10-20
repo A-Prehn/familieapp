@@ -3,7 +3,7 @@ import StoreKit
 
 /// Hvorfor paywallen vises — bruges til overskriften, så den passer til det, man prøvede.
 enum PaywallReason: String, Identifiable {
-    case general, child, sharing, video, book, movie
+    case general, child, sharing, video, book, movie, family
     var id: String { rawValue }
     var headline: String {
         switch self {
@@ -13,6 +13,7 @@ enum PaywallReason: String, Identifiable {
         case .video: return "Gem videoerne"
         case .book: return "Lav mindebogen"
         case .movie: return "Lav filmen"
+        case .family: return "Flere familier"
         }
     }
     var detail: String {
@@ -23,6 +24,7 @@ enum PaywallReason: String, Identifiable {
         case .video: return "Gem videoer på højdepunkter, i videobreve og i det årlige interview."
         case .book: return "Lav en flot PDF-mindebog med alt indholdet — klar til at printe."
         case .movie: return "Lav en film af billedserien med bløde overgange — klar til at dele med familien."
+        case .family: return "Med Premium kan du oprette flere familier — fx en til hver gren af familien — og skifte mellem dem."
         }
     }
 }
@@ -43,6 +45,7 @@ struct PaywallView: View {
         ("video", "Video på højdepunkter, videobreve og interview"),
         ("book.closed", "PDF-mindebog, klar til at printe"),
         ("film", "Film af billedserierne — måned for måned og maven"),
+        ("rectangle.stack.badge.plus", "Flere familier — og skift mellem dem"),
     ]
 
     var body: some View {

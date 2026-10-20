@@ -28,6 +28,63 @@ struct MainTabView: View {
     @State private var selection: MainTab = .home
     @State private var interview: InterviewTarget?
     @State private var prompt: PromptTarget?
+    @State private var content: ContentTarget?
+
+    /// Det, en notifikation om et barn handler om: barnet og hvilken skærm.
+    struct ContentTarget: Identifiable {
+        let child: Child
+        let kind: String
+        let galleryKind: String
+        var id: String { child.id + kind + galleryKind }
+    }
+
+    @ViewBuilder
+    private func contentView(_ t: ContentTarget) -> some View {
+        switch t.kind {
+        case "Highlight": HighlightsView(child: t.child)
+        case "Diary": DiaryView(child: t.child)
+        case "Milestone": MilestonesView(child: t.child)
+        case "Interview": InterviewView(child: t.child)
+        case "Letter": LettersView(child: t.child)
+        case "Answer": AboutMeView(child: t.child)
+        case "Measurement": GrowthView(child: t.child)
+        case "GalleryItem":
+            if t.galleryKind == GalleryKind.birthday.rawValue { BirthdayPhotosView(child: t.child) }
+            else { GalleryView(child: t.child, kind: GalleryKind(rawValue: t.galleryKind) ?? .monthly) }
+        default: ChildDetailView(child: t.child)
+        }
+    }
+
+    /// Navigér til det, notifikationen handler om.
+    private func open(_ e: NotificationLogEntry) async {
+        // Påmindelser: interview og ugens spørgsmål har deres egne skærme.
+        if let childId = e.info["interviewChild"], let age = Int(e.info["interviewAge"] ?? "") {
+            DeepLink.pendingInterview = DeepLink.Interview(childId: childId, age: age)
+            await openPendingInterview(); return
+        }
+        if let childId = e.info["promptChild"], let text = e.info["promptText"] {
+            DeepLink.pendingPrompt = DeepLink.Prompt(childId: childId, text: text)
+            await openPendingPrompt(); return
+        }
+        // Fælles indhold: skift til Familie og det rigtige faneblad.
+        let familyTabs: [String: FamilyView.Tab] = [
+            "Memory": .memories, "Event": .events, "Vacation": .vacations, "Birthday": .birthdays,
+            "Tradition": .traditions, "Recipe": .recipes, "Person": .tree]
+        if let tab = familyTabs[e.kind] {
+            selection = .shared
+            FamilyTabLink.pending = tab.rawValue
+            NotificationCenter.default.post(name: .openFamilyTab, object: tab.rawValue)
+            return
+        }
+        // Et barns indhold (eller en påmindelse om et barn): åbn barnets skærm.
+        let childId = e.childId ?? e.info["child"] ?? (e.kind == "Child" ? e.recordId : nil)
+        guard let childId, let familyId = state.familyId else { selection = .home; return }
+        var kids = (try? await state.store.children(familyId: familyId)) ?? []
+        kids += (try? await state.store.sharedChildren()) ?? []
+        guard let child = kids.first(where: { $0.id == childId }) else { selection = .home; return }
+        content = ContentTarget(child: child, kind: e.kind == "reminder" ? "Child" : e.kind,
+                                galleryKind: e.info["galleryKind"] ?? "")
+    }
     /// iOS tegner fanebjælken første gang med sine egne sorte ikoner. Tælleren tvinger en ny
     /// tegning af fanerne lige efter opstart, så de får appens farver med det samme.
     @State private var tabRedraw = 0
@@ -70,6 +127,21 @@ struct MainTabView: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: .openDiaryPrompt)) { _ in Task { await openPendingPrompt() } }
         .task { await openPendingPrompt() }
+        // Tryk på en notifikation (fra klokken eller fra låseskærmen): åbn det, den handler om.
+        .sheet(item: $content) { target in
+            NavigationStack {
+                contentView(target)
+                    .toolbar {
+                        ToolbarItem(placement: .cancellationAction) { Button("Luk") { content = nil } }
+                    }
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .openNotificationTarget)) { note in
+            if let e = note.object as? NotificationLogEntry { DeepLink.pendingEntry = nil; Task { await open(e) } }
+        }
+        .task {
+            if let e = DeepLink.pendingEntry { DeepLink.pendingEntry = nil; await open(e) }
+        }
         .task {
             // To gentegninger: én så snart første billede er vist, og én lidt senere, hvis glas-tabbaren var sen.
             for ms in [50, 600] {
