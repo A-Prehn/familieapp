@@ -26,6 +26,9 @@ struct HomeView: View {
     @State private var firstStepsHidden = true
     @State private var birthDiary: Child?
     @State private var showInvite = false
+    @State private var importChild: Child?
+    @State private var chooseImportChild = false
+    private var bornChildren: [Child] { children.filter { $0.birthDate != nil } }
 
     var body: some View {
         ScrollView {
@@ -100,6 +103,10 @@ struct HomeView: View {
         // De første skridt: fødselsminde med en overskrift at skrive videre på, og invitation af partneren.
         .sheet(item: $birthDiary, onDismiss: { Task { await load() } }) { child in
             AddDiaryView(childId: child.id, initialText: "Det, jeg husker fra dagen, \(child.name) kom til verden:\n\n")
+        }
+        .sheet(item: $importChild) { FirstYearImportView(child: $0) }
+        .confirmationDialog("Hvilket barn?", isPresented: $chooseImportChild, titleVisibility: .visible) {
+            ForEach(bornChildren) { child in Button(child.name) { importChild = child } }
         }
         .sheet(isPresented: $showInvite, onDismiss: { Task { await load() } }) {
             NavigationStack {
@@ -176,6 +183,12 @@ struct HomeView: View {
             stepCard("book", Theme.neutralDark, "Skriv, hvad du husker fra fødslen",
                      "Det glemmes hurtigere, end man tror. Tre linjer er nok.") {
                 if children.count == 1 { birthDiary = children[0] } else { start(.diary) }
+            }
+            if !bornChildren.isEmpty {
+                stepCard("photo.stack", Theme.green, "Hent billeder fra det første år",
+                         "Vælg op til \(FirstYearImportView.maxPhotos) billeder fra Fotos — de får selv dato og alder.") {
+                    if bornChildren.count == 1 { importChild = bornChildren[0] } else { chooseImportChild = true }
+                }
             }
             if (memberCount ?? 2) < 2, state.usingCloud {
                 stepCard("person.2", Theme.rose, "Inviter den anden forælder",

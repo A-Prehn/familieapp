@@ -11,6 +11,9 @@ struct PhotoSuggestionsView: View {
     /// den dato, man er ved at skrive om — i stedet for bare de nyeste.
     var range: ClosedRange<Date>? = nil
     var allowMultiple = true
+    /// Højst så mange ad gangen (nil = ubegrænset).
+    var maxSelection: Int? = nil
+    var title = "Forslag fra Fotos"
     var onPick: ([Data]) -> Void
 
     @State private var status: PHAuthorizationStatus = PHPhotoLibrary.authorizationStatus(for: .readWrite)
@@ -63,7 +66,7 @@ struct PhotoSuggestionsView: View {
                     }
                 }
             }
-            .navigationTitle("Forslag fra Fotos")
+            .navigationTitle(title)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Annullér") { dismiss() } }
@@ -81,7 +84,7 @@ struct PhotoSuggestionsView: View {
     private func toggle(_ asset: PHAsset) {
         let id = asset.localIdentifier
         if let i = selected.firstIndex(of: id) { selected.remove(at: i) }
-        else if allowMultiple { selected.append(id) }
+        else if allowMultiple { if let maxSelection, selected.count >= maxSelection { return }; selected.append(id) }
         else { selected = [id] }
     }
 
@@ -98,7 +101,8 @@ struct PhotoSuggestionsView: View {
         let until = range?.upperBound ?? Date.distantFuture
         options.predicate = NSPredicate(format: "mediaType == %d AND creationDate >= %@ AND creationDate <= %@",
                                         PHAssetMediaType.image.rawValue, since as NSDate, until as NSDate)
-        options.sortDescriptors = [NSSortDescriptor(key: "creationDate", ascending: false)]
+        // Et fast tidsrum (fx det første år) vises i rækkefølge; ellers de nyeste først.
+        options.sortDescriptors = [NSSortDescriptor(key: "creationDate", ascending: range != nil)]
         options.fetchLimit = 300
         let result = PHAsset.fetchAssets(with: options)
         var list: [PHAsset] = []
