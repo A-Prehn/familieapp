@@ -29,9 +29,9 @@ Bugs tages før features. Når et punkt er lavet, flyttes det til "Lavet" med bu
 ## Udgivelse og firma
 
 - [ ] 1.0 (build 71) genindsendt med EULA-link — venter på App Review. Derefter 1.1 med det nyeste build.
-- [ ] CVR-nummer (Prehn apps, PMV) modtaget 20. okt. 2026 → App Store Connect: Business/skat og DAC7.
+- [ ] CVR 40316191 (Prehn apps, PMV, 20. okt. 2026) → App Store Connect: Business/skat og DAC7.
 - [ ] Aktivér Digital Post for "Prehn apps": virk.dk-login virker, men Digital Post giver HTTP 401 (20. okt.). Prøv igen 21.–22. okt. i Digital Post-appen eller mit.dk; virker det stadig ikke, ring til Digitaliseringsstyrelsens support.
-- [ ] Tilknyt NemKonto til virksomheden (nemkonto.dk eller netbank).
+- [ ] NemKonto: dansk konto skal tilknyttes CVR 40316191 af banken (netbank → NemKonto, eller skriv til banken). nemkonto.dk viser kun status.
 - [ ] Tilmeld Apple Small Business Program (15 % i stedet for 30 %).
 - [ ] Forny PMV-registreringen inden oktober 2029.
 
