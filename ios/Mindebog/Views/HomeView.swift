@@ -20,6 +20,12 @@ struct HomeView: View {
     @State private var refreshing = false   // viser "Henter nyeste", mens listen fra sidst opdateres
     @State private var loadGeneration = 0
     @State private var lastLoad: Date?
+    // "De første skridt": tre konkrete forslag, mens mindebogen stadig er næsten tom.
+    @State private var memoryCount = Int.max      // Int.max indtil første hentning, så kortet ikke blinker
+    @State private var memberCount: Int?
+    @State private var firstStepsHidden = true
+    @State private var birthDiary: Child?
+    @State private var showInvite = false
 
     var body: some View {
         ScrollView {
@@ -38,6 +44,7 @@ struct HomeView: View {
                     emptyState
                 } else {
                     if state.canEdit { quickAddSection.softAppear(index: 3) }
+                    if showFirstSteps { firstSteps.softAppear(index: 4) }
                     if !onThisDay.isEmpty {
                         memorySection("På denne dag", onThisDay) { m in
                             "\(yearsAgo(m.date)) · \(m.childName) · \(m.kind)"
@@ -90,6 +97,16 @@ struct HomeView: View {
             }
         }
         .sheet(isPresented: $showActionsEditor) { HomeActionsEditor() }
+        // De første skridt: fødselsminde med en overskrift at skrive videre på, og invitation af partneren.
+        .sheet(item: $birthDiary, onDismiss: { Task { await load() } }) { child in
+            AddDiaryView(childId: child.id, initialText: "Det, jeg husker fra dagen, \(child.name) kom til verden:\n\n")
+        }
+        .sheet(isPresented: $showInvite, onDismiss: { Task { await load() } }) {
+            NavigationStack {
+                FamilyAccessView(familyName: "")
+                    .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Luk") { showInvite = false } } }
+            }
+        }
         .alert(noChildMessage ?? "", isPresented: Binding(get: { noChildMessage != nil },
                                                            set: { if !$0 { noChildMessage = nil } })) {
             Button("OK", role: .cancel) {}
@@ -139,6 +156,52 @@ struct HomeView: View {
         .frame(maxWidth: .infinity).padding(24)
         .background(Theme.card).clipShape(RoundedRectangle(cornerRadius: 14))
         .overlay(RoundedRectangle(cornerRadius: 14).stroke(Theme.sep))
+    }
+
+    // MARK: De første skridt
+    private var firstStepsKey: String { "mindebog.firstSteps.hidden_\(state.familyId ?? "")" }
+    private var showFirstSteps: Bool { state.canEdit && !firstStepsHidden && memoryCount < 5 }
+
+    private var firstSteps: some View {
+        VStack(spacing: 10) {
+            HStack {
+                SectionLabel("De første skridt")
+                Button {
+                    withAnimation { firstStepsHidden = true }
+                    UserDefaults.standard.set(true, forKey: firstStepsKey)
+                } label: { Text("Skjul").font(.caption.weight(.semibold)) }
+            }
+            stepCard("photo.on.rectangle.angled", Theme.tint, "Tilføj det første billede",
+                     "Et højdepunkt med et billede — fx hjemkomsten eller det første smil.") { start(.highlight) }
+            stepCard("book", Theme.neutralDark, "Skriv, hvad du husker fra fødslen",
+                     "Det glemmes hurtigere, end man tror. Tre linjer er nok.") {
+                if children.count == 1 { birthDiary = children[0] } else { start(.diary) }
+            }
+            if (memberCount ?? 2) < 2, state.usingCloud {
+                stepCard("person.2", Theme.rose, "Inviter den anden forælder",
+                         "Så skriver I minderne sammen — det er gratis.") { showInvite = true }
+            }
+        }
+    }
+
+    private func stepCard(_ symbol: String, _ color: Color, _ title: String, _ text: String,
+                          action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: 12) {
+                Image(systemName: symbol).font(.system(size: 20)).foregroundStyle(color).frame(width: 32)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title).font(.subheadline.weight(.semibold)).foregroundStyle(Theme.text)
+                    Text(text).font(.caption).foregroundStyle(Theme.muted).fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer(minLength: 0)
+                Image(systemName: "chevron.right").font(.caption).foregroundStyle(Theme.muted)
+            }
+            .padding(12)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Theme.card).clipShape(RoundedRectangle(cornerRadius: 14))
+            .overlay(RoundedRectangle(cornerRadius: 14).stroke(Theme.sep))
+        }
+        .buttonStyle(.plain)
     }
 
     private var quickAddSection: some View {
@@ -339,6 +402,11 @@ struct HomeView: View {
             }
         }
         let all = summaries.compactMap(memory)
+        memoryCount = summaries.count
+        firstStepsHidden = UserDefaults.standard.bool(forKey: firstStepsKey)
+        if showFirstSteps, memberCount == nil, let members = try? await store.members(familyId: familyId), isCurrent() {
+            memberCount = members.count
+        }
 
         // Seneste i familien: alt, hvad der er lagt op eller ændret — det nyeste først.
         var newRecent = Array(all.sorted { changed($0) > changed($1) }.prefix(5))
