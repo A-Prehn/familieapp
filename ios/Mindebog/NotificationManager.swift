@@ -75,6 +75,9 @@ enum NotificationManager {
 
 // Vis ikke familie-notifikationer mens appen er åben — så får man heller ikke besked
 // om det man lige selv har lagt op. Månedlige påmindelser vises dog altid.
+// Skal køre på hovedtråden: UIKit tager et snapshot af appen, når et tryk er behandlet (fra
+// låseskærmen), og det må kun ske derfra — ellers afbrydes appen med en assertion.
+@MainActor
 final class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate {
     func userNotificationCenter(_ center: UNUserNotificationCenter,
                                 willPresent notification: UNNotification) async -> UNNotificationPresentationOptions {
@@ -91,26 +94,20 @@ final class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate {
                                 didReceive response: UNNotificationResponse) async {
         let info = response.notification.request.content.userInfo
         if let childId = info["interviewChild"] as? String, let age = info["interviewAge"] as? Int {
-            await MainActor.run {
-                // Gemmes også, hvis appen lige er startet og hovedskærmen ikke lytter endnu.
-                DeepLink.pendingInterview = DeepLink.Interview(childId: childId, age: age)
-                NotificationCenter.default.post(name: .openInterview, object: nil)
-            }
+            // Gemmes også, hvis appen lige er startet og hovedskærmen ikke lytter endnu.
+            DeepLink.pendingInterview = DeepLink.Interview(childId: childId, age: age)
+            NotificationCenter.default.post(name: .openInterview, object: nil)
         } else if let childId = info["promptChild"] as? String, let text = info["promptText"] as? String {
             // Ugens spørgsmål: åbn dagbogen med spørgsmålet som overskrift.
-            await MainActor.run {
-                DeepLink.pendingPrompt = DeepLink.Prompt(childId: childId, text: text)
-                NotificationCenter.default.post(name: .openDiaryPrompt, object: nil)
-            }
+            DeepLink.pendingPrompt = DeepLink.Prompt(childId: childId, text: text)
+            NotificationCenter.default.post(name: .openDiaryPrompt, object: nil)
         } else if !Reminders.isReminder(response.notification.request.identifier) {
             // Nyt fra familien: udvidelsen har gemt, hvad det handler om — åbn netop den.
             let log = NotificationLog.load()
             let entry = (info["logEntryId"] as? String).flatMap { id in log.first { $0.id == id } } ?? log.first
             if let entry {
-                await MainActor.run {
-                    DeepLink.pendingEntry = entry
-                    NotificationCenter.default.post(name: .openNotificationTarget, object: entry)
-                }
+                DeepLink.pendingEntry = entry
+                NotificationCenter.default.post(name: .openNotificationTarget, object: entry)
             }
         }
         if Reminders.isReminder(response.notification.request.identifier) {
