@@ -68,6 +68,11 @@ struct ChildDetailView: View {
                         NavigationLink { BirthdayPhotosView(child: child) } label: {
                             tile("Fødselsdage", "gift", Theme.rose)
                         }
+                        if child.birthDate != nil {
+                            NavigationLink { YearInReviewView(child: child, spec: YearSpec.current(for: child) ?? .calendar(Calendar.current.component(.year, from: Date()))) } label: {
+                                tile("Året der gik", "sparkles.rectangle.stack", Theme.green)
+                            }
+                        }
                     }
                 }
                 .buttonStyle(.plain)

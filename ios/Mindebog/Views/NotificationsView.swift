@@ -27,7 +27,7 @@ enum NotificationInbox {
         }
         // Månedsdags- og mavebilleder har barnets id i id'et: "reminder_<childId>_m3".
         let parts = request.identifier.split(separator: "_")
-        if info["promptChild"] == nil, info["interviewChild"] == nil, parts.count >= 3, parts[0] == "reminder" {
+        if info["child"] == nil, info["promptChild"] == nil, info["interviewChild"] == nil, parts.count >= 3, parts[0] == "reminder" {
             info["child"] = parts.dropFirst().dropLast().joined(separator: "_")
         }
         NotificationLog.append(NotificationLogEntry(

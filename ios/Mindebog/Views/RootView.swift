@@ -51,6 +51,9 @@ struct MainTabView: View {
         case "GalleryItem":
             if t.galleryKind == GalleryKind.birthday.rawValue { BirthdayPhotosView(child: t.child) }
             else { GalleryView(child: t.child, kind: GalleryKind(rawValue: t.galleryKind) ?? .monthly) }
+        case "YearReview":   // galleryKind rummer her hvilket år ("cal:2025" / "age:3")
+            YearInReviewView(child: t.child, spec: YearSpec(raw: t.galleryKind)
+                             ?? YearSpec.current(for: t.child) ?? .calendar(Calendar.current.component(.year, from: Date())))
         default: ChildDetailView(child: t.child)
         }
     }
@@ -82,8 +85,12 @@ struct MainTabView: View {
         var kids = (try? await state.store.children(familyId: familyId)) ?? []
         kids += (try? await state.store.sharedChildren()) ?? []
         guard let child = kids.first(where: { $0.id == childId }) else { selection = .home; return }
-        content = ContentTarget(child: child, kind: e.kind == "reminder" ? "Child" : e.kind,
-                                galleryKind: e.info["galleryKind"] ?? "")
+        if e.kind == "reminder", let year = e.info["yearReview"] {
+            content = ContentTarget(child: child, kind: "YearReview", galleryKind: year)
+        } else {
+            content = ContentTarget(child: child, kind: e.kind == "reminder" ? "Child" : e.kind,
+                                    galleryKind: e.info["galleryKind"] ?? "")
+        }
     }
     /// iOS tegner fanebjælken første gang med sine egne sorte ikoner. Tælleren tvinger en ny
     /// tegning af fanerne lige efter opstart, så de får appens farver med det samme.

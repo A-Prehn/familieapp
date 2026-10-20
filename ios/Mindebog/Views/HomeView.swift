@@ -48,6 +48,7 @@ struct HomeView: View {
                 } else {
                     if state.canEdit { quickAddSection.softAppear(index: 3) }
                     if showFirstSteps { firstSteps.softAppear(index: 4) }
+                    yearCards.softAppear(index: 4)
                     if !onThisDay.isEmpty {
                         memorySection("På denne dag", onThisDay) { m in
                             "\(yearsAgo(m.date)) · \(m.childName) · \(m.kind)"
@@ -163,6 +164,34 @@ struct HomeView: View {
         .frame(maxWidth: .infinity).padding(24)
         .background(Theme.card).clipShape(RoundedRectangle(cornerRadius: 14))
         .overlay(RoundedRectangle(cornerRadius: 14).stroke(Theme.sep))
+    }
+
+    // MARK: Året der gik — i januar og omkring fødselsdagen
+    @ViewBuilder private var yearCards: some View {
+        let ready = children.compactMap { c in YearSpec.current(for: c).map { (child: c, spec: $0) } }
+        if !ready.isEmpty {
+            VStack(spacing: 10) {
+                SectionLabel("Året der gik")
+                ForEach(ready, id: \.child.id) { item in
+                    NavigationLink { YearInReviewView(child: item.child, spec: item.spec) } label: {
+                        HStack(spacing: 12) {
+                            Image(systemName: "sparkles.rectangle.stack").font(.system(size: 20)).foregroundStyle(Theme.green).frame(width: 32)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("\(item.spec.title(for: item.child)) er klar").font(.subheadline.weight(.semibold)).foregroundStyle(Theme.text)
+                                Text("Året i tal, de bedste billeder og en lille film.").font(.caption).foregroundStyle(Theme.muted)
+                            }
+                            Spacer(minLength: 0)
+                            Image(systemName: "chevron.right").font(.caption).foregroundStyle(Theme.muted)
+                        }
+                        .padding(12)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(Theme.card).clipShape(RoundedRectangle(cornerRadius: 14))
+                        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Theme.sep))
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+        }
     }
 
     // MARK: De første skridt

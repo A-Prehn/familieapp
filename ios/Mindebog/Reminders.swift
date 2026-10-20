@@ -115,6 +115,32 @@ enum Reminders {
         return out
     }
 
+    // MARK: Året der gik
+    // 1. januar kl. 10: "Theos år 2025 er klar ✨" — og på fødselsdagen kl. 18 (interviewet kommer kl. 10).
+    private static func yearRequests(for child: Child) -> [UNNotificationRequest] {
+        guard let birth = child.birthDate else { return [] }
+        let cal = Calendar.current
+        let now = Date()
+        var out: [UNNotificationRequest] = []
+        let thisYear = cal.component(.year, from: now)
+        if cal.component(.year, from: birth) <= thisYear,
+           let jan1 = cal.date(from: DateComponents(year: thisYear + 1, month: 1, day: 1, hour: hour)) {
+            out.append(request(id: "\(prefix)year_\(child.id)_\(thisYear)", fire: jan1,
+                               title: "\(child.name)s år \(thisYear) er klar ✨",
+                               body: "Se året i tal, de bedste billeder — og lav en lille film af det.",
+                               userInfo: ["child": child.id, "yearReview": YearSpec.calendar(thisYear).raw]))
+        }
+        let age = (cal.dateComponents([.year], from: birth, to: now).year ?? 0) + 1
+        if age >= 1, let birthday = cal.date(byAdding: .year, value: age, to: birth),
+           let fire = cal.date(bySettingHour: 18, minute: 0, second: 0, of: birthday), fire > now {
+            out.append(request(id: "\(prefix)yb_\(child.id)_\(age)", fire: fire,
+                               title: "\(child.name)s \(age). år — samlet ✨",
+                               body: "Et helt år er gået. Se det i tal og billeder, og del det med familien.",
+                               userInfo: ["child": child.id, "yearReview": YearSpec.age(age).raw]))
+        }
+        return out
+    }
+
     /// Slår til (spørger om tilladelse) og planlægger. Returnerer false hvis brugeren afviste.
     static func enable(children: [Child]) async -> Bool {
         let granted = (try? await UNUserNotificationCenter.current()
@@ -150,7 +176,7 @@ enum Reminders {
         let perChild = max(4, 48 / max(children.count, 1))
         for child in children {
             // Interviewet og ugens spørgsmål først, så de ikke bliver skubbet ud af grænsen på 64.
-            let interview = interviewRequests(for: child) + WeeklyQuestion.requests(for: child, prefix: prefix)
+            let interview = interviewRequests(for: child) + WeeklyQuestion.requests(for: child, prefix: prefix) + yearRequests(for: child)
             for request in interview + requests(for: child, limit: max(1, perChild - interview.count)) {
                 try? await center.add(request)
             }
