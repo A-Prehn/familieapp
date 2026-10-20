@@ -5,8 +5,6 @@ struct ChildrenView: View {
     @EnvironmentObject var state: AppState
     @State private var children: [Child] = []
     @State private var sharedChildren: [Child] = []
-    /// Børn i brugerens andre familier (fx bedsteforældre med børnebørn to steder) — uden at skifte familie.
-    @State private var otherFamilies: [(family: Family, children: [Child])] = []
     @State private var family: Family?
     @State private var showNewChild = false
     @State private var paywall: PaywallReason?
@@ -38,16 +36,6 @@ struct ChildrenView: View {
                     SectionLabel("Delt med dig").padding(.top, 8)
                     LazyVGrid(columns: columns, spacing: 12) {
                         ForEach(Array(sharedChildren.enumerated()), id: \.element.id) { i, child in
-                            NavigationLink(value: child) { ChildCard(child: child) }
-                                .buttonStyle(.plain)
-                                .softAppear(index: i)
-                        }
-                    }
-                }
-                ForEach(otherFamilies, id: \.family.id) { group in
-                    SectionLabel(group.family.name).padding(.top, 8)
-                    LazyVGrid(columns: columns, spacing: 12) {
-                        ForEach(Array(group.children.enumerated()), id: \.element.id) { i, child in
                             NavigationLink(value: child) { ChildCard(child: child) }
                                 .buttonStyle(.plain)
                                 .softAppear(index: i)
@@ -92,15 +80,6 @@ struct ChildrenView: View {
         Task { await Reminders.schedule(children: loaded) }
         if let fams = try? await state.store.families(for: state.user?.id ?? "") {
             family = fams.first { $0.id == familyId }
-            // De andre familiers børn hentes samtidig; tomme familier vises ikke.
-            let others = fams.filter { $0.id != familyId }
-            let store = state.store
-            otherFamilies = await withTaskGroup(of: (Family, [Child]).self) { group in
-                for f in others { group.addTask { (f, (try? await store.children(familyId: f.id)) ?? []) } }
-                var out: [(family: Family, children: [Child])] = []
-                for await (f, kids) in group where !kids.isEmpty { out.append((f, kids)) }
-                return out.sorted { $0.family.name < $1.family.name }
-            }
         }
         ScreenCache.save(Cached(family: family, children: children), key: cacheKey)
         // Delte børn hører ikke til familien, så de vises ikke dobbelt.
