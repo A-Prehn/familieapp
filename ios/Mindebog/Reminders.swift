@@ -84,6 +84,7 @@ enum Reminders {
         list.append(key)
         UserDefaults.standard.set(list, forKey: interviewStartedKey)
         UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: ["\(prefix)ivf_\(key)"])
+        PlannedReminders.forget(["\(prefix)ivf_\(key)"])
     }
 
     /// Fødselsdagspåmindelse og evt. opfølgning for den næste fødselsdag (og en netop overstået).
@@ -179,6 +180,7 @@ enum Reminders {
             let interview = interviewRequests(for: child) + WeeklyQuestion.requests(for: child, prefix: prefix) + yearRequests(for: child)
             for request in interview + requests(for: child, limit: max(1, perChild - interview.count)) {
                 try? await center.add(request)
+                PlannedReminders.note(request)   // så den kommer i klokken, også hvis den swipes væk
             }
         }
     }
@@ -187,6 +189,7 @@ enum Reminders {
         let center = UNUserNotificationCenter.current()
         let ids = await center.pendingNotificationRequests().map(\.identifier).filter { $0.hasPrefix(prefix) }
         center.removePendingNotificationRequests(withIdentifiers: ids)
+        PlannedReminders.forget(ids)
     }
 
     private static func requests(for child: Child, limit: Int) -> [UNNotificationRequest] {

@@ -40,7 +40,9 @@ final class NotificationService: UNNotificationServiceExtension {
                     kind: newest.recordType,
                     recordId: newest.recordID.recordName,
                     childId: (newest["childRef"] as? CKRecord.Reference)?.recordID.recordName,
-                    info: ["galleryKind": newest["kind"] as? String ?? ""]))
+                    // Billedseriens type og interviewets alder, så et tryk åbner det rigtige sted.
+                    info: ["galleryKind": newest["kind"] as? String ?? "",
+                           "age": (newest["age"] as? Int64).map { String($0) } ?? ""]))
                 contentHandler(content)
             case .onlyOwnChanges:
                 contentHandler(UNNotificationContent())   // tom = vises ikke

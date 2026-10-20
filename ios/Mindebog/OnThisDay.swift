@@ -23,6 +23,7 @@ enum OnThisDay {
         let center = UNUserNotificationCenter.current()
         let old = await center.pendingNotificationRequests().map(\.identifier).filter { $0.hasPrefix(prefix) }
         center.removePendingNotificationRequests(withIdentifiers: old)
+        PlannedReminders.forget(old)
         guard Reminders.isEnabled, isEnabled else { return }
 
         let cal = Calendar.current
@@ -58,6 +59,7 @@ enum OnThisDay {
                                                 content: content,
                                                 trigger: UNCalendarNotificationTrigger(dateMatching: parts, repeats: false))
             try? await center.add(request)
+            PlannedReminders.note(request)
         }
     }
 

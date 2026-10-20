@@ -43,8 +43,11 @@ struct MainTabView: View {
         switch t.kind {
         case "Highlight": HighlightsView(child: t.child)
         case "Diary": DiaryView(child: t.child)
-        case "Milestone": MilestonesView(child: t.child)
-        case "Interview": InterviewView(child: t.child)
+        // Milepæle: galleryKind rummer her milepælens nøgle; vaccinationer ("vac_…") har deres egen skærm.
+        case "Milestone":
+            if t.galleryKind.hasPrefix("vac_") { VaccinesView(child: t.child) } else { MilestonesView(child: t.child) }
+        // Interview: galleryKind rummer alderen, så den rigtige årgang vises.
+        case "Interview": InterviewView(child: t.child, initialAge: Int(t.galleryKind))
         case "Letter": LettersView(child: t.child)
         case "Answer": AboutMeView(child: t.child)
         case "Measurement": GrowthView(child: t.child)
@@ -89,8 +92,14 @@ struct MainTabView: View {
         if e.kind == "reminder", let year = e.info["yearReview"] {
             content = ContentTarget(child: child, kind: "YearReview", galleryKind: year)
         } else {
-            content = ContentTarget(child: child, kind: e.kind == "reminder" ? "Child" : e.kind,
-                                    galleryKind: e.info["galleryKind"] ?? "")
+            // Ekstra oplysning til skærmen: billedseriens type, milepælens nøgle eller interviewets alder.
+            let extra: String
+            switch e.kind {
+            case "Milestone": extra = e.recordId.map { $0.replacingOccurrences(of: "ms_\(childId)_", with: "") } ?? ""
+            case "Interview": extra = e.info["age"] ?? ""
+            default: extra = e.info["galleryKind"] ?? ""
+            }
+            content = ContentTarget(child: child, kind: e.kind == "reminder" ? "Child" : e.kind, galleryKind: extra)
         }
     }
     /// iOS tegner fanebjælken første gang med sine egne sorte ikoner. Tælleren tvinger en ny

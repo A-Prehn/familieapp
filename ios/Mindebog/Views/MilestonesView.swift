@@ -11,13 +11,17 @@ struct MilestonesView: View {
     private let columns = [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)]
 
     var body: some View {
-        ScrollView {
-            LazyVGrid(columns: columns, spacing: 10) {
-                ForEach(Constants.milestones) { def in
-                    tile(def)
+        ScrollViewReader { proxy in
+            ScrollView {
+                LazyVGrid(columns: columns, spacing: 10) {
+                    ForEach(Constants.milestones) { def in
+                        tile(def).id(def.key)
+                    }
                 }
+                .padding(16)
             }
-            .padding(16)
+            // Fra en notifikation: scroll til milepælen, og vis billederne, hvis der er nogen.
+            .task(id: entries.count) { openJumpTarget(proxy) }
         }
         .background(Theme.bg.ignoresSafeArea())
         .navigationTitle("Milepæle")
@@ -29,6 +33,17 @@ struct MilestonesView: View {
         .refreshable { await load() }
         .task { await load() }
         .reloadOnStoreChange { await load() }
+    }
+
+    private func openJumpTarget(_ proxy: ScrollViewProxy) {
+        let prefix = "ms_\(child.id)_"
+        guard let id = JumpRequest.shared.recordId, id.hasPrefix(prefix), !entries.isEmpty else { return }
+        JumpRequest.shared.recordId = nil
+        let key = String(id.dropFirst(prefix.count))
+        withAnimation(.easeInOut(duration: 0.35)) { proxy.scrollTo(key, anchor: .center) }
+        if let photos = entries[key]?.photos, !photos.isEmpty {
+            lightbox = LightboxState.coverFirst(photos, sourceId: key)
+        }
     }
 
     private func tile(_ def: MilestoneDef) -> some View {
