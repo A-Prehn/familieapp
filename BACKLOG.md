@@ -25,7 +25,7 @@ Bugs tages før features. Når et punkt er lavet, flyttes det til "Lavet" med bu
 ## Udgivelse og firma
 
 - [ ] 1.0 (build 80) sendt til App Review. Når den er godkendt: sæt MARKETING_VERSION til 1.1 i ios/project.yml før næste build.
-- [ ] apps.prehn.net: opret GitLab-repo prehn-apps + Cloudflare Pages + domæne (siderne ligger klar i Development/PrehnApps).
+- [ ] apps.prehn.net: repo github.com/A-Prehn/prehn-apps er oprettet og pushet; mangler Cloudflare Pages + domæne.
 - [ ] Efter godkendelse af 1.0: Privacy Policy URL → https://apps.prehn.net/vores-familie/privatliv/ og
       Support URL → https://apps.prehn.net/vores-familie/ i App Store Connect.
 - [ ] Appens link til privatlivspolitikken (AppLinks.privacy i PaywallView.swift) → ny adresse i 1.1.
