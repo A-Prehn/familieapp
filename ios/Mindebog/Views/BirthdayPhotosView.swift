@@ -25,7 +25,9 @@ struct BirthdayPhotosView: View {
     /// Antal fødselsdage indtil nu (mindst 1, så man kan forberede den første).
     private var currentAge: Int {
         guard let birth = child.birthDate else { return 1 }
-        return max(1, Calendar.current.dateComponents([.year], from: birth, to: Date()).year ?? 1)
+        // Hele dage, så barnet fylder år fra morgenen på fødselsdagen — ikke først på klokkeslættet i fødselsdatoen.
+        let cal = Calendar.current
+        return max(1, cal.dateComponents([.year], from: cal.startOfDay(for: birth), to: cal.startOfDay(for: Date())).year ?? 1)
     }
     private var ages: [Int] {
         let withPhotos = Set(items.compactMap { Int($0.caption) })
@@ -158,7 +160,16 @@ struct BirthdayPhotosView: View {
         .task {
             if !loaded { loaded = true; age = currentAge }
             await load()
+            openJumpTarget()
         }
+    }
+
+    /// Fra en notifikation eller "Seneste i familien": vælg billedets fødselsdag og vis billedet.
+    private func openJumpTarget() {
+        guard let id = JumpRequest.shared.recordId, let item = items.first(where: { $0.id == id }) else { return }
+        JumpRequest.shared.recordId = nil
+        if let a = Int(item.caption) { age = a }
+        open(item)
     }
 
     private func open(_ item: GalleryItem) {
