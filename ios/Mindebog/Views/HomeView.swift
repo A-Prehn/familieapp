@@ -72,7 +72,10 @@ struct HomeView: View {
         .background(Theme.bg.ignoresSafeArea())
         .navigationTitle("Hjem")
         .navigationBarTitleDisplayMode(.inline)
-        .toolbar { ToolbarItem(placement: .topBarTrailing) { NotificationBell() } }
+        .toolbar {
+            ToolbarItem(placement: .principal) { FamilyTitleMenu(title: "Hjem") }
+            ToolbarItem(placement: .topBarTrailing) { NotificationBell() }
+        }
         .navigationDestination(for: Child.self) { ChildDetailView(child: $0) }
         .sheet(item: $quickAdd, onDismiss: { Task { await load() } }) { item in
             let first = item.children[0]

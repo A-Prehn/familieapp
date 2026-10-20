@@ -50,6 +50,7 @@ struct ChildrenView: View {
         .navigationBarTitleDisplayMode(.inline)
         .navigationDestination(for: Child.self) { ChildDetailView(child: $0) }
         .toolbar {
+            ToolbarItem(placement: .principal) { FamilyTitleMenu() }
             ToolbarItem(placement: .topBarTrailing) {
                 if state.canEdit { Button { addChild() } label: { Image(systemName: "plus") } }
             }

@@ -100,6 +100,7 @@ struct FamilyView: View {
         .navigationTitle("Familie")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
+            ToolbarItem(placement: .principal) { FamilyTitleMenu(title: "Familie") }
             ToolbarItem(placement: .topBarTrailing) {
                 if state.canEdit { Button { activeSheet = tab } label: { Image(systemName: "plus") } }
             }
