@@ -59,7 +59,9 @@ final class FamilyExport: ObservableObject {
         try fm.createDirectory(at: base, withIntermediateDirectories: true)
 
         step("Henter børn…")
-        let children = try await store.children(familyId: familyId)
+        // Også børn, som en anden forælder har delt med én (de ligger i deres egen zone).
+        var children = try await store.children(familyId: familyId)
+        for c in (try? await store.sharedChildren()) ?? [] where !children.contains(where: { $0.id == c.id }) { children.append(c) }
         total = children.count * 8 + 4
         var json: [String: Any] = ["familie": familyName,
                                    "eksporteret": ISO8601DateFormatter().string(from: Date()),
@@ -153,6 +155,41 @@ final class FamilyExport: ObservableObject {
                               "handler_om": who, "filer": files])
             }
             json["minder"] = mJSON
+        }
+
+        step("Opskrifter…")
+        let recipes = (try? await store.recipes(familyId: familyId)) ?? []
+        if !recipes.isEmpty {
+            let rDir = familyDir.appendingPathComponent("Opskrifter", isDirectory: true)
+            var rJSON: [[String: Any]] = []
+            for r in recipes {
+                let name = Self.safe(r.title)
+                let files = try writePhotoSet(r.photos, name: name, in: rDir)
+                var text = r.title + "
+"
+                if !r.fromWhom.isEmpty { text += "Fra: (r.fromWhom)
+" }
+                if !r.category.isEmpty { text += "Kategori: (r.category)
+" }
+                if !r.servings.isEmpty { text += "Til: (r.servings)
+" }
+                if !r.ingredients.isEmpty { text += "
+INGREDIENSER
+" + r.ingredients + "
+" }
+                if !r.method.isEmpty { text += "
+FREMGANGSMÅDE
+" + r.method + "
+" }
+                if !r.story.isEmpty { text += "
+HISTORIEN BAG
+" + r.story + "
+" }
+                try write(text, to: rDir.appendingPathComponent(name + ".txt"))
+                rJSON.append(["titel": r.title, "fra": r.fromWhom, "kategori": r.category, "antal": r.servings,
+                              "ingredienser": r.ingredientLines, "fremgangsmåde": r.method, "historie": r.story, "filer": files])
+            }
+            json["opskrifter"] = rJSON
         }
 
         step("Begivenheder…")
@@ -514,7 +551,7 @@ final class FamilyExport: ObservableObject {
           breve, målinger (Målinger.csv kan åbnes i Excel/Numbers) og en PDF-mindebog.
           Oversigt.txt samler milepæle, vaccinationer og "Om mig".
         • Forseglede breve ligger i en mappe for sig med datoen for, hvornår de må åbnes.
-        • Familie/ – fødselsdage, begivenheder og rejser med billeder.
+        • Familie/ – fødselsdage, familietræ, traditioner, minder, opskrifter, begivenheder og rejser med billeder.
         • data.json – alt indhold i et maskinlæsbart format, som andre programmer kan bruge.
 
         Filnavnene starter med datoen (år-måned-dag), så de ligger i rækkefølge.

@@ -19,7 +19,7 @@ struct ExportView: View {
                             .foregroundStyle(Theme.neutralDark)
                         Text("Hent alt ud af appen")
                             .font(.serifTitle(22))
-                        Text("Alt samles i én ZIP-fil: billeder, video og lydnoter, højdepunkter, dagbog, milepæle, breve, målinger, vacciner, begivenheder, rejser og en PDF-mindebog for hvert barn.")
+                        Text("Alt samles i én ZIP-fil: billeder, video og lydnoter, højdepunkter, dagbog, milepæle, breve, målinger, vacciner, begivenheder, rejser, opskrifter og en PDF-mindebog for hvert barn.")
                             .font(.subheadline).foregroundStyle(Theme.muted)
                     }
                     .padding(.vertical, 6)
