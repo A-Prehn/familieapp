@@ -30,7 +30,7 @@ enum SchoolHolidays {
     static func holidays(in year: Int) -> [Holiday] {
         var out: [Holiday] = []
         // Vinterferie: lørdagen før uge 7/8 til søndagen i ugen.
-        if let monday = cal.date(from: DateComponents(weekOfYear: winterWeek, yearForWeekOfYear: year, weekday: 2)) {
+        if let monday = cal.date(from: DateComponents(weekday: 2, weekOfYear: winterWeek, yearForWeekOfYear: year)) {
             out.append(make("vinterferien", "Vinterferien \(year)", from: monday.addingTimeInterval(-2 * 86_400), days: 9))
         }
         // Påskeferie: lørdagen før palmesøndag til 2. påskedag.
@@ -44,7 +44,7 @@ enum SchoolHolidays {
             out.append(make("sommerferien", "Sommerferien \(year)", from: start, days: 45))
         }
         // Efterårsferie: uge 42.
-        if let monday = cal.date(from: DateComponents(weekOfYear: 42, yearForWeekOfYear: year, weekday: 2)) {
+        if let monday = cal.date(from: DateComponents(weekday: 2, weekOfYear: 42, yearForWeekOfYear: year)) {
             out.append(make("efterårsferien", "Efterårsferien \(year)", from: monday.addingTimeInterval(-2 * 86_400), days: 9))
         }
         // Juleferie: lørdagen på eller før d. 23. december til søndagen på eller efter d. 2. januar.
