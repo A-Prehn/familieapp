@@ -15,6 +15,7 @@ Bugs tages før features. Når et punkt er lavet, flyttes det til "Lavet" med bu
 
 ## Til test
 
+- [ ] 1.1: Del fra Fotos (1 og flere billeder, ét og flere børn), søg ("Skagen", "første", et barns navn), anmeldelses-dialog vises ikke i TestFlight (kun i App Store).
 - [ ] Build 79: "9 · 5 billeder" i Seneste i familien, tryk åbner fødselsdag 9 år.
 - [ ] Build 79: tryk på notifikation (klokke og låseskærm) scroller til selve opslaget.
 - [ ] Build 79: Mere → Påmindelser → Vinterferie uge 7/8.
@@ -24,6 +25,7 @@ Bugs tages før features. Når et punkt er lavet, flyttes det til "Lavet" med bu
 
 ## Udgivelse og firma
 
+- [ ] FØR næste build: opret App ID net.prehn.mindebog.share med App Groups (group.net.prehn.mindebog) i developer.apple.com — ellers fejler buildet ved profilen til del-udvidelsen.
 - [ ] 1.0 (build 80) sendt til App Review. Når den er godkendt: sæt MARKETING_VERSION til 1.1 i ios/project.yml før næste build.
 - [x] apps.prehn.net kører (GitHub A-Prehn/prehn-apps → Cloudflare Pages prehn-apps, main = produktion).
 - [ ] Efter godkendelse af 1.0: Privacy Policy URL → https://apps.prehn.net/vores-familie/privatliv/ og
@@ -43,7 +45,7 @@ Bugs tages før features. Når et punkt er lavet, flyttes det til "Lavet" med bu
 
 ## Lavet
 
-- Klar til næste build (1.1): påmindelser, der swipes væk, kommer i klokken; milepæle, vaccinationer og interview åbner det rigtige punkt fra notifikationer.
+- Klar til næste build (1.1): påmindelser, der swipes væk, kommer i klokken; milepæle, vaccinationer og interview åbner det rigtige punkt fra notifikationer; søg i alt (forstørrelsesglas på Hjem); del fra Fotos ("Del → Vores familie"); bed om anmeldelse efter 8 gemte minder.
 - Build 80 (version 1.0): ny startskærm uden falsk Apple-login, iCloud-forklaring, prøv uden iCloud.
 
 - Build 79: skoleferier, scroll til opslag, samlede billedopslag, fødselsdagsfane efter billedets alder.
