@@ -109,3 +109,27 @@ Tips:
 
 ## App Preview-video (valgfri, 15–30 sek.)
 Hjem → åbn et barn → maven måned for måned → interview med lyd → filmen af billedserien.
+
+## Noter til App Review (App Review Information → Notes)
+
+> Vores familie bruger IKKE Sign in with Apple og har ikke noget login. Appen gemmer alt i brugerens egen iCloud (CloudKit) og bruger den iCloud-konto, enheden allerede er logget på. Der er derfor ingen brugernavn/adgangskode at oplyse.
+>
+> Sådan testes appen:
+> 1. Enheden skal være logget på iCloud (Indstillinger → [navn]). Er den det, trykker man "Kom i gang" på startskærmen, skriver et navn og opretter en familie.
+> 2. Er enheden ikke logget på iCloud, viser startskærmen en forklaring og knappen "Prøv appen uden iCloud". Den åbner appen med midlertidige data, så alle funktioner kan prøves — intet gemmes, når appen lukkes.
+>
+> Køb: Premium kan testes med en sandbox-konto. Paywallen åbnes fx ved at tilføje et tredje barn eller under Mere → Premium. Links til vilkår (EULA) og privatlivspolitik findes i paywallen og i App Store-beskrivelsen.
+>
+> Appen er lavet til iPhone; på iPad kører den i iPhone-tilstand.
+
+(English for the reviewer)
+
+> Vores familie does NOT use Sign in with Apple and has no account or login. All data is stored in the user's own iCloud (CloudKit) using the iCloud account the device is already signed in to, so there are no credentials to provide.
+>
+> How to test:
+> 1. With the device signed in to iCloud, tap "Kom i gang" (Get started) on the first screen, enter a name and create a family.
+> 2. If the device is not signed in to iCloud, the first screen explains this and offers "Prøv appen uden iCloud" (Try without iCloud), which opens the app with temporary in-memory data so every feature can be exercised. Nothing is persisted when the app is closed.
+>
+> In-app purchases can be tested with a sandbox account; the paywall appears e.g. when adding a third child or via Mere (More) → Premium. Links to the Terms of Use (EULA) and privacy policy are in the paywall and in the App Store description.
+>
+> The app is iPhone-only; on iPad it runs in iPhone compatibility mode.
