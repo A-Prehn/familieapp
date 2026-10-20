@@ -14,6 +14,8 @@ Bugs tages før features. Når et punkt er lavet, flyttes det til "Lavet" med bu
       (kræver en liste over planlagte påmindelser i App Group'en).
 - [ ] Versionsnummer: appen hedder 0.1.0 internt — sæt til 1.1 til næste App Store-version.
 - [ ] Milepæle og årligt interview: tryk fra notifikation åbner skærmen, men scroller ikke til det enkelte punkt.
+- [ ] Web-version til at kigge med (fx bedsteforældre på Android eller computer): read-only via CloudKit JS.
+      Første version uden egen server; login med Apple-konto. Se idénoten fra tidligere.
 
 ## Til test
 
@@ -33,7 +35,6 @@ Bugs tages før features. Når et punkt er lavet, flyttes det til "Lavet" med bu
 
 ## Parkeret
 
-- Android/web-kigger via CloudKit JS — overvejet, ikke bestilt.
 - Kommunale ferieplaner/kalenderabonnement — fravalgt; kun nationale skoleferier som anledning til minder.
 - Lukket kendt risiko: samtidige skrivninger til notifikationsloggen fra app og udvidelse (sjældent, ufarligt).
 
