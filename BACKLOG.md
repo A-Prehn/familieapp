@@ -5,6 +5,7 @@ Bugs tages før features. Når et punkt er lavet, flyttes det til "Lavet" med bu
 
 ## Bugs
 
+- [ ] AFVIST 21. okt. (2.1b): køb startede ikke for Apples tester (iPad, build 80). Tjek Business → Agreements → Paid Apps = Active, og at begge produkter ikke mangler metadata. Paywallen prøver nu 3 gange + "Prøv igen" (klar til næste build). Derefter nyt build → Resubmit.
 - [ ] App Store-beskrivelsen: punkterne (•) står på én linje i hvert afsnit — sæt ét punkt pr. linje
       (rettes i App Store Connect, kræver intet build).
 
@@ -45,7 +46,7 @@ Bugs tages før features. Når et punkt er lavet, flyttes det til "Lavet" med bu
 
 ## Lavet
 
-- Klar til næste build (1.1): påmindelser, der swipes væk, kommer i klokken; milepæle, vaccinationer og interview åbner det rigtige punkt fra notifikationer; søg i alt (forstørrelsesglas på Hjem); del fra Fotos ("Del → Vores familie"); bed om anmeldelse efter 8 gemte minder.
+- Klar til næste build: paywall prøver igen ved hentning af produkter; desuden (1.1): påmindelser, der swipes væk, kommer i klokken; milepæle, vaccinationer og interview åbner det rigtige punkt fra notifikationer; søg i alt (forstørrelsesglas på Hjem); del fra Fotos ("Del → Vores familie"); bed om anmeldelse efter 8 gemte minder.
 - Build 80 (version 1.0): ny startskærm uden falsk Apple-login, iCloud-forklaring, prøv uden iCloud.
 
 - Build 79: skoleferier, scroll til opslag, samlede billedopslag, fødselsdagsfane efter billedets alder.
