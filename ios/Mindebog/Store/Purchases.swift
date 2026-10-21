@@ -1,5 +1,6 @@
 import Foundation
 import StoreKit
+import UIKit
 
 // Betaling med StoreKit 2 — ingen server. Apple signerer købene, og appen læser dem lokalt.
 //
@@ -84,7 +85,17 @@ final class Purchases: ObservableObject {
 
     func buy(_ product: Product) async -> Outcome {
         do {
-            switch try await product.purchase() {
+            // Køb vises altid i det aktive vindue. Uden det kan iOS (især på iPad, hvor appen kører i
+            // iPhone-tilstand) ikke finde et sted at vise Apples købsark, og intet sker.
+            let result: Product.PurchaseResult
+            if let scene = UIApplication.shared.connectedScenes
+                .compactMap({ $0 as? UIWindowScene })
+                .first(where: { $0.activationState == .foregroundActive }) {
+                result = try await product.purchase(confirmIn: scene)
+            } else {
+                result = try await product.purchase()
+            }
+            switch result {
             case .success(let verification):
                 guard case .verified(let transaction) = verification else {
                     return .failed("Købet kunne ikke bekræftes af Apple.")
