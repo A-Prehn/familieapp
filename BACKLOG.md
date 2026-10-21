@@ -16,6 +16,7 @@ Bugs tages før features. Når et punkt er lavet, flyttes det til "Lavet" med bu
 
 ## Til test
 
+- [ ] Lav et testopslag.
 - [ ] 1.1: Del fra Fotos (1 og flere billeder, ét og flere børn), søg ("Skagen", "første", et barns navn), anmeldelses-dialog vises ikke i TestFlight (kun i App Store).
 - [ ] Build 79: "9 · 5 billeder" i Seneste i familien, tryk åbner fødselsdag 9 år.
 - [ ] Build 79: tryk på notifikation (klokke og låseskærm) scroller til selve opslaget.
