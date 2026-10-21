@@ -21,6 +21,9 @@ struct HomeView: View {
     @State private var loadGeneration = 0
     @State private var lastLoad: Date?
     @State private var showSearch = false
+    @Environment(\.scenePhase) private var scenePhase
+    /// Skifter, når appen kommer frem igen — så "Henter nyeste"-hjulet tegnes på ny og drejer (iOS fryser det i baggrunden).
+    @State private var spinnerToken = 0
     // "De første skridt": tre konkrete forslag, mens mindebogen stadig er næsten tom.
     @State private var memoryCount = Int.max      // Int.max indtil første hentning, så kortet ikke blinker
     @State private var memberCount: Int?
@@ -160,6 +163,13 @@ struct HomeView: View {
         .refreshable { await load() }
         .task { await loadIfStale() }
         .reloadOnStoreChange { await load() }
+        // Kommer appen frem igen midt i en hentning, kan den hentning være gået i stå — start en ny,
+        // så hjulet ikke bliver stående (#22).
+        .onChange(of: scenePhase) { _, phase in
+            guard phase == .active else { return }
+            spinnerToken += 1
+            if refreshing { Task { await load() } } else { Task { await loadIfStale() } }
+        }
     }
 
     // MARK: Sektioner
@@ -367,7 +377,7 @@ struct HomeView: View {
                     // Viser, at listen fra sidst er ved at blive opdateret fra iCloud.
                     if refreshing {
                         HStack(spacing: 6) {
-                            ProgressView().controlSize(.mini)
+                            ProgressView().controlSize(.mini).id(spinnerToken)
                             Text("Henter nyeste").font(.caption2).foregroundStyle(Theme.muted)
                         }
                         .transition(.opacity)
@@ -472,6 +482,11 @@ struct HomeView: View {
         guard let familyId = state.familyId else { return }
         let cacheKey = "home_\(familyId)"
         refreshing = true
+        // Vagt (#22): svarer iCloud ikke inden for 20 sekunder, fjernes hjulet alligevel — listen fra sidst bliver stående.
+        Task {
+            try? await Task.sleep(for: .seconds(20))
+            if isCurrent() && refreshing { refreshing = false; loading = false }
+        }
         let todayKey = Fmt.iso(Date())
         if children.isEmpty, let cached = ScreenCache.load(Cached.self, key: cacheKey) {
             children = cached.children
