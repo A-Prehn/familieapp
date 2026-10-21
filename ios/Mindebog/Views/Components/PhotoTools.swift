@@ -332,7 +332,8 @@ struct PhotoSetEditor: View {
                 }
                 }
             }
-            PhotosPicker(selection: $pickerItems, maxSelectionCount: 20, matching: .images) {
+            // Op til 100 ad gangen (#24) — og "Tilføj flere billeder" kan bruges igen, så der er reelt ingen grænse.
+            PhotosPicker(selection: $pickerItems, maxSelectionCount: 100, matching: .images) {
                 Label(set.isEmpty ? "Vælg billeder" : "Tilføj flere billeder", systemImage: "photo.badge.plus")
             }
             .buttonStyle(.borderless)

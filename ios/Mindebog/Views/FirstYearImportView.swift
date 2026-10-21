@@ -8,7 +8,7 @@ struct FirstYearImportView: View {
     @Environment(\.dismiss) private var dismiss
     let child: Child
 
-    static let maxPhotos = 20
+    static let maxPhotos = 50
 
     var body: some View {
         PhotoSuggestionsView(range: range, allowMultiple: true, maxSelection: Self.maxPhotos,
