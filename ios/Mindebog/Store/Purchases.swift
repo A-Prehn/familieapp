@@ -24,6 +24,8 @@ final class Purchases: ObservableObject {
     /// Ens eget køb: nil = intet, ellers udløbsdato (forever ved engangskøb).
     @Published private(set) var ownUntil: Date?
     @Published private(set) var loadingProducts = false
+    /// Sidste fejl ved hentning af produkterne (vises i paywallen, så man kan prøve igen).
+    @Published private(set) var productError: String?
 
     private var updates: Task<Void, Never>?
 
@@ -42,13 +44,24 @@ final class Purchases: ObservableObject {
         }
     }
 
+    /// Henter de to produkter fra App Store. Prøver op til tre gange med kort pause, fordi
+    /// App Store (især sandkassen, som Apples testere bruger) af og til svarer tomt første gang.
     func loadProducts() async {
-        guard monthly == nil || lifetime == nil else { return }
+        guard monthly == nil || lifetime == nil, !loadingProducts else { return }
         loadingProducts = true
+        productError = nil
         defer { loadingProducts = false }
-        if let products = try? await Product.products(for: [Self.monthlyID, Self.lifetimeID]) {
-            monthly = products.first { $0.id == Self.monthlyID }
-            lifetime = products.first { $0.id == Self.lifetimeID }
+        for attempt in 0..<3 {
+            if attempt > 0 { try? await Task.sleep(for: .seconds(Double(attempt) * 1.5)) }
+            do {
+                let products = try await Product.products(for: [Self.monthlyID, Self.lifetimeID])
+                monthly = products.first { $0.id == Self.monthlyID } ?? monthly
+                lifetime = products.first { $0.id == Self.lifetimeID } ?? lifetime
+                if monthly != nil && lifetime != nil { return }
+                productError = "App Store returnerede ingen produkter."
+            } catch {
+                productError = error.localizedDescription
+            }
         }
     }
 

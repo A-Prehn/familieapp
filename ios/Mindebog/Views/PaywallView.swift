@@ -81,8 +81,18 @@ struct PaywallView: View {
                     if purchases.loadingProducts && purchases.lifetime == nil {
                         HStack { Spacer(); ProgressView(); Spacer() }
                     } else if purchases.lifetime == nil && purchases.monthly == nil {
-                        Text("Købsmulighederne kunne ikke hentes fra App Store lige nu. Tjek forbindelsen, og prøv igen.")
-                            .font(.footnote).foregroundStyle(Theme.rose)
+                        VStack(alignment: .leading, spacing: 10) {
+                            Text("Købsmulighederne kunne ikke hentes fra App Store lige nu. Tjek forbindelsen, og prøv igen.")
+                                .font(.footnote).foregroundStyle(Theme.rose)
+                            Button { Task { await purchases.loadProducts() } } label: {
+                                Label("Prøv igen", systemImage: "arrow.clockwise")
+                                    .font(.subheadline.weight(.semibold))
+                                    .frame(maxWidth: .infinity).padding(.vertical, 12)
+                                    .background(RoundedRectangle(cornerRadius: 14).fill(Theme.card))
+                                    .overlay(RoundedRectangle(cornerRadius: 14).stroke(Theme.sep))
+                            }
+                            .buttonStyle(.plain)
+                        }
                     } else {
                         VStack(spacing: 10) {
                             if let lifetime = purchases.lifetime {
