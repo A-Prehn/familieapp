@@ -88,7 +88,14 @@ struct ChildDetailView: View {
                     if state.canEdit {
                         Button { editing = true } label: { Label("Redigér", systemImage: "pencil") }
                     }
-                    Button { Task { await makeBook() } } label: {
+                    Menu {
+                        Button { Task { await makeBook(forPrint: false) } } label: {
+                            Label("Til skærm og hjemmeprint", systemImage: "doc.richtext")
+                        }
+                        Button { Task { await makeBook(forPrint: true) } } label: {
+                            Label("Til trykkeri (indbundet bog)", systemImage: "book")
+                        }
+                    } label: {
                         Label("Lav mindebog (PDF)", systemImage: "book.closed")
                     }
                     if canShareChild {
@@ -159,14 +166,14 @@ struct ChildDetailView: View {
     }
 
     /// Bygger mindebogen som PDF og åbner del-arket (Gem i Filer, Mail, Udskriv …).
-    private func makeBook() async {
+    private func makeBook(forPrint: Bool) async {
         guard state.isPremium else { paywall = .book; return }
         makingBook = true
         defer { makingBook = false }
         let familyName = (try? await state.store.families(for: state.user?.id ?? ""))?
             .first { $0.id == state.familyId }?.name ?? "Vores familie"
         do {
-            let url = try await BookExporter.make(child: child, store: state.store, familyName: familyName)
+            let url = try await BookExporter.make(child: child, store: state.store, familyName: familyName, forPrint: forPrint)
             bookShare = ShareSheet(url: url)
         } catch {
             bookError = "Kunne ikke lave mindebogen: \(error.localizedDescription)"
