@@ -1,6 +1,6 @@
 import SwiftUI
 
-// "Hent billeder fra det første år": vælg op til 20 billeder fra Fotos fra barnets første år,
+// "Hent billeder fra det første år": vælg op til 50 billeder fra Fotos fra barnets første år,
 // og hvert bliver et højdepunkt med billedets egen dato og barnets alder som tekst.
 // Fylder mindebogen på et minut — til dem, der starter med et barn, der allerede er lidt større.
 struct FirstYearImportView: View {
