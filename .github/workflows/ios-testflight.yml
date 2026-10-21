@@ -12,11 +12,10 @@ name: iOS TestFlight
 #   DIST_CERT_P12_BASE64                    – Apple Distribution-certifikat (.p12, base64)
 #   DIST_CERT_PASSWORD                      – adgangskode til .p12
 
+# Kun manuelt ("Run workflow" på develop). main er det, der ligger i App Store, og
+# opdateres først, når Apple har godkendt en version — det må ikke starte et build.
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths: ["ios/**", ".github/workflows/ios-testflight.yml"]
 
 concurrency:
   group: testflight
