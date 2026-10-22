@@ -6,7 +6,7 @@
 - **Hvorfor:** konkurrenterne (Tinybeans ~520 kr/år, FamilyAlbum ~410 kr/år, Qeepsake 330–670 kr/år,
   Keepli engangskøb ~350 kr) har serverudgifter; det har vi ikke. Engangskøbet svarer til ~10 måneders
   abonnement (branchens tommelfingerregel: 10–15 måneder).
-- **Gratis:** ét barn med alle sektioner, lyd, stamtræ, traditioner, tegninger, widgets og påmindelser.
+- **Gratis:** to børn med alle sektioner, lyd, stamtræ, traditioner, tegninger, widgets og påmindelser (hævet fra ét til to, så en familie med to børn kan prøve appen fuldt ud; det matcher koden og App Store-teksten).
 - **Premium:** flere børn, deling med partner/bedsteforældre, video, PDF-mindebog.
 - **"Eksportér alt" er altid gratis** — løftet om, at minderne aldrig låses inde.
 - **Kun én i familien betaler.** Køberens telefon skriver `premiumUntil` på Family-recorden i iCloud,
