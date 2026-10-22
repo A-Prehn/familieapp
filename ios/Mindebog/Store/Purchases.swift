@@ -28,11 +28,26 @@ final class Purchases: ObservableObject {
     @Published private(set) var lifetime: Product?
     /// Ens eget køb: nil = intet, ellers udløbsdato (forever ved engangskøb).
     @Published private(set) var ownUntil: Date?
+    /// Har man prøveperioden (introductory offer) til gode? Apple giver den én gang pr. Apple-ID i abonnementsgruppen.
+    @Published private(set) var trialEligible = false
     @Published private(set) var loadingProducts = false
     /// Sidste fejl ved hentning af produkterne (vises i paywallen, så man kan prøve igen).
     @Published private(set) var productError: String?
 
     private var updates: Task<Void, Never>?
+
+    /// "14 dage" for et abonnement med gratis prøveperiode — nil, hvis der ingen er, eller den er brugt.
+    func trialText(for product: Product) -> String? {
+        guard trialEligible, let offer = product.subscription?.introductoryOffer, offer.paymentMode == .freeTrial else { return nil }
+        let n = offer.period.value
+        switch offer.period.unit {
+        case .day: return "\(n) dage"
+        case .week: return "\(n * 7) dage"
+        case .month: return n == 1 ? "1 måned" : "\(n) måneder"
+        case .year: return n == 1 ? "1 år" : "\(n) år"
+        @unknown default: return nil
+        }
+    }
 
     var ownsLifetime: Bool { ownUntil == Self.forever }
     var hasOwnPremium: Bool { (ownUntil ?? .distantPast) > Date() }
@@ -64,6 +79,9 @@ final class Purchases: ObservableObject {
                 monthly = products.first { $0.id == Self.monthlyID } ?? monthly
                 yearly = products.first { $0.id == Self.yearlyID } ?? yearly
                 lifetime = products.first { $0.id == Self.lifetimeID } ?? lifetime
+                if let sub = (yearly ?? monthly)?.subscription {
+                    trialEligible = await sub.isEligibleForIntroOffer
+                }
                 if monthly != nil && lifetime != nil { return }
                 productError = "App Store returnerede ingen produkter."
             } catch {

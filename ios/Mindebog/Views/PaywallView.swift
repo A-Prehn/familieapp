@@ -96,15 +96,24 @@ struct PaywallView: View {
                     } else {
                         // Billigst først: måned, år (fremhævet), for altid (dæmpet).
                         VStack(spacing: 10) {
+                            if let trial = (purchases.yearly ?? purchases.monthly).flatMap(purchases.trialText(for:)) {
+                                Text("Prøv Premium gratis i \(trial)")
+                                    .font(.subheadline.weight(.semibold)).foregroundStyle(Theme.rose)
+                                    .frame(maxWidth: .infinity)
+                            }
                             if let monthly = purchases.monthly {
                                 optionButton(title: "Pr. måned", price: "\(monthly.displayPrice)/md",
-                                             note: "Kan opsiges når som helst.", primary: purchases.yearly == nil) {
+                                             note: purchases.trialText(for: monthly).map { "\($0) gratis, derefter \(monthly.displayPrice)/md. Opsig når som helst." }
+                                                   ?? "Kan opsiges når som helst.",
+                                             primary: purchases.yearly == nil) {
                                     Task { await buy(monthly) }
                                 }
                             }
                             if let yearly = purchases.yearly {
+                                let perMonth = Self.yearlyNote(yearly: yearly, monthly: purchases.monthly)
                                 optionButton(title: "Pr. år", price: "\(yearly.displayPrice)/år",
-                                             note: Self.yearlyNote(yearly: yearly, monthly: purchases.monthly), primary: true) {
+                                             note: purchases.trialText(for: yearly).map { "\($0) gratis, derefter \(yearly.displayPrice)/år. \(perMonth)" } ?? perMonth,
+                                             primary: true) {
                                     Task { await buy(yearly) }
                                 }
                             }
@@ -125,7 +134,7 @@ struct PaywallView: View {
                         Button("Gendan køb") { Task { await restore() } }
                             .font(.footnote.weight(.semibold))
                             .disabled(busy)
-                        Text("Abonnementer fornyes automatisk hver måned eller hvert år, indtil de opsiges. Opsig under Indstillinger → [dit navn] → Abonnementer senest 24 timer før fornyelse. Betalingen trækkes via din Apple-konto.")
+                        Text("En gratis prøveperiode går automatisk over i betalt abonnement, medmindre den opsiges senest 24 timer før, den udløber. Abonnementer fornyes automatisk hver måned eller hvert år, indtil de opsiges under Indstillinger → [dit navn] → Abonnementer. Betalingen trækkes via din Apple-konto.")
                             .font(.caption2).foregroundStyle(Theme.muted)
                             .multilineTextAlignment(.center)
                         HStack(spacing: 16) {
