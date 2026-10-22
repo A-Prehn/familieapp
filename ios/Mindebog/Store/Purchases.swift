@@ -4,9 +4,10 @@ import UIKit
 
 // Betaling med StoreKit 2 — ingen server. Apple signerer købene, og appen læser dem lokalt.
 //
-// To måder at få Premium:
-//  • Månedligt abonnement (19 kr/md):  net.prehn.mindebog.premium.monthly
-//  • Engangskøb for altid (199 kr):    net.prehn.mindebog.premium.lifetime
+// Tre måder at få Premium:
+//  • Månedligt abonnement (19 kr/md):   net.prehn.mindebog.premium.monthly
+//  • Årligt abonnement (179 kr/år):     net.prehn.mindebog.premium.yearly  (samme abonnementsgruppe)
+//  • Engangskøb for altid (499 kr):     net.prehn.mindebog.premium.lifetime
 //
 // Købet hører til køberens Apple-ID. For at partneren og bedsteforældrene i den delte familie
 // også får gavn af det, skriver køberens telefon en dato ("premium til og med") på familien
@@ -16,11 +17,14 @@ final class Purchases: ObservableObject {
     static let shared = Purchases()
 
     static let monthlyID = "net.prehn.mindebog.premium.monthly"
+    static let yearlyID = "net.prehn.mindebog.premium.yearly"
     static let lifetimeID = "net.prehn.mindebog.premium.lifetime"
+    private static let allIDs = [monthlyID, yearlyID, lifetimeID]
     /// "For altid" gemmes som en dato langt ude i fremtiden.
     static let forever = Date(timeIntervalSince1970: 32_503_680_000)   // år 3000
 
     @Published private(set) var monthly: Product?
+    @Published private(set) var yearly: Product?
     @Published private(set) var lifetime: Product?
     /// Ens eget køb: nil = intet, ellers udløbsdato (forever ved engangskøb).
     @Published private(set) var ownUntil: Date?
@@ -45,18 +49,20 @@ final class Purchases: ObservableObject {
         }
     }
 
-    /// Henter de to produkter fra App Store. Prøver op til tre gange med kort pause, fordi
+    /// Henter de tre produkter fra App Store. Prøver op til tre gange med kort pause, fordi
     /// App Store (især sandkassen, som Apples testere bruger) af og til svarer tomt første gang.
+    /// Årsabonnementet er nyt i 1.1 — mangler det (fx før Apple har godkendt det), vises de andre stadig.
     func loadProducts() async {
-        guard monthly == nil || lifetime == nil, !loadingProducts else { return }
+        guard monthly == nil || yearly == nil || lifetime == nil, !loadingProducts else { return }
         loadingProducts = true
         productError = nil
         defer { loadingProducts = false }
         for attempt in 0..<3 {
             if attempt > 0 { try? await Task.sleep(for: .seconds(Double(attempt) * 1.5)) }
             do {
-                let products = try await Product.products(for: [Self.monthlyID, Self.lifetimeID])
+                let products = try await Product.products(for: Self.allIDs)
                 monthly = products.first { $0.id == Self.monthlyID } ?? monthly
+                yearly = products.first { $0.id == Self.yearlyID } ?? yearly
                 lifetime = products.first { $0.id == Self.lifetimeID } ?? lifetime
                 if monthly != nil && lifetime != nil { return }
                 productError = "App Store returnerede ingen produkter."
@@ -73,7 +79,7 @@ final class Purchases: ObservableObject {
             guard case .verified(let t) = result, t.revocationDate == nil else { continue }
             switch t.productID {
             case Self.lifetimeID: until = Self.forever
-            case Self.monthlyID:
+            case Self.monthlyID, Self.yearlyID:
                 if let exp = t.expirationDate, exp > (until ?? .distantPast) { until = exp }
             default: break
             }

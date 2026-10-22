@@ -1,6 +1,18 @@
 # Forretningsmodel — Mindebog
 
-## Besluttet (16. oktober 2026) — erstatter beslutningen fra 15. oktober
+## Besluttet (22. oktober 2026, efter godkendelsen af 1.0) — gælder fra 1.1
+
+- **Tre måder at betale:** 19 kr/md, **179 kr/år** (fremhævet i paywallen, ~21 % under måned)
+  eller **499 kr én gang** ("Premium for altid").
+- **Hvorfor:** 199 kr for altid svarede kun til ~10 måneders abonnement, så næsten alle ville vælge
+  engangskøbet. Nu er engangskøbet så dyrt (~2,8 år på årsabonnement), at det kun er for de få, og
+  årsabonnementet bliver det naturlige valg. Issue #30.
+- Produkt-ID'er: `net.prehn.mindebog.premium.monthly`, `net.prehn.mindebog.premium.yearly`
+  (samme abonnementsgruppe som måned), `net.prehn.mindebog.premium.lifetime`.
+- Dem, der har købt "for altid" til 199 kr, beholder Premium.
+- Alt andet nedenfor (gratis = to børn, hvad Premium giver, én betaler pr. familie) er uændret.
+
+## Besluttet (16. oktober 2026) — erstattet 22. oktober
 
 - **Freemium med to måder at betale:** 19 kr/md (abonnement) eller 199 kr én gang ("Premium for altid").
 - **Hvorfor:** konkurrenterne (Tinybeans ~520 kr/år, FamilyAlbum ~410 kr/år, Qeepsake 330–670 kr/år,

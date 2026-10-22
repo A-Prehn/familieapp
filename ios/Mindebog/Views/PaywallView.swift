@@ -29,7 +29,7 @@ enum PaywallReason: String, Identifiable {
     }
 }
 
-/// Betalingsskærm: 19 kr om måneden eller 199 kr for altid.
+/// Betalingsskærm: 179 kr om året (fremhævet), 19 kr om måneden eller 499 kr for altid.
 struct PaywallView: View {
     @EnvironmentObject var state: AppState
     @Environment(\.dismiss) private var dismiss
@@ -94,17 +94,24 @@ struct PaywallView: View {
                             .buttonStyle(.plain)
                         }
                     } else {
+                        // Året er det fremhævede valg; måneden nedenunder; engangskøbet nederst og dæmpet.
                         VStack(spacing: 10) {
-                            if let lifetime = purchases.lifetime {
-                                optionButton(title: "For altid", price: lifetime.displayPrice,
-                                             note: "Betal én gang. Mest populær.", primary: true) {
-                                    Task { await buy(lifetime) }
+                            if let yearly = purchases.yearly {
+                                optionButton(title: "Pr. år", price: "\(yearly.displayPrice)/år",
+                                             note: Self.yearlyNote(yearly: yearly, monthly: purchases.monthly), primary: true) {
+                                    Task { await buy(yearly) }
                                 }
                             }
                             if let monthly = purchases.monthly {
                                 optionButton(title: "Pr. måned", price: "\(monthly.displayPrice)/md",
-                                             note: "Kan opsiges når som helst.", primary: false) {
+                                             note: "Kan opsiges når som helst.", primary: purchases.yearly == nil) {
                                     Task { await buy(monthly) }
+                                }
+                            }
+                            if let lifetime = purchases.lifetime {
+                                optionButton(title: "For altid", price: lifetime.displayPrice,
+                                             note: "Betal én gang, aldrig mere.", primary: false, subtle: true) {
+                                    Task { await buy(lifetime) }
                                 }
                             }
                         }
@@ -118,7 +125,7 @@ struct PaywallView: View {
                         Button("Gendan køb") { Task { await restore() } }
                             .font(.footnote.weight(.semibold))
                             .disabled(busy)
-                        Text("Abonnementet fornyes automatisk hver måned, indtil det opsiges. Opsig under Indstillinger → [dit navn] → Abonnementer senest 24 timer før fornyelse. Betalingen trækkes via din Apple-konto.")
+                        Text("Abonnementer fornyes automatisk hver måned eller hvert år, indtil de opsiges. Opsig under Indstillinger → [dit navn] → Abonnementer senest 24 timer før fornyelse. Betalingen trækkes via din Apple-konto.")
                             .font(.caption2).foregroundStyle(Theme.muted)
                             .multilineTextAlignment(.center)
                         HStack(spacing: 16) {
@@ -140,22 +147,33 @@ struct PaywallView: View {
         }
     }
 
-    private func optionButton(title: String, price: String, note: String, primary: Bool,
+    /// "Svarer til 15 kr./md · spar 21 %" — regnet ud fra de rigtige priser, så den passer i alle lande.
+    private static func yearlyNote(yearly: Product, monthly: Product?) -> String {
+        let perMonth = yearly.price / 12
+        var text = "Svarer til \(yearly.priceFormatStyle.format(perMonth))/md."
+        if let monthly, monthly.price > 0 {
+            let saving = Int(((1 - perMonth / monthly.price) * 100).rounded())
+            if saving > 0 { text += " Spar \(saving) %." }
+        }
+        return text
+    }
+
+    private func optionButton(title: String, price: String, note: String, primary: Bool, subtle: Bool = false,
                               action: @escaping () -> Void) -> some View {
         Button(action: action) {
             HStack {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(title).font(.headline)
+                    Text(title).font(subtle ? .subheadline.weight(.semibold) : .headline)
                     Text(note).font(.caption).opacity(0.85)
                 }
                 Spacer()
-                Text(price).font(.headline)
+                Text(price).font(subtle ? .subheadline.weight(.semibold) : .headline)
             }
-            .padding(16)
+            .padding(subtle ? 12 : 16)
             .frame(maxWidth: .infinity)
-            .background(RoundedRectangle(cornerRadius: 14).fill(primary ? Theme.rose : Theme.card))
+            .background(RoundedRectangle(cornerRadius: 14).fill(primary ? Theme.rose : (subtle ? Theme.bg : Theme.card)))
             .overlay(RoundedRectangle(cornerRadius: 14).stroke(primary ? Theme.rose : Theme.sep))
-            .foregroundStyle(primary ? Color.white : Theme.text)
+            .foregroundStyle(primary ? Color.white : (subtle ? Theme.muted : Theme.text))
         }
         .buttonStyle(.plain)
         .disabled(busy)
