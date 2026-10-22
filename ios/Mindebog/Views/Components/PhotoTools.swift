@@ -461,7 +461,7 @@ struct LightboxView: View {
     @State private var dragIsVertical: Bool?
 
     /// 0 → 1, mens man trækker ned; baggrunden toner ud, og billedet bliver lidt mindre.
-    private var dragProgress: CGFloat { min(max(dragY, 0) / 300, 1) }
+    private var dragProgress: Double { Double(min(max(dragY, 0) / 300, 1)) }
 
     private var dismissDrag: some Gesture {
         DragGesture(minimumDistance: 12)
@@ -512,7 +512,7 @@ struct LightboxView: View {
             .tabViewStyle(.page(indexDisplayMode: state.photos.count > 1 ? .automatic : .never))
             .ignoresSafeArea()
             .offset(y: dragY)
-            .scaleEffect(1 - dragProgress * 0.15)
+            .scaleEffect(CGFloat(1 - dragProgress * 0.15))
             .simultaneousGesture(dismissDrag)
 
             HStack {
