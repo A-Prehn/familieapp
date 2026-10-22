@@ -1,6 +1,7 @@
 import Foundation
 import CloudKit
 import CoreLocation
+import CryptoKit
 
 // CloudKit-implementering af Store — ægte lagring i brugerens egen iCloud.
 //
@@ -709,22 +710,42 @@ actor CloudKitStore: Store {
 
     // MARK: - Om dig
 
+    /// Record-navnet for et svar: "ans_<barn>_<stabilt hash af spørgsmålet>".
+    /// Hashet er SHA-256 (ikke `hashValue`, som Swift sår tilfældigt ved hver app-start — det gav
+    /// et nyt id pr. start, altså dubletter i iCloud og sletninger, der ramte ved siden af).
+    static func answerRecordName(childId: String, question: String) -> String {
+        let digest = SHA256.hash(data: Data(question.utf8))
+        let hash = digest.prefix(8).map { String(format: "%02x", $0) }.joined()
+        return "ans_\(childId)_\(hash)"
+    }
+
     func answers(childId: String) async throws -> [String: String] {
         let records = try await childRecords(childId, type: "Answer")
+        // Ældre builds kunne gemme samme spørgsmål flere gange (se answerRecordName) — det nyeste svar vinder.
+        var newest: [String: Date] = [:]
         var result: [String: String] = [:]
         for r in records {
-            if let q = r["question"] as? String, let a = r["answer"] as? String { result[q] = a }
+            guard let q = r["question"] as? String, let a = r["answer"] as? String else { continue }
+            let modified = r.modificationDate ?? .distantPast
+            if modified >= (newest[q] ?? .distantPast) {
+                newest[q] = modified
+                result[q] = a
+            }
         }
         return result
     }
 
     func setAnswer(childId: String, question: String, answer: String) async throws {
         let (db, zoneID) = try await locateChild(childId)
-        let hash = String(question.hashValue, radix: 36).replacingOccurrences(of: "-", with: "n")
-        let recordID = CKRecord.ID(recordName: "ans_\(childId)_\(hash)", zoneID: zoneID)
+        let recordID = CKRecord.ID(recordName: Self.answerRecordName(childId: childId, question: question), zoneID: zoneID)
         let trimmed = answer.trimmingCharacters(in: .whitespacesAndNewlines)
+        // Alle records for spørgsmålet, også dubletter fra ældre builds ("question" er ikke søgbar i skemaet,
+        // så barnets svar hentes og filtreres her — det er få, små poster).
+        let existing = ((try? await childRecords(childId, type: "Answer", keys: ["childRef", "question"])) ?? [])
+            .filter { ($0["question"] as? String) == question }
         if trimmed.isEmpty {
             try? await remove(recordID, in: db)
+            for r in existing where r.recordID != recordID { try? await remove(r.recordID, in: db) }
             return
         }
         let record = (try? await db.record(for: recordID)) ?? CKRecord(recordType: "Answer", recordID: recordID)
@@ -732,6 +753,8 @@ actor CloudKitStore: Store {
         record["question"] = question as CKRecordValue
         record["answer"] = trimmed as CKRecordValue
         _ = try await persist(record, in: db)
+        // Ryd op i dubletter, når det nye svar er gemt.
+        for r in existing where r.recordID != recordID { try? await remove(r.recordID, in: db) }
     }
 
     // MARK: - Dagbog
