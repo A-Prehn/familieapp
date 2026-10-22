@@ -6,12 +6,6 @@
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev", "--", "--port", "5173", "--strictPort"],
       "port": 5173
-    },
-    {
-      "name": "prehn-apps",
-      "runtimeExecutable": "node",
-      "runtimeArgs": ["C:/Users/apc/AppData/Local/Temp/claude/C--Users-apc-OneDrive---Netcompany-Documents-APC-Privat-Development-Familie--claude-worktrees-jolly-swirles-ce017f/21b55ca6-263d-4689-b186-023ec13d5142/scratchpad/serve.js", "C:/Users/apc/OneDrive - Netcompany/Documents/APC/Privat/Development/PrehnApps", "8090"],
-      "port": 8090
     }
   ]
 }
