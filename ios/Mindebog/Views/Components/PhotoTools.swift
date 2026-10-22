@@ -456,10 +456,38 @@ struct LightboxView: View {
     }
 
     @State private var toast: String?
+    /// Træk ned for at lukke (#21): hvor langt billedet er trukket, og om trækket er lodret.
+    @State private var dragY: CGFloat = 0
+    @State private var dragIsVertical: Bool?
+
+    /// 0 → 1, mens man trækker ned; baggrunden toner ud, og billedet bliver lidt mindre.
+    private var dragProgress: CGFloat { min(max(dragY, 0) / 300, 1) }
+
+    private var dismissDrag: some Gesture {
+        DragGesture(minimumDistance: 12)
+            .onChanged { value in
+                // Første bevægelse afgør retningen, så vandret swipe mellem billeder ikke lukker.
+                if dragIsVertical == nil {
+                    dragIsVertical = abs(value.translation.height) > abs(value.translation.width)
+                }
+                guard dragIsVertical == true else { return }
+                dragY = max(value.translation.height, 0)
+            }
+            .onEnded { value in
+                defer { dragIsVertical = nil }
+                guard dragIsVertical == true else { return }
+                // Luk ved et langt træk eller et hurtigt svirp nedad (forventet slutpunkt).
+                if value.translation.height > 120 || value.predictedEndTranslation.height > 320 {
+                    dismiss()
+                } else {
+                    withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) { dragY = 0 }
+                }
+            }
+    }
 
     var body: some View {
         ZStack(alignment: .topTrailing) {
-            Color.black.ignoresSafeArea()
+            Color.black.opacity(1 - dragProgress * 0.8).ignoresSafeArea()
             TabView(selection: $index) {
                 ForEach(state.photos.indices, id: \.self) { i in
                     // Teksten står under billedet på sort baggrund — oven på et lyst billede
@@ -483,6 +511,9 @@ struct LightboxView: View {
             }
             .tabViewStyle(.page(indexDisplayMode: state.photos.count > 1 ? .automatic : .never))
             .ignoresSafeArea()
+            .offset(y: dragY)
+            .scaleEffect(1 - dragProgress * 0.15)
+            .simultaneousGesture(dismissDrag)
 
             HStack {
                 // Del-knap øverst til venstre, så funktionen kan findes uden at kende hold-menuen.
@@ -507,6 +538,8 @@ struct LightboxView: View {
                 }
                 .accessibilityLabel("Luk")
             }
+            .opacity(1 - dragProgress * 2)   // knapperne forsvinder, så snart man begynder at trække
+            .allowsHitTesting(dragY == 0)
 
             if let toast {
                 Text(toast)
@@ -519,6 +552,8 @@ struct LightboxView: View {
                     .transition(.opacity)
             }
         }
+        // Gennemsigtig præsentation, så skærmen bag billedet kommer til syne, mens man trækker ned.
+        .presentationBackground(.clear)
     }
 
     private var currentImage: UIImage? {

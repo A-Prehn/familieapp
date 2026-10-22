@@ -52,13 +52,18 @@ struct PaywallView: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 22) {
+                    // Hjertet står ved siden af overskriften, så "Ikke nu" i værktøjslinjen aldrig dækker det (#39).
                     VStack(alignment: .leading, spacing: 8) {
-                        Image(systemName: "heart.circle.fill")
-                            .font(.system(size: 44))
-                            .foregroundStyle(Theme.rose)
-                        Text(reason.headline).font(.serifTitle(28)).foregroundStyle(Theme.text)
+                        HStack(alignment: .firstTextBaseline, spacing: 10) {
+                            Image(systemName: "heart.circle.fill")
+                                .font(.system(size: 30))
+                                .foregroundStyle(Theme.rose)
+                                .alignmentGuide(.firstTextBaseline) { $0[VerticalAlignment.center] + 9 }
+                            Text(reason.headline).font(.serifTitle(28)).foregroundStyle(Theme.text)
+                        }
                         Text(reason.detail).font(.subheadline).foregroundStyle(Theme.muted)
                     }
+                    .padding(.top, 8)
 
                     VStack(alignment: .leading, spacing: 12) {
                         ForEach(Self.features, id: \.1) { icon, text in
