@@ -4,7 +4,16 @@
 # Kræver ImageMagick 7 (magick) og cwebp. Farver og skrift følger landingssiden (cream, Georgia).
 set -eo pipefail   # ikke -u: tomme arrays fejler i macOS' bash 3.2
 OUT="$1"
-SRC="$OUT/screenshots/6.9"
+# Største størrelse med billeder (6,9" helst, ellers 6,3").
+SRC=""
+for size in 6.9 6.3; do
+  if ls "$OUT/screenshots/$size"/*.png >/dev/null 2>&1; then SRC="$OUT/screenshots/$size"; break; fi
+done
+[ -n "$SRC" ] || { echo "Ingen skærmbilleder at arbejde med"; exit 1; }
+echo "Bruger skærmbilleder fra $SRC"
+for need in hjem barn familie-minder; do
+  ls "$SRC"/*-"$need".png >/dev/null 2>&1 || { echo "Mangler skærmbilledet '$need' i $SRC"; ls -la "$SRC"; exit 1; }
+done
 WEB="$OUT/web"
 mkdir -p "$WEB"
 
