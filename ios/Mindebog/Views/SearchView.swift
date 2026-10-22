@@ -232,7 +232,7 @@ struct SearchItem: Identifiable {
     }
 
     init(question: String, answer: String, child: Child) {
-        id = "ans_\(child.id)_\(question.hashValue)"; recordId = id; kind = "Answer"; label = "Om mig"; symbol = "person.text.rectangle"
+        id = CloudKitStore.answerRecordName(childId: child.id, question: question); recordId = id; kind = "Answer"; label = "Om mig"; symbol = "person.text.rectangle"
         childId = child.id; childName = child.name; date = nil
         text = "\(question) \(answer)"; extra = ""
     }
