@@ -10,7 +10,7 @@ med den fiktive demo-familie (se `ios/Demo/README.md`). Kør workflowet igen, n�
 | `screenshots/6.3/*.png` | App Store-skærmbilleder, iPhone 6,3" |
 | `header.png` (3840×1646) | App Store-header (produktsiden) |
 | `og-image.jpg` (1200×630) | Delingsbillede — kopieret til `apps.prehn.net/vores-familie/og-image.jpg` |
-| `review-paywall.png` | Review-skærmbillede af betalingsskærmen (skal fornyes til 1.1) |
+| `review-paywall.png` | Review-skærmbillede af betalingsskærmen (1.1: måned, år med 14 dages prøve, for altid). Skal være uden gennemsigtighed (alfa) |
 | `app-store-da.md` | App Store-teksten |
 
 Web-versionerne (WebP) til landingssiden ligger i PrehnApps-repoet: `vores-familie/img/`.
