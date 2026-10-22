@@ -1,0 +1,101 @@
+name: Skærmbilleder (demo-familie)
+
+# Tager App Store-skærmbilleder af demo-familien på to simulatorer (6,9" og 6,3"),
+# og laver web-versioner, delingsbillede og App Store-header af dem (issue #20).
+# Kun manuelt — tager 15–20 minutter på en Mac-runner. Resultatet ligger som zip under Artifacts.
+on:
+  workflow_dispatch:
+
+jobs:
+  screenshots:
+    name: Skærmbilleder
+    runs-on: macos-15
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Vælg nyeste Xcode
+        run: |
+          latest=$(ls -d /Applications/Xcode_*.app 2>/dev/null | sort -V | tail -1)
+          echo "Bruger $latest"
+          sudo xcode-select -s "$latest/Contents/Developer"
+          xcodebuild -version
+
+      - name: Installér værktøjer
+        run: brew install xcodegen imagemagick webp
+
+      - name: Generér Xcode-projekt
+        working-directory: ios
+        run: xcodegen generate
+
+      - name: Byg app og UI-test til simulator (én gang, genbruges på begge størrelser)
+        working-directory: ios
+        run: |
+          set -o pipefail
+          xcodebuild build-for-testing \
+            -project Mindebog.xcodeproj \
+            -scheme Mindebog \
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath build/dd \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO 2>&1 | tail -40
+
+      - name: Tag skærmbilleder på 6,9" og 6,3"
+        working-directory: ios
+        env:
+          DEMO_PHOTOS_DIR: ${{ github.workspace }}/ios/Demo/photos
+        run: |
+          set -o pipefail
+          pick() {   # første tilgængelige simulator blandt navnene; udskriver UDID
+            for name in "$@"; do
+              udid=$(xcrun simctl list devices available -j | jq -r --arg n "$name" \
+                '.devices | to_entries[] | select(.key | test("iOS")) | .value[] | select(.name == $n) | .udid' | head -1)
+              if [ -n "$udid" ]; then echo "$udid"; return; fi
+            done
+            echo "::error::Ingen af simulatorerne findes: $*"; xcrun simctl list devices available | grep iPhone; exit 1
+          }
+          run_size() {   # $1 = mappenavn, resten = simulatornavne i prioriteret rækkefølge
+            size=$1; shift
+            udid=$(pick "$@")
+            echo "== $size: $(xcrun simctl list devices | grep "$udid")"
+            xcrun simctl boot "$udid" || true
+            xcrun simctl bootstatus "$udid" -b
+            # Pæn statuslinje som i App Store: 9:41, fuldt batteri og signal.
+            xcrun simctl status_bar "$udid" override --time "9:41" --batteryState charged --batteryLevel 100 \
+              --wifiBars 3 --cellularBars 4 --operatorName ""
+            out="$GITHUB_WORKSPACE/out/screenshots/$size"
+            mkdir -p "$out"
+            TEST_RUNNER_SCREENSHOT_DIR="$out" TEST_RUNNER_DEMO_PHOTOS_DIR="$DEMO_PHOTOS_DIR" \
+            xcodebuild test-without-building \
+              -project Mindebog.xcodeproj \
+              -scheme Mindebog \
+              -destination "platform=iOS Simulator,id=$udid" \
+              -derivedDataPath build/dd \
+              -only-testing:MindebogUITests \
+              -resultBundlePath "$GITHUB_WORKSPACE/out/$size.xcresult" 2>&1 | tail -60 || echo "::warning::Testen meldte fejl for $size — se billederne alligevel"
+            ls -la "$out"
+            xcrun simctl shutdown "$udid" || true
+          }
+          run_size 6.9 "iPhone 17 Pro Max" "iPhone 16 Pro Max"
+          run_size 6.3 "iPhone 17 Pro" "iPhone 16 Pro"
+
+      - name: Web-versioner, delingsbillede og App Store-header
+        run: bash ios/Demo/compose.sh "$GITHUB_WORKSPACE/out"
+
+      - name: Gem resultatet
+        uses: actions/upload-artifact@v4
+        with:
+          name: skaermbilleder-${{ github.run_number }}
+          path: |
+            out/screenshots
+            out/web
+            out/og-image.jpg
+            out/header.png
+          if-no-files-found: error
+
+      - name: Gem testrapporter (ved fejl)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: xcresult-${{ github.run_number }}
+          path: out/*.xcresult
+          if-no-files-found: ignore

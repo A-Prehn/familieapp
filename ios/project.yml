@@ -60,6 +60,21 @@ targets:
         # anvendes når appen signeres med Apple Developer-kontoen.
         CODE_SIGN_ENTITLEMENTS: Mindebog/Mindebog.entitlements
 
+  # UI-test, der tager App Store-skærmbilleder af demo-familien (ios-screenshots.yml). Kun simulator.
+  MindebogUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources:
+      - path: MindebogUITests
+    dependencies:
+      - target: Mindebog
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: net.prehn.mindebog.uitests
+        GENERATE_INFOPLIST_FILE: "YES"
+        TARGETED_DEVICE_FAMILY: "1"
+        TEST_TARGET_NAME: Mindebog
+
   # Widgets til hjemmeskærmen (fødselsdage, termin, på denne dag, dagens citat).
   VoresFamilieWidget:
     type: app-extension
@@ -122,3 +137,20 @@ targets:
     dependencies:
       - sdk: UniformTypeIdentifiers.framework
       - sdk: SwiftUI.framework
+
+# Skemaet "Mindebog" defineres eksplicit, så UI-testen er med under Test, og Archive bruger Release
+# (som TestFlight-workflowet forventer).
+schemes:
+  Mindebog:
+    build:
+      targets:
+        Mindebog: all
+        MindebogUITests: [test]
+    run:
+      config: Debug
+    test:
+      config: Debug
+      targets:
+        - MindebogUITests
+    archive:
+      config: Release

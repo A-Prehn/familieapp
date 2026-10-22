@@ -9,6 +9,8 @@ struct MindebogApp: App {
     @AppStorage(Appearance.key) private var appearance = Appearance.system.rawValue
 
     init() {
+        // Skærmbilleder (issue #20): "-demo" viser en fiktiv familie fra hukommelsen, aldrig iCloud.
+        if DemoFamily.isActive { DemoFamily.prepareDefaults() }
         // Sættes før fanebjælken findes — ellers vises ikonerne sorte, indtil siden tegnes igen.
         // Kun farven: ingen egen UITabBarAppearance, så iOS 26 beholder Liquid Glass.
         UITabBar.appearance().unselectedItemTintColor = UIColor(Theme.muted)
@@ -94,6 +96,7 @@ final class AppState: ObservableObject {
 
     func bootstrap() async {
         guard !ready else { return }
+        if DemoFamily.isActive { await startDemo(); return }
         let defaults = UserDefaults.standard
 
         // Hurtig vej: kendt bruger + familie fra sidst i iCloud → vis appen med det samme
@@ -126,6 +129,20 @@ final class AppState: ObservableObject {
         }
         ready = true
         Task { await publishDisplayName(); await refreshPermissions() }
+    }
+
+    /// Demo-familien til skærmbilleder: hukommelseslager, ingen iCloud, intet gemt.
+    private func startDemo() async {
+        let memory = MemoryStore()
+        store = memory
+        usingCloud = false
+        if let seeded = try? await DemoFamily.seed(into: memory) {
+            user = seeded.user
+            familyId = seeded.familyId
+        }
+        isPremium = true
+        canEdit = true
+        ready = true
     }
 
     /// Efter hurtig opstart: hvis iCloud er logget ud eller familien er væk, ret op.
