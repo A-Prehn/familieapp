@@ -29,7 +29,7 @@ enum PaywallReason: String, Identifiable {
     }
 }
 
-/// Betalingsskærm: 179 kr om året (fremhævet), 19 kr om måneden eller 499 kr for altid.
+/// Betalingsskærm: 19 kr om måneden, 179 kr om året (fremhævet) eller 499 kr for altid.
 struct PaywallView: View {
     @EnvironmentObject var state: AppState
     @Environment(\.dismiss) private var dismiss
@@ -94,18 +94,18 @@ struct PaywallView: View {
                             .buttonStyle(.plain)
                         }
                     } else {
-                        // Året er det fremhævede valg; måneden nedenunder; engangskøbet nederst og dæmpet.
+                        // Billigst først: måned, år (fremhævet), for altid (dæmpet).
                         VStack(spacing: 10) {
-                            if let yearly = purchases.yearly {
-                                optionButton(title: "Pr. år", price: "\(yearly.displayPrice)/år",
-                                             note: Self.yearlyNote(yearly: yearly, monthly: purchases.monthly), primary: true) {
-                                    Task { await buy(yearly) }
-                                }
-                            }
                             if let monthly = purchases.monthly {
                                 optionButton(title: "Pr. måned", price: "\(monthly.displayPrice)/md",
                                              note: "Kan opsiges når som helst.", primary: purchases.yearly == nil) {
                                     Task { await buy(monthly) }
+                                }
+                            }
+                            if let yearly = purchases.yearly {
+                                optionButton(title: "Pr. år", price: "\(yearly.displayPrice)/år",
+                                             note: Self.yearlyNote(yearly: yearly, monthly: purchases.monthly), primary: true) {
+                                    Task { await buy(yearly) }
                                 }
                             }
                             if let lifetime = purchases.lifetime {
