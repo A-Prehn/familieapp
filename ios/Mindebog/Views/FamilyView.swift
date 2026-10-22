@@ -53,7 +53,7 @@ struct FamilyView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 16) {
-                // Fem faner med ikon og kort tekst, alle synlige på én gang; den valgte har en rosa streg under.
+                // Seks faner med ikon og kort tekst, alle synlige på én gang; den valgte har en rosa streg under.
                 VStack(spacing: 0) {
                     HStack(spacing: 0) {
                         ForEach(Tab.visible) { t in

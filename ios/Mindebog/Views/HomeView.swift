@@ -1,7 +1,7 @@
 import SwiftUI
 
 // Hjem: hilsen, hurtig-tilføj, "På denne dag" (minder fra samme dato tidligere år)
-// og seneste minder. Børnene ligger under Familie-fanen.
+// og seneste minder. Børnene ligger under Børn-fanen.
 struct HomeView: View {
     @EnvironmentObject var state: AppState
     @Namespace private var zoomNS   // zoom-overgang til fuld skærm (iOS 18)
@@ -361,7 +361,7 @@ struct HomeView: View {
         guard action.isForChild else { familyAdd = action; return }
         let candidates = children.filter { action.fits($0) }
         if candidates.isEmpty {
-            noChildMessage = action == .belly ? "Der er ikke noget barn på vej." : "Tilføj et barn under Familie først."
+            noChildMessage = action == .belly ? "Der er ikke noget barn på vej." : "Tilføj et barn under Børn først."
         } else if candidates.count == 1 {
             quickAdd = QuickAdd(kind: action, children: candidates)
         } else {

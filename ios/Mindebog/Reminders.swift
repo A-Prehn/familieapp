@@ -1,9 +1,11 @@
 import Foundation
 import UserNotifications
 
-// Månedlig påmindelse — lokale notifikationer på telefonen (ingen iCloud/server):
-//  • Født barn under 3 år: hver "månedsdag" kl. 10 ("Theo er 3 måneder i dag 📸").
-//  • Barn på vej: hver ny graviditetsuge kl. 10 ("Uge 24 i dag – tag ugens mavebillede").
+// Påmindelser — lokale notifikationer på telefonen (ingen iCloud/server):
+//  • Månedsdag: født barn under 3 år, hver "månedsdag" kl. 10 ("Theo er 3 måneder i dag 📸").
+//  • Mavebillede: barn på vej, hver uge/14. dag/måned på valgt ugedag og tid.
+//  • Årligt interview: omkring barnets fødselsdag.
+//  • Ugens spørgsmål og "Året der gik".
 // Planlægges igen hver gang børnene indlæses, så ændrede datoer og nye børn kommer med.
 enum Reminders {
     static let enabledKey = "mindebog.monthlyReminder"

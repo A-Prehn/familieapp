@@ -90,7 +90,13 @@ final class NotificationService: UNNotificationServiceExtension {
         case "Highlight": return "et højdepunkt"
         case "Diary": return "et dagbogsindlæg"
         case "GalleryItem":
-            return (record["kind"] as? String) == "belly" ? "et mavebillede" : "et månedsbillede"
+            // kind er GalleryKind's rawValue (belly, monthly, drawings, birthday)
+            switch record["kind"] as? String {
+            case "belly": return "et mavebillede"
+            case "drawings": return "en tegning"
+            case "birthday": return "et fødselsdagsbillede"
+            default: return "et månedsbillede"
+            }
         case "Milestone":
             return (record["key"] as? String)?.hasPrefix("vac_") == true ? "en vaccination" : "en milepæl"
         case "Answer": return "et svar i Om dig"
