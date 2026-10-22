@@ -130,8 +130,8 @@ struct PersonCard: View {
     }
 
     private var initials: String {
-        let parts = name.split(separator: " ").prefix(2)
-        let letters = parts.compactMap { $0.first }.map(String.init).joined()
+        // Spring "(dig)" o.l. over, så initialerne ikke bliver "A(".
+        let letters = name.split(separator: " ").compactMap(\.first).filter(\.isLetter).prefix(2).map(String.init).joined()
         return letters.isEmpty ? "?" : letters.uppercased()
     }
 

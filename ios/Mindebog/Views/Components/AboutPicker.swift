@@ -51,7 +51,7 @@ struct AboutPicker: View {
     }
 
     static func initials(_ name: String) -> String {
-        let letters = name.split(separator: " ").prefix(2).compactMap(\.first).map(String.init).joined()
+        let letters = name.split(separator: " ").compactMap(\.first).filter(\.isLetter).prefix(2).map(String.init).joined()
         return letters.isEmpty ? "?" : letters.uppercased()
     }
 
