@@ -49,6 +49,7 @@ struct FamilyView: View {
     @State private var editingVacation: Vacation?
     @State private var editingBirthday: CustomBirthday?
     @State private var lightbox: LightboxState?
+    @State private var showVacationMap = false
 
     var body: some View {
         ScrollView {
@@ -194,6 +195,17 @@ struct FamilyView: View {
             ContentUnavailableView("Ingen rejser endnu", systemImage: "beach.umbrella")
                 .padding(.top, 40)
         } else {
+            // Liste eller verdenskort (#26).
+            Picker("Visning", selection: $showVacationMap) {
+                Label("Liste", systemImage: "list.bullet").tag(false)
+                Label("Kort", systemImage: "globe.europe.africa").tag(true)
+            }
+            .pickerStyle(.segmented)
+            if showVacationMap {
+                VacationMapView(vacations: vacations, dateText: dateRange) { v in
+                    if state.canEdit { editingVacation = v } else { showVacationMap = false }
+                }
+            } else {
             // Tidslinje som på websitet: nyeste øverst, årstal hver gang året skifter.
             TimelineView(items: vacations,
                          year: { $0.startDate.map { Calendar.current.component(.year, from: $0) } }) { vacation in
@@ -217,6 +229,7 @@ struct FamilyView: View {
                     .background(Theme.card)
                     .clipShape(RoundedRectangle(cornerRadius: 14))
                     .overlay(RoundedRectangle(cornerRadius: 14).stroke(Theme.sep))
+            }
             }
         }
     }
