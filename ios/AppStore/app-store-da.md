@@ -67,7 +67,7 @@ Kan ændres uden ny version — brug den til sæsoner og nyheder.
 >
 > Abonnementet fornyes automatisk, medmindre det opsiges senest 24 timer før periodens udløb. Betalingen trækkes via din Apple-konto, og du kan administrere eller opsige abonnementet under Indstillinger.
 >
-> Privatlivspolitik: https://familie.prehn.net/privatliv/
+> Privatlivspolitik: https://apps.prehn.net/vores-familie/privatliv/
 > Vilkår (EULA): https://www.apple.com/legal/internet-services/itunes/dev/stdeula/
 
 (ca. 2.400 tegn)
