@@ -9,6 +9,9 @@ startes manuelt med "Run workflow" på `develop`) til TestFlight.
 - `main` — det, der ligger i App Store. Opdateres kun, når Apple har godkendt en version:
   `git checkout main && git merge develop && git tag vX.Y && git push origin main --tags && git checkout develop`
   (tag'et skal pege på det godkendte builds commit). Et push til main starter ikke et build.
+- `release/X.Y` — oprettes fra det indsendte builds commit, mens en version er til review (fx `release/1.1`
+  = build 87, commit 48952a2). Afviser Apple versionen, rettes fejlen her og bygges herfra ("Run workflow"
+  på grenen); rettelsen flettes også ind i develop. Imens har develop næste version (`MARKETING_VERSION`).
 
 ## Backlog
 
