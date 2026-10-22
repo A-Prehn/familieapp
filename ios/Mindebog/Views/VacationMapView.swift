@@ -49,6 +49,7 @@ struct VacationMapView: View {
             }
             .mapStyle(.standard(elevation: .flat))
             .frame(height: 380)
+            .noTabSwipe()   // at panorere kortet må ikke skifte hovedfane (#40)
             .clipShape(RoundedRectangle(cornerRadius: 14))
             .overlay(RoundedRectangle(cornerRadius: 14).stroke(Theme.sep))
 
