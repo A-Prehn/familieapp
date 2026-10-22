@@ -2,7 +2,7 @@
 # Laver web-versioner (WebP), delingsbilledet og App Store-headeren af skærmbillederne.
 # Brug: compose.sh <out-mappe>  — forventer <out>/screenshots/6.9/*.png (fra ScreenshotTests).
 # Kræver ImageMagick 7 (magick) og cwebp. Farver og skrift følger landingssiden (cream, Georgia).
-set -euo pipefail
+set -eo pipefail   # ikke -u: tomme arrays fejler i macOS' bash 3.2
 OUT="$1"
 SRC="$OUT/screenshots/6.9"
 WEB="$OUT/web"
@@ -10,10 +10,13 @@ mkdir -p "$WEB"
 
 CREAM="#faf8f4"; INK="#2c2820"; MUTED="#7a6f60"; ROSE="#d4547a"
 SERIF=/System/Library/Fonts/Supplemental/Georgia.ttf
-SERIF_I=/System/Library/Fonts/Supplemental/Georgia\ Italic.ttf
+SERIF_I="/System/Library/Fonts/Supplemental/Georgia Italic.ttf"
 SANS=/System/Library/Fonts/Supplemental/Arial.ttf
-[ -f "$SERIF" ] || SERIF=""; [ -f "$SERIF_I" ] || SERIF_I="$SERIF"; [ -f "$SANS" ] || SANS=""
-font() { [ -n "$1" ] && echo "-font" "$1" || true; }
+# Skrifttyper som arrays, så stier med mellemrum ("Georgia Italic.ttf") ikke deles op.
+F_SERIF=(); F_SERIF_I=(); F_SANS=()
+[ -f "$SERIF" ] && F_SERIF=(-font "$SERIF")
+if [ -f "$SERIF_I" ]; then F_SERIF_I=(-font "$SERIF_I"); else F_SERIF_I=("${F_SERIF[@]}"); fi
+[ -f "$SANS" ] && F_SANS=(-font "$SANS")
 
 shot() {   # første fil, der matcher navnet (fx "hjem")
   ls "$SRC"/*-"$1".png 2>/dev/null | head -1
@@ -52,10 +55,10 @@ cwebp -quiet -q 85 "$WEB/telefon-hjem.png" -o "$WEB/telefon-hjem.webp"
 # 2. Delingsbillede 1200×630 (Facebook/Instagram/iMessage)
 phone "$(shot hjem)" "$OUT/og-phone.png" 700
 magick -size 1200x630 xc:"$CREAM" \
-  $(font "$SANS") -pointsize 20 -fill "$ROSE" -kerning 4 -annotate +90+200 "MINDEBOG FOR HELE FAMILIEN" \
-  $(font "$SERIF") -pointsize 72 -fill "$INK" -annotate +88+300 "Vores familie" \
-  $(font "$SERIF_I") -pointsize 34 -fill "$MUTED" -annotate +90+360 "Mindebogen, der vokser med jer" \
-  $(font "$SANS") -pointsize 22 -fill "$MUTED" -annotate +90+420 "De første ord, ferierne og mormors opskrifter —" \
+  "${F_SANS[@]}" -pointsize 20 -fill "$ROSE" -kerning 4 -annotate +90+200 "MINDEBOG FOR HELE FAMILIEN" \
+  "${F_SERIF[@]}" -pointsize 72 -fill "$INK" -annotate +88+300 "Vores familie" \
+  "${F_SERIF_I[@]}" -pointsize 34 -fill "$MUTED" -annotate +90+360 "Mindebogen, der vokser med jer" \
+  "${F_SANS[@]}" -pointsize 22 -fill "$MUTED" -annotate +90+420 "De første ord, ferierne og mormors opskrifter —" \
   -annotate +90+452 "privat i jeres egen iCloud." \
   "$OUT/og-phone.png" -geometry +780+70 -compose Over -composite \
   -quality 88 "$OUT/og-image.jpg"
@@ -66,10 +69,10 @@ phone "$(shot hjem)" "$OUT/h-mid.png" 1240
 phone "$(shot barn)" "$OUT/h-left.png" 1100
 phone "$(shot familie-minder)" "$OUT/h-right.png" 1100
 magick -size 3840x1646 xc:"$CREAM" \
-  $(font "$SANS") -pointsize 44 -fill "$ROSE" -kerning 10 -annotate +330+560 "MINDEBOG FOR HELE FAMILIEN" \
-  $(font "$SERIF") -pointsize 190 -fill "$INK" -annotate +322+770 "Vores familie" \
-  $(font "$SERIF_I") -pointsize 76 -fill "$MUTED" -annotate +330+900 "Jeres historie — samlet ét sted" \
-  $(font "$SANS") -pointsize 46 -fill "$MUTED" -annotate +332+1030 "Dagbog, milepæle, interview, minder og opskrifter." \
+  "${F_SANS[@]}" -pointsize 44 -fill "$ROSE" -kerning 10 -annotate +330+560 "MINDEBOG FOR HELE FAMILIEN" \
+  "${F_SERIF[@]}" -pointsize 190 -fill "$INK" -annotate +322+770 "Vores familie" \
+  "${F_SERIF_I[@]}" -pointsize 76 -fill "$MUTED" -annotate +330+900 "Jeres historie — samlet ét sted" \
+  "${F_SANS[@]}" -pointsize 46 -fill "$MUTED" -annotate +332+1030 "Dagbog, milepæle, interview, minder og opskrifter." \
   -annotate +332+1100 "Alt i jeres egen iCloud." \
   "$OUT/h-left.png"  -geometry +1900+330 -compose Over -composite \
   "$OUT/h-right.png" -geometry +2760+330 -compose Over -composite \
