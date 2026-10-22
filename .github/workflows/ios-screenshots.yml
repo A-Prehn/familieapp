@@ -73,7 +73,7 @@ jobs:
             if [ "$booted" != yes ]; then echo "::error::$size: simulatoren startede ikke"; return 1; fi
             echo "Simulator klar"
             # Pæn statuslinje som i App Store: 9:41, fuldt batteri og signal.
-            xcrun simctl status_bar "$udid" override --time "9:41" --batteryState charged --batteryLevel 100 \
+            xcrun simctl status_bar "$udid" override --time "9:41" --batteryState discharging --batteryLevel 100 \
               --wifiBars 3 --cellularBars 4 --operatorName ""
             out="$GITHUB_WORKSPACE/out/screenshots/$size"
             mkdir -p "$out"

@@ -33,5 +33,8 @@ kommercielt, uden kreditering. Valgt uden genkendelige ansigter.
 | skov.jpg | 37240161 | Minde: efterårstur i Gribskov |
 | aeblekage.jpg | 15781460 | Opskrift: Mormors æblekage |
 | jul.jpg | 29749448 | Tradition: juleaften |
+| pandekager.jpg | 7144297 | Opskrift: Fars pandekager |
+
+Profilbilleder: William = lagkage, Nohr = cykel, Liv = finger.
 
 Adresse: `https://images.pexels.com/photos/<id>/pexels-photo-<id>.jpeg?auto=compress&cs=tinysrgb&w=1200`

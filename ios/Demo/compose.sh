@@ -65,7 +65,7 @@ cwebp -quiet -q 85 "$WEB/telefon-hjem.png" -o "$WEB/telefon-hjem.webp"
 phone "$(shot hjem)" "$OUT/og-phone.png" 700
 magick -size 1200x630 xc:"$CREAM" \
   "${F_SANS[@]}" -pointsize 20 -fill "$ROSE" -kerning 4 -annotate +90+200 "MINDEBOG FOR HELE FAMILIEN" \
-  "${F_SERIF[@]}" -pointsize 72 -fill "$INK" -annotate +88+300 "Vores familie" \
+  -kerning 0 "${F_SERIF[@]}" -pointsize 72 -fill "$INK" -annotate +88+300 "Vores familie" \
   "${F_SERIF_I[@]}" -pointsize 34 -fill "$MUTED" -annotate +90+360 "Mindebogen, der vokser med jer" \
   "${F_SANS[@]}" -pointsize 22 -fill "$MUTED" -annotate +90+420 "De første ord, ferierne og mormors opskrifter —" \
   -annotate +90+452 "privat i jeres egen iCloud." \
@@ -79,7 +79,7 @@ phone "$(shot barn)" "$OUT/h-left.png" 1100
 phone "$(shot familie-minder)" "$OUT/h-right.png" 1100
 magick -size 3840x1646 xc:"$CREAM" \
   "${F_SANS[@]}" -pointsize 44 -fill "$ROSE" -kerning 10 -annotate +330+560 "MINDEBOG FOR HELE FAMILIEN" \
-  "${F_SERIF[@]}" -pointsize 190 -fill "$INK" -annotate +322+770 "Vores familie" \
+  -kerning 0 "${F_SERIF[@]}" -pointsize 190 -fill "$INK" -annotate +322+770 "Vores familie" \
   "${F_SERIF_I[@]}" -pointsize 76 -fill "$MUTED" -annotate +330+900 "Jeres historie — samlet ét sted" \
   "${F_SANS[@]}" -pointsize 46 -fill "$MUTED" -annotate +332+1030 "Dagbog, milepæle, interview, minder og opskrifter." \
   -annotate +332+1100 "Alt i jeres egen iCloud." \

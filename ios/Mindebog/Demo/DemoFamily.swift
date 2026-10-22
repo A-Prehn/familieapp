@@ -74,10 +74,17 @@ enum DemoFamily {
         let liv = try await store.createChild(familyId: fid, name: "Liv", gender: .girl,
                                               birthDate: monthsAgo(5, days: 6), dueDate: nil)
 
-        try await seedNohr(store, nohr, commenters: [martin, mormor])
+        // Profilbilleder (uden ansigter).
+        for (child, file) in [(william, "lagkage"), (nohr, "cykel"), (liv, "finger")] {
+            var c = child; c.photo = photo(file); _ = try await store.updateChild(c)
+        }
+
+        // Rækkefølgen betyder noget: "Seneste i familien" viser det sidst gemte først,
+        // så Nohrs cykeltur (med billede) gemmes til allersidst.
+        try await seedFamily(store, fid, children: (william, nohr, liv), author: martin)
         try await seedWilliam(store, william)
         try await seedLiv(store, liv, commenter: mormor)
-        try await seedFamily(store, fid, children: (william, nohr, liv), author: martin)
+        try await seedNohr(store, nohr, commenters: [martin, mormor])
 
         return (sheila, fid)
     }
@@ -86,9 +93,6 @@ enum DemoFamily {
 
     private static func seedNohr(_ store: Store, _ child: Child, commenters: [AppUser]) async throws {
         let id = child.id
-        let cykel = try await store.addHighlight(childId: id, date: at(today, hour: 16),
-            text: "Første tur på cyklen uden støttehjul! Han kiggede sig tilbage for at se, om far stadig holdt fast — og det gjorde han ikke.",
-            photos: photos("cykel"), cover: 0, place: nil)
         _ = try await store.addHighlight(childId: id, date: at(daysAgo(11), hour: 10),
             text: "Efterår i gummistøvler. Hver eneste vandpyt skulle prøves af.",
             photos: photos("gummistovler"), cover: 0, place: nil)
@@ -100,6 +104,11 @@ enum DemoFamily {
             text: "De allerførste skridt! Fra sofaen og hen til mormor — og så ned på numsen med et kæmpe grin.",
             photos: photos("forste-skridt"), cover: 0, place: nil)
 
+        // Fødslen, så de første felter på Milepæle ikke står tomme.
+        try await store.setMilestone(childId: id, key: "due_date", value: Fmt.iso(yearsAgo(4, days: 104)), photos: PhotoSet())
+        try await store.setMilestone(childId: id, key: "birth_time", value: "06:42", photos: PhotoSet())
+        try await store.setMilestone(childId: id, key: "birth_weight", value: "3450", photos: PhotoSet())
+        try await store.setMilestone(childId: id, key: "birth_length", value: "52", photos: PhotoSet())
         try await store.setMilestone(childId: id, key: "first_steps", value: Fmt.iso(yearsAgo(3)), photos: set("forste-skridt"))
         try await store.setMilestone(childId: id, key: "walks", value: Fmt.iso(yearsAgo(3, days: -21)), photos: PhotoSet())
         try await store.setMilestone(childId: id, key: "first_word", value: "\"Mor\" — og lige bagefter \"nej\"", photos: PhotoSet())
@@ -150,6 +159,11 @@ enum DemoFamily {
         try await store.saveMeasurement(childId: id, Measurement(id: newId("m"), date: yearsAgo(3, days: 98), weightGrams: 9800, heightCm: 76, headCm: 46))
         try await store.saveMeasurement(childId: id, Measurement(id: newId("m"), date: yearsAgo(2, days: 98), weightGrams: 12600, heightCm: 88, headCm: 48))
         try await store.saveMeasurement(childId: id, Measurement(id: newId("m"), date: daysAgo(98), weightGrams: 17200, heightCm: 104, headCm: 50))
+
+        // Dagens højdepunkt gemmes til sidst, så det står øverst i "Seneste i familien".
+        let cykel = try await store.addHighlight(childId: id, date: at(today, hour: 16),
+            text: "Første tur på cyklen uden støttehjul! Han kiggede sig tilbage for at se, om far stadig holdt fast — og det gjorde han ikke.",
+            photos: photos("cykel"), cover: 0, place: nil)
 
         // Reaktioner fra familien på dagens højdepunkt.
         for (i, member) in commenters.enumerated() {
@@ -271,7 +285,7 @@ enum DemoFamily {
             ingredients: "3 æg\n5 dl mælk\n250 g mel\n1 spsk sukker\nEt nip salt\nSmør til panden",
             method: "Pisk det hele sammen, og lad dejen hvile 20 minutter. Bag tynde pandekager i rigeligt smør.",
             story: "Fredagsopskriften. Den første pandekage er altid 'prøvepandekagen' — og den får den, der har dækket bord.",
-            category: "Aftensmad", photos: PhotoSet()))
+            category: "Aftensmad", photos: set("pandekager")))
 
         _ = try await store.addBirthday(familyId: fid, name: "Mormor Inger", date: cal.date(from: DateComponents(year: 1956, month: 3, day: 14))!, emoji: "🎂")
         _ = try await store.addBirthday(familyId: fid, name: "Farmor Bente", date: cal.date(from: DateComponents(year: 1959, month: 11, day: 2))!, emoji: "🌸")

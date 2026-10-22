@@ -33,9 +33,9 @@ final class ScreenshotTests: XCTestCase {
     }
 
     func testScreenshots() throws {
-        // 1. Hjem
+        // 1. Hjem (billederne i "Seneste" og "På denne dag" hentes lidt efter listen)
         XCTAssertTrue(app.navigationBars.element.waitForExistence(timeout: 30), "Hjem kom ikke frem")
-        settle(3)
+        settle(5)
         snap("hjem")
 
         // 2. Børn
@@ -63,8 +63,8 @@ final class ScreenshotTests: XCTestCase {
         snap("milepaele")
         back()
 
-        // 7. Familie → Minder
-        tab("Familie"); settle(2)
+        // 7. Familie → Minder (kortet under billedet skal nå at blive tegnet)
+        tab("Familie"); settle(6)
         snap("familie-minder")
 
         // 8. Opskrifter
@@ -75,23 +75,10 @@ final class ScreenshotTests: XCTestCase {
         tapText("Traditioner"); settle()
         snap("traditioner")
 
-        // 10. Rejser
-        tapText("Rejser"); settle()
+        // 10. Rejser (med kort)
+        tapText("Rejser"); settle(5)
         snap("rejser")
-
-        // 11. Søgning
-        tab("Hjem"); settle()
-        let search = app.buttons["Søg i alt"]
-        if search.waitForExistence(timeout: 5) {
-            search.tap(); settle()
-            let field = app.searchFields.firstMatch.exists ? app.searchFields.firstMatch : app.textFields.firstMatch
-            if field.waitForExistence(timeout: 5) {
-                field.tap()
-                field.typeText("æble")
-                settle()
-                snap("soeg")
-            }
-        }
+        // Søgning er taget ud: ét resultat og et stort tastatur gør sig dårligt i App Store.
     }
 
     // MARK: - Hjælpere
