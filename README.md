@@ -62,8 +62,6 @@ med **samme metoder**, og UI-laget ændres ikke.
 - Privatlivspolitik + GDPR (data om **børn** → dataminimering, samtykke, sletteret)
 - Apple Developer-abonnement (~$99/år), App Store-review, support
 
-## Forretningsmodel (planlagt, fase 2+)
-Betaling skal bygges ind. Arkitekturen understøtter det: alt hænger på en
-familie-enhed, så abonnement/feature-gating kan lægges pr. familie uden ombygning
-(fx gratis = 1 barn / premium = ubegrænset + ekstra sektioner). Afklares senere —
-model, pris, og StoreKit/abonnement i SwiftUI.
+## Forretningsmodel
+Freemium: gratis med to børn; Premium (19 kr/md, 179 kr/år med 14 dages prøve, eller
+499 kr for altid) gælder for hele familien. Detaljer: [docs/forretningsmodel.md](docs/forretningsmodel.md).

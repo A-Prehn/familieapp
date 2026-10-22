@@ -1,113 +1,80 @@
-# Forretningsmodel — Mindebog
+# Forretningsmodel — Vores familie
 
-## Besluttet (22. oktober 2026, efter godkendelsen af 1.0) — gælder fra 1.1
+Gældende fra version 1.1 (oktober 2026). Historikken står nederst.
 
-- **Tre måder at betale:** 19 kr/md, **179 kr/år** (fremhævet i paywallen, ~21 % under måned)
-  eller **499 kr én gang** ("Premium for altid").
-- **Hvorfor:** 199 kr for altid svarede kun til ~10 måneders abonnement, så næsten alle ville vælge
-  engangskøbet. Nu er engangskøbet så dyrt (~2,8 år på årsabonnement), at det kun er for de få, og
-  årsabonnementet bliver det naturlige valg. Issue #30.
-- Produkt-ID'er: `net.prehn.mindebog.premium.monthly`, `net.prehn.mindebog.premium.yearly`
-  (samme abonnementsgruppe som måned), `net.prehn.mindebog.premium.lifetime`.
-- Dem, der har købt "for altid" til 199 kr, beholder Premium.
-- Alt andet nedenfor (gratis = to børn, hvad Premium giver, én betaler pr. familie) er uændret.
+## Kort fortalt
 
-## Besluttet (16. oktober 2026) — erstattet 22. oktober
+Freemium: appen er gratis med to børn. Premium låser resten op for **hele familien** — kun én betaler.
 
-- **Freemium med to måder at betale:** 19 kr/md (abonnement) eller 199 kr én gang ("Premium for altid").
-- **Hvorfor:** konkurrenterne (Tinybeans ~520 kr/år, FamilyAlbum ~410 kr/år, Qeepsake 330–670 kr/år,
-  Keepli engangskøb ~350 kr) har serverudgifter; det har vi ikke. Engangskøbet svarer til ~10 måneders
-  abonnement (branchens tommelfingerregel: 10–15 måneder).
-- **Gratis:** to børn med alle sektioner, lyd, stamtræ, traditioner, tegninger, widgets og påmindelser (hævet fra ét til to, så en familie med to børn kan prøve appen fuldt ud; det matcher koden og App Store-teksten).
-- **Premium:** flere børn, deling med partner/bedsteforældre, video, PDF-mindebog.
-- **"Eksportér alt" er altid gratis** — løftet om, at minderne aldrig låses inde.
-- **Kun én i familien betaler.** Køberens telefon skriver `premiumUntil` på Family-recorden i iCloud,
-  så alle i den delte familie får Premium.
-- Fotogrænsen (50) fra 15. oktober er droppet: dyr at tælle på tværs af iCloud og føles som en mur.
-- Produkt-ID'er: `net.prehn.mindebog.premium.monthly`, `net.prehn.mindebog.premium.lifetime`.
+| | Pris | Bemærkning |
+|---|---|---|
+| Månedligt abonnement | **19 kr/md** | `net.prehn.mindebog.premium.monthly` |
+| Årligt abonnement | **179 kr/år** | `net.prehn.mindebog.premium.yearly` · **14 dages gratis prøveperiode** · fremhævet i paywallen (~21 % billigere end måned) |
+| Premium for altid | **499 kr** én gang | `net.prehn.mindebog.premium.lifetime` · ~2,8 år på årsabonnement, så det er for de få |
 
-## Tidligere beslutning (15. oktober 2026)
+- Måned og år ligger i samme abonnementsgruppe ("Vores familie Premium"); år står på level 1, måned på level 2.
+- Prøveperioden er kun på året (Apples "introductory offer", én gang pr. Apple-ID i gruppen). Appen viser
+  "14 dage gratis" automatisk, når kunden har den til gode (`Purchases.trialEligible`).
+- Rækkefølgen i paywallen og på hjemmesiden: måned → år (fremhævet) → for altid (dæmpet).
+- Dem, der købte "for altid" til 199 kr i 1.0, beholder Premium.
 
-- **Model B: freemium + abonnement.** Lifetime kan tilføjes senere.
-- **Pris: 29 kr/md eller 199 kr/år.**
-- **Deling med partner er Premium.** Kun ejeren betaler; partneren får adgang til det delte.
-- Gratis: 1 barn, 50 fotos, alle sektioner. Premium: ubegrænset, deling, PDF-eksport, push-sync.
+## Gratis og Premium
 
----
-
-Oprindeligt oplæg nedenfor.
-
-## Udgangspunkt
-
-- **Omkostninger er næsten nul.** Data ligger i brugernes egen iCloud, så der er ingen
-  serverregning der vokser med antal brugere. Faste udgifter: Apple Developer (~$99/år),
-  domæne, evt. tid til support.
-- **Apple tager 15 %** af al in-app-betaling (Small Business Program, under $1M omsætning/år).
-- **Konkurrenter** (Tinybeans, Qeepsake, FamilyAlbum, Lifecake): typisk gratis med abonnement
-  på 30–80 kr/md eller 300–600 kr/år. Flere af dem lever af reklamer eller sælger fotobøger.
-- **Vores vinkel:** "Dine minder, din iCloud." Ingen reklamer, ingen servere, intet der kan lække.
-  Det er et reelt salgsargument for forældre, der er varsomme med børnedata.
-
-## Tre modeller
-
-### A. Engangskøb (fx 149 kr)
-- ✅ Simpelt, sympatisk, ingen "abonnementstræthed".
-- ❌ Ingen løbende indtægt til vedligehold; iOS-opdateringer kræver arbejde hvert år.
-- ❌ Lav konvertering hvis prisen sidder foran prøvning.
-
-### B. Freemium + abonnement (anbefalet)
-- Gratis: 1 barn, alle sektioner, begrænset antal fotos (fx 50).
-- Premium: ubegrænsede børn og fotos, deling med partner, eksport/PDF-mindebog.
-- Pris: **29 kr/md eller 199 kr/år** (årlig = ~43 % rabat, driver årsabonnement).
-- ✅ Prøv før du betaler, løbende indtægt, Apple håndterer alt (StoreKit 2).
-- ❌ Kræver tydelig "hvad får jeg"-skærm, ellers føles det som en mur.
-
-### C. Freemium + engangs-"lifetime" som alternativ til abonnement
-- Som B, men med en tredje knap: "Lifetime 499 kr".
-- ✅ Fanger dem der hader abonnement. Mange apps ser 20–30 % vælge lifetime.
-- ❌ Lidt mere kompleksitet i StoreKit og i App Store-review.
-
-## Anbefaling
-
-Start med **B**, tilføj lifetime (C) efter de første måneder hvis brugere beder om det.
-Hold den gratis version reelt brugbar — en forælder skal kunne føre bog om ét barn uden
-at betale. Betalingsmuren rammer dér, hvor værdien er tydelig: barn nr. 2, deling med
-partner, og de store fotomængder.
-
-## Hvad der låses bag Premium (forslag)
+Svarer til koden (`AppState.freeChildLimit = 2`, `PaywallReason`) og App Store-teksten.
 
 | Funktion | Gratis | Premium |
 |---|---|---|
-| Børn | 1 | Ubegrænset |
-| Fotos | 50 | Ubegrænset |
-| Alle sektioner (milepæle, Om dig, dagbog, gallerier) | ✅ | ✅ |
-| Familie (begivenheder, ferier, fødselsdage) | ✅ | ✅ |
-| Deling med partner | — | ✅ |
-| Eksport til PDF-bog | — | ✅ |
-| Push-sync i realtid | — | ✅ |
+| Børn | **2** | Ubegrænset |
+| Billeder | Ubegrænset | Ubegrænset |
+| Alle sektioner (dagbog, højdepunkter, milepæle, Om dig, interview, breve, vækst, gallerier …) | ✅ | ✅ |
+| Familie (minder, begivenheder, rejser, fødselsdage, traditioner, opskrifter, stamtræ) | ✅ | ✅ |
+| Lydnoter, widgets, påmindelser, notifikationer, søgning | ✅ | ✅ |
+| Deling med partneren | ✅ | ✅ |
+| Deling med bedsteforældre, resten af familien og en forælder uden for familien | — | ✅ |
+| Video (højdepunkter, videobreve, interview) | — | ✅ |
+| Film af billedserierne og "Året der gik" | — | ✅ |
+| PDF-mindebog (skærm og trykkeri) | — | ✅ |
+| Flere familier og skift mellem dem | — | ✅ |
+| "Eksportér alt" (ZIP) | ✅ | ✅ |
 
-Deling bag Premium er den stærkeste driver: det er præcis det, to forældre vil have.
+- **"Eksportér alt" er altid gratis** — løftet om, at minderne aldrig låses inde. (ZIP'en indeholder i dag
+  også PDF-mindebogen uden Premium — se issue #36.)
+- **Kun én i familien betaler.** Køberens telefon skriver `premiumUntil` på Family-recorden i iCloud, så
+  alle i den delte familie får Premium. Apples Family Sharing er slået fra (unødvendig og ville give
+  adgang uden for familien).
+
+## Hvorfor sådan
+
+- **Omkostninger er næsten nul.** Data ligger i brugernes egen iCloud — ingen serverregning, der vokser med
+  brugerne. Faste udgifter: Apple Developer (~779 kr/år), domæne og tid.
+- **Apple tager 15 %** med Small Business Program (ansøgt 22. okt. 2026, issue #16), ellers 30 %.
+- **Konkurrenter** har serverudgifter: Tinybeans ~520 kr/år, FamilyAlbum ~410 kr/år, Qeepsake 330–670 kr/år,
+  Keepli engangskøb ~350 kr. Vi kan ligge lavere.
+- **Engangskøbet er dyrt med vilje.** 199 kr svarede kun til ~10 måneders abonnement, så næsten alle ville
+  vælge det. 499 kr gør årsabonnementet til det naturlige valg (issue #30).
+- **Gratis med to børn**, så en almindelig familie kan prøve hele appen. Betalingsmuren rammer dér, hvor
+  værdien er tydelig: barn nr. 3, bedsteforældrene, video og bogen.
+- **Vores vinkel:** "Jeres minder, jeres iCloud." Ingen reklamer, ingen sporing, ingen server.
 
 ## Teknisk
 
-- **StoreKit 2** i SwiftUI: `Product`, `Transaction.currentEntitlements`. Ingen server nødvendig
-  for at verificere — Apple signerer kvitteringen, og appen læser den lokalt.
-- Entitlement-status gemmes i `AppState` (`isPremium`). Gates implementeres som én funktion:
-  `state.canAddChild`, `state.canAddPhoto`, `state.canShare`.
-- Familien ejer abonnementet: hvis ejeren har Premium, får partneren adgang til det delte
-  indhold (det er ejerens iCloud der betaler). Partneren skal ikke købe selv.
-- Apple Family Sharing for abonnementet kan slås til i App Store Connect senere.
+- StoreKit 2 (`ios/Mindebog/Store/Purchases.swift`): `Product.products`, `Transaction.currentEntitlements`.
+  Ingen server — Apple signerer købene, og appen læser dem lokalt.
+- Paywall: `ios/Mindebog/Views/PaywallView.swift`. Gates: `state.isPremium` + `PaywallReason`.
 
 ## Åbne spørgsmål
 
-1. Skal den gratis version have deling, så begge forældre kan prøve det før køb?
-2. Pris i andre markeder (Apple foreslår automatisk, men bør tjekkes).
-3. Vil vi lave fotobøger på print (høj margin, men kræver partner som fx Peecho/Pixum-API)?
-4. App-navnet er "Vores familie" (skiftet fra "Mindebog" 2026-10-15) — tjek varemærke og App Store-tilgængelighed før lancering.
+1. Skal ZIP-eksporten indeholde PDF-mindebogen uden Premium? (#36)
+2. Fotobøger på print via en partner (høj margin, men kræver fx Peecho/Pixum-API)?
+3. Premium uden børn, hvis Børn bliver valgfri (#28)?
 
-## Næste skridt
+---
 
-1. Beslut model (A/B/C) og priser.
-2. Opret abonnementsprodukter i App Store Connect.
-3. Implementér StoreKit 2 + paywall-skærm + gates.
-4. TestFlight-test af købsflow med Sandbox-konto.
+## Historik
+
+- **22. okt. 2026 (1.1):** årsabonnement 179 kr med 14 dages prøve; for altid hævet fra 199 til 499 kr;
+  rækkefølge måned → år → for altid.
+- **16. okt. 2026 (1.0):** 19 kr/md eller 199 kr for altid. Gratis hævet fra ét til to børn. Fotogrænsen på
+  50 droppet (dyr at tælle på tværs af iCloud og føles som en mur). Partneren gratis.
+- **15. okt. 2026:** første plan — 29 kr/md eller 199 kr/år, gratis med 1 barn og 50 fotos, deling med
+  partneren som Premium.
