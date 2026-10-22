@@ -100,7 +100,7 @@ struct HomeView: View {
             case .highlight: AddHighlightView(childId: first.id, alsoFor: others, forNames: names)
             case .diary: AddDiaryView(childId: first.id, alsoFor: others, forNames: names)
             case .monthly: AddGalleryItemView(childId: first.id, alsoFor: others, forNames: names, kind: .monthly)
-            case .belly: AddGalleryItemView(childId: first.id, kind: .belly)
+            case .belly: AddGalleryItemView(childId: first.id, kind: .belly, dueDate: first.dueDate)
             case .drawing: AddGalleryItemView(childId: first.id, kind: .drawings, defaultCaption: ChildAge.short(first))
             case .voice: RecordVoiceView(child: first)
             default: EmptyView()

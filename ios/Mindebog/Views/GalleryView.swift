@@ -132,7 +132,8 @@ struct GalleryView: View {
         }
         .saveErrorAlert($scanError)
         .sheet(isPresented: $showAdd, onDismiss: { Task { await load() } }) {
-            AddGalleryItemView(childId: child.id, kind: kind, defaultCaption: kind == .drawings ? ChildAge.short(child) : "")
+            AddGalleryItemView(childId: child.id, kind: kind, defaultCaption: kind == .drawings ? ChildAge.short(child) : "",
+                               dueDate: child.dueDate)
         }
         .sheet(item: $editing, onDismiss: { Task { await load() } }) { item in
             AddGalleryItemView(childId: child.id, kind: kind, editing: item)
@@ -294,6 +295,18 @@ struct AddGalleryItemView: View {
     var editing: GalleryItem? = nil
     /// Forudfyldt billedtekst ved oprettelse (fx barnets alder til en tegning).
     var defaultCaption = ""
+    /// Terminsdato ved mavebilleder: så udfyldes "Uge 24+3" automatisk ud fra billedets dato.
+    var dueDate: Date? = nil
+
+    /// Graviditetsuge som "Uge 24+3" (termin = 40+0).
+    static func gestationCaption(on date: Date, due: Date) -> String? {
+        let cal = Calendar.current
+        guard let left = cal.dateComponents([.day], from: cal.startOfDay(for: date), to: cal.startOfDay(for: due)).day else { return nil }
+        let days = 280 - left
+        guard days >= 0, days <= 300 else { return nil }
+        return "Uge \(days / 7)+\(days % 7)"
+    }
+    @State private var autoCaption = ""
 
     private var notePlaceholder: String {
         switch kind {
@@ -407,7 +420,17 @@ struct AddGalleryItemView: View {
                 loaded = true
                 if let item = editing { caption = item.caption; photo = item.photo; note = item.note; date = item.shownDate }
                 else if caption.isEmpty { caption = defaultCaption }
+                if editing == nil, kind == .belly { updateGestation() }
             }
+            .onChange(of: date) { if editing == nil, kind == .belly { updateGestation() } }
         }
+    }
+
+    /// Udfylder ugen ud fra datoen — men kun så længe brugeren ikke selv har skrevet noget andet.
+    private func updateGestation() {
+        guard let due = dueDate, caption.isEmpty || caption == autoCaption,
+              let text = Self.gestationCaption(on: date, due: due) else { return }
+        caption = text
+        autoCaption = text
     }
 }
