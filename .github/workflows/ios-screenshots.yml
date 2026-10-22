@@ -37,7 +37,9 @@ jobs:
             -scheme Mindebog \
             -destination 'generic/platform=iOS Simulator' \
             -derivedDataPath build/dd \
-            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO 2>&1 | tail -40
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO > build.log 2>&1 || {
+              echo "::error::Build fejlede — fejlene:"; grep -n "error:" build.log | head -40; tail -30 build.log; exit 1; }
+          grep -c "warning:" build.log | sed 's/^/Advarsler: /' || true
 
       - name: Tag skærmbilleder på 6,9" og 6,3"
         working-directory: ios
@@ -71,7 +73,9 @@ jobs:
               -destination "platform=iOS Simulator,id=$udid" \
               -derivedDataPath build/dd \
               -only-testing:MindebogUITests \
-              -resultBundlePath "$GITHUB_WORKSPACE/out/$size.xcresult" 2>&1 | tail -60 || echo "::warning::Testen meldte fejl for $size — se billederne alligevel"
+              -resultBundlePath "$GITHUB_WORKSPACE/out/$size.xcresult" > "test-$size.log" 2>&1 \
+              || { echo "::warning::Testen meldte fejl for $size — se billederne alligevel"; grep -n "error\|failed\|XCTAssert" "test-$size.log" | head -40; }
+            grep -n "Test Case\|passed\|failed" "test-$size.log" | tail -10
             ls -la "$out"
             xcrun simctl shutdown "$udid" || true
           }

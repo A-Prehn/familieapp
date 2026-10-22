@@ -152,7 +152,8 @@ struct PaywallView: View {
         let perMonth = yearly.price / 12
         var text = "Svarer til \(yearly.priceFormatStyle.format(perMonth))/md."
         if let monthly, monthly.price > 0 {
-            let saving = Int(((1 - perMonth / monthly.price) * 100).rounded())
+            let ratio = NSDecimalNumber(decimal: perMonth / monthly.price).doubleValue
+            let saving = Int(((1 - ratio) * 100).rounded())
             if saving > 0 { text += " Spar \(saving) %." }
         }
         return text
