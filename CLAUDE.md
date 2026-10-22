@@ -12,7 +12,7 @@ startes manuelt med "Run workflow" på `develop`) til TestFlight.
 
 ## Backlog
 
-GitHub Issues i A-Prehn/familieapp er den eneste liste (labels: bug, enhancement, test, udgivelse).
+GitHub Issues i A-Prehn/familieapp er den eneste liste (labels: fejl, forbedring, test, udgivelse — alle labels er på dansk).
 `BACKLOG.md` er kun en henvisning. Luk issues med en kommentar om build-nummeret, når de er bygget og bekræftet.
 
 ## Builds

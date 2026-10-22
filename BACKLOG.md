@@ -3,7 +3,7 @@
 Listen over bugs, ønsker, test og udgivelsesopgaver ligger i **GitHub Issues**:
 https://github.com/A-Prehn/familieapp/issues
 
-- Labels: `bug`, `enhancement`, `test`, `udgivelse`.
+- Labels: `fejl`, `forbedring`, `test`, `udgivelse`.
 - Bugs tages før features.
 - Når noget er lavet og bygget, lukkes issuet med en kommentar om build-nummeret.
 
