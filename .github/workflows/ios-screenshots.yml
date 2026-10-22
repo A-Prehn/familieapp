@@ -22,7 +22,8 @@ jobs:
           xcodebuild -version
 
       - name: Installér værktøjer
-        run: brew install xcodegen imagemagick webp
+        # coreutils giver gtimeout, så en simulator eller test, der hænger, ikke låser hele jobbet.
+        run: brew install xcodegen imagemagick webp coreutils
 
       - name: Generér Xcode-projekt
         working-directory: ios
@@ -59,28 +60,42 @@ jobs:
             size=$1; shift
             udid=$(pick "$@")
             echo "== $size: $(xcrun simctl list devices | grep "$udid")"
-            xcrun simctl boot "$udid" || true
-            xcrun simctl bootstatus "$udid" -b
+            # Opstart med loft: bootstatus kan hænge på GitHubs runnere (kørsel 2 hang 57 min her).
+            booted=no
+            for attempt in 1 2; do
+              echo "Starter simulator (forsøg $attempt)…"
+              xcrun simctl shutdown "$udid" 2>/dev/null || true
+              xcrun simctl boot "$udid" 2>&1 || true
+              if gtimeout 300 xcrun simctl bootstatus "$udid" -b; then booted=yes; break; fi
+              echo "::warning::Simulatoren kom ikke op inden for 5 minutter (forsøg $attempt)"
+              [ "$attempt" = 1 ] && xcrun simctl erase "$udid" || true
+            done
+            if [ "$booted" != yes ]; then echo "::error::$size: simulatoren startede ikke"; return 1; fi
+            echo "Simulator klar"
             # Pæn statuslinje som i App Store: 9:41, fuldt batteri og signal.
             xcrun simctl status_bar "$udid" override --time "9:41" --batteryState charged --batteryLevel 100 \
               --wifiBars 3 --cellularBars 4 --operatorName ""
             out="$GITHUB_WORKSPACE/out/screenshots/$size"
             mkdir -p "$out"
+            # Højst 15 minutter pr. størrelse; output vises løbende (filtreret) og gemmes i sin helhed.
             TEST_RUNNER_SCREENSHOT_DIR="$out" TEST_RUNNER_DEMO_PHOTOS_DIR="$DEMO_PHOTOS_DIR" \
-            xcodebuild test-without-building \
+            gtimeout 900 xcodebuild test-without-building \
               -project Mindebog.xcodeproj \
               -scheme Mindebog \
               -destination "platform=iOS Simulator,id=$udid" \
               -derivedDataPath build/dd \
               -only-testing:MindebogUITests \
-              -resultBundlePath "$GITHUB_WORKSPACE/out/$size.xcresult" > "test-$size.log" 2>&1 \
-              || { echo "::warning::Testen meldte fejl for $size — se billederne alligevel"; grep -n "error\|failed\|XCTAssert" "test-$size.log" | head -40; }
-            grep -n "Test Case\|passed\|failed" "test-$size.log" | tail -10
+              -resultBundlePath "$GITHUB_WORKSPACE/out/$size.xcresult" 2>&1 \
+              | tee "$GITHUB_WORKSPACE/out/test-$size.log" \
+              | grep --line-buffered -E "Test Case|error|failed|XCTAssert|Testing started|\*\* TEST" \
+              || echo "::warning::Testen for $size fejlede eller blev stoppet — se billederne og loggen"
             ls -la "$out"
             xcrun simctl shutdown "$udid" || true
           }
-          run_size 6.9 "iPhone 17 Pro Max" "iPhone 16 Pro Max"
-          run_size 6.3 "iPhone 17 Pro" "iPhone 16 Pro"
+          mkdir -p "$GITHUB_WORKSPACE/out"
+          run_size 6.9 "iPhone 17 Pro Max" "iPhone 16 Pro Max" || echo "::warning::6,9\" mislykkedes"
+          run_size 6.3 "iPhone 17 Pro" "iPhone 16 Pro" || echo "::warning::6,3\" mislykkedes"
+          ls "$GITHUB_WORKSPACE"/out/screenshots/*/*.png >/dev/null 2>&1 || { echo "::error::Ingen skærmbilleder blev taget"; exit 1; }
 
       - name: Web-versioner, delingsbillede og App Store-header
         run: bash ios/Demo/compose.sh "$GITHUB_WORKSPACE/out"
@@ -96,10 +111,14 @@ jobs:
             out/header.png
           if-no-files-found: error
 
-      - name: Gem testrapporter (ved fejl)
+      - name: Gem testrapporter og logfiler
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: xcresult-${{ github.run_number }}
-          path: out/*.xcresult
+          name: testrapporter-${{ github.run_number }}
+          path: |
+            out/*.xcresult
+            out/test-*.log
+            out/screenshots
+            ios/build.log
           if-no-files-found: ignore
