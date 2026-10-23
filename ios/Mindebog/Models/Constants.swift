@@ -204,6 +204,12 @@ enum Fmt {
     static func parseIso(_ string: String) -> Date? { isoFormatter.date(from: string) }
     static func long(_ date: Date) -> String { longFormatter.string(from: date) }
 
+    /// Mavebilleder: "28+2" eller "28" skrevet i hånden vises som "Uge 28+2" (det automatiske felt skriver selv "Uge …").
+    static func gestation(_ caption: String) -> String {
+        let t = caption.trimmingCharacters(in: .whitespaces)
+        return t.range(of: #"^\d{1,2}(\+\d)?$"#, options: .regularExpression) != nil ? "Uge " + t : caption
+    }
+
     private static let periodFormatter: DateIntervalFormatter = {
         let f = DateIntervalFormatter()
         f.locale = Locale(identifier: "da_DK")

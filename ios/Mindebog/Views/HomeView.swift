@@ -388,6 +388,7 @@ struct HomeView: View {
                 PhotoCard(photos: PhotoSet(single: memory.photo),
                           title: memory.text.isEmpty ? "Uden tekst" : memory.text,
                           subtitle: meta(memory),
+                          aspect: 4.0 / 3.0,   // lavere kort på oversigten, så der er flere på skærmen
                           zoomId: memory.id, zoomNamespace: zoomNS,
                           onOpen: { lightbox = $0 })
                 .contentShape(RoundedRectangle(cornerRadius: Radius.large, style: .continuous))
@@ -512,7 +513,8 @@ struct HomeView: View {
                 default: ("Månedsbillede", "photo.on.rectangle")
                 }
                 return RecentMemory(id: "ph_" + s.id, summary: s, childName: child.name, kind: kind, symbol: symbol,
-                                    date: s.date, sortDate: s.createdAt, text: s.text, photo: nil)
+                                    date: s.date, sortDate: s.createdAt,
+                                    text: s.detail == "belly" ? Fmt.gestation(s.text) : s.text, photo: nil)
             case .interview:
                 guard let id = s.childId, let child = names[id] else { return nil }
                 return RecentMemory(id: "iv_" + s.id, summary: s, childName: child.name, kind: "Årligt interview",

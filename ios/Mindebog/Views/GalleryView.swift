@@ -165,7 +165,7 @@ struct GalleryView: View {
     private func timelineCard(_ item: GalleryItem) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             // Uge/måned og så kommentaren efter, fx "Uge 24 · Første spark i dag".
-            (Text(item.caption.isEmpty ? Fmt.long(item.shownDate) : item.caption)
+            (Text(item.caption.isEmpty ? Fmt.long(item.shownDate) : (kind == .belly ? Fmt.gestation(item.caption) : item.caption))
                 .font(.serifTitle(16))
                 .foregroundStyle(Theme.text)
              + Text(item.note.isEmpty ? "" : "  ·  \(item.note)")

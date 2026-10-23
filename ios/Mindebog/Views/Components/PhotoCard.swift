@@ -13,7 +13,8 @@ struct PhotoCard<Extra: View>: View {
     var subtitle: String? = nil
     /// Hvem det handler om, fx "William · Nohr". Vises under datoen.
     var about: String? = nil
-    /// nil = billedets egen form, dog aldrig højere end 5:4, så et stående foto ikke fylder hele skærmen.
+    /// nil = billedets egen form, dog aldrig højere end 4:5 (stående), så et foto ikke fylder hele skærmen.
+    /// Oversigter (Hjem) giver 4:3, så der er flere kort på skærmen ad gangen; billedet beskæres, fuld størrelse ved tryk.
     var aspect: CGFloat? = nil
     var zoomId: String? = nil
     var zoomNamespace: Namespace.ID? = nil
@@ -41,7 +42,7 @@ struct PhotoCard<Extra: View>: View {
 
     private func picture(_ cover: Data) -> some View {
         Color.clear
-            .aspectRatio(min(aspect ?? ImageTools.displayAspect(cover), 5.0 / 4.0).clamped(min: 0.8), contentMode: .fit)
+            .aspectRatio(aspect ?? ImageTools.displayAspect(cover).clamped(min: 0.8, max: 1.6), contentMode: .fit)
             .overlay { DataImage(data: cover) }
             .modifier(OptionalZoomSource(id: zoomId, namespace: zoomNamespace))
             .overlay(alignment: .bottom) {
@@ -102,5 +103,5 @@ extension PhotoCard where Extra == EmptyView {
 }
 
 private extension CGFloat {
-    func clamped(min lower: CGFloat) -> CGFloat { Swift.max(self, lower) }
+    func clamped(min lower: CGFloat, max upper: CGFloat) -> CGFloat { Swift.min(Swift.max(self, lower), upper) }
 }
