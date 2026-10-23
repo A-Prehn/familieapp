@@ -520,21 +520,13 @@ struct LightboxView: View {
                 if let image = currentImage {
                     ShareLink(item: Image(uiImage: image),
                               preview: SharePreview("Billede", image: Image(uiImage: image))) {
-                        Image(systemName: "square.and.arrow.up.circle.fill")
-                            .font(.system(size: 30))
-                            .symbolRenderingMode(.palette)
-                            .foregroundStyle(.white, .black.opacity(0.5))
-                            .padding(16)
+                        LightboxButtonIcon(symbol: "square.and.arrow.up", fallback: "square.and.arrow.up.circle.fill")
                     }
                     .accessibilityLabel("Del billede")
                 }
                 Spacer()
                 Button { dismiss() } label: {
-                    Image(systemName: "xmark.circle.fill")
-                        .font(.system(size: 30))
-                        .symbolRenderingMode(.palette)
-                        .foregroundStyle(.white, .black.opacity(0.5))
-                        .padding(16)
+                    LightboxButtonIcon(symbol: "xmark", fallback: "xmark.circle.fill")
                 }
                 .accessibilityLabel("Luk")
             }
@@ -605,5 +597,31 @@ struct LightboxView: View {
             try? await Task.sleep(for: .seconds(2))
             withAnimation { if toast == message { toast = nil } }
         }
+    }
+}
+
+/// Knap-ikon i fuld skærm: Liquid Glass på iOS 26, ellers den hvide cirkel på mørk bund som før.
+/// "Reducér gennemsigtighed" giver også den gamle, faste cirkel.
+struct LightboxButtonIcon: View {
+    let symbol: String
+    let fallback: String
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+
+    var body: some View {
+        Group {
+            if #available(iOS 26.0, *), !reduceTransparency {
+                Image(systemName: symbol)
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .frame(width: 44, height: 44)
+                    .glassEffect(.regular, in: Circle())
+            } else {
+                Image(systemName: fallback)
+                    .font(.system(size: 30))
+                    .symbolRenderingMode(.palette)
+                    .foregroundStyle(.white, .black.opacity(0.5))
+            }
+        }
+        .padding(16)
     }
 }
