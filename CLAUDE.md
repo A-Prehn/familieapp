@@ -16,7 +16,9 @@ startes manuelt med "Run workflow" på `develop`) til TestFlight.
 ## Backlog
 
 GitHub Issues i A-Prehn/familieapp er den eneste liste (labels: fejl, forbedring, test, udgivelse — alle labels er på dansk).
-`BACKLOG.md` er kun en henvisning. Luk issues med en kommentar om build-nummeret, når de er bygget og bekræftet.
+`BACKLOG.md` er kun en henvisning. Luk issues med en kommentar om build-nummeret, når de er bygget og bekræftet,
+og sæt versionens milestone (fx `1.2`) på dem. En åben milestone = lavet, men ikke udgivet; den lukkes, når Apple
+har godkendt versionen, og den er ude i App Store. Brug `gh` (logget ind som A-Prehn) til issues, builds og logs.
 
 ## Builds
 
