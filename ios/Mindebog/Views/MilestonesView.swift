@@ -87,9 +87,9 @@ struct MilestonesView: View {
             .onTapGesture { if state.canEdit { editing = def } }
         }
         .background(filled ? Theme.card : Theme.bg)
-        .clipShape(RoundedRectangle(cornerRadius: 10))
+        .clipShape(RoundedRectangle(cornerRadius: Radius.small))
         .overlay(
-            RoundedRectangle(cornerRadius: 10)
+            RoundedRectangle(cornerRadius: Radius.small)
                 .stroke(filled ? Theme.green.opacity(0.35) : Theme.sep)
         )
     }

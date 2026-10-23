@@ -62,8 +62,8 @@ struct FamilyTreeView: View {
                 .frame(minHeight: 360)
                 .noTabSwipe()   // panorering i træet må ikke skifte hovedfane
                 .background(Theme.card)
-                .clipShape(RoundedRectangle(cornerRadius: 16))
-                .overlay(RoundedRectangle(cornerRadius: 16).stroke(Theme.sep))
+                .clipShape(RoundedRectangle(cornerRadius: Radius.card))
+                .overlay(RoundedRectangle(cornerRadius: Radius.card).stroke(Theme.sep))
                 .gesture(MagnificationGesture()
                     .onChanged { zoom = min(2, max(0.5, lastZoom * $0)) }
                     .onEnded { _ in lastZoom = zoom })
@@ -106,7 +106,7 @@ struct PersonCard: View {
                 } else {
                     Circle().fill(Theme.bgDark)
                     Text(initials)
-                        .font(.system(size: 19, weight: .medium, design: .serif))
+                        .font(.serifTitle(19))
                         .foregroundStyle(Theme.neutralDark)
                 }
                 Circle().strokeBorder(Theme.neutral.opacity(0.35), lineWidth: 1)

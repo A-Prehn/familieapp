@@ -50,8 +50,8 @@ struct VacationMapView: View {
             .mapStyle(.standard(elevation: .flat))
             .frame(height: 380)
             .noTabSwipe()   // at panorere kortet må ikke skifte hovedfane (#40)
-            .clipShape(RoundedRectangle(cornerRadius: 14))
-            .overlay(RoundedRectangle(cornerRadius: 14).stroke(Theme.sep))
+            .clipShape(RoundedRectangle(cornerRadius: Radius.card))
+            .overlay(RoundedRectangle(cornerRadius: Radius.card).stroke(Theme.sep))
 
             if let stop = stops.first(where: { $0.id == selected }) {
                 VStack(spacing: 8) {
@@ -84,10 +84,10 @@ struct VacationMapView: View {
         HStack(spacing: 12) {
             if let data = trip.photos.coverPhoto, let img = UIImage(data: data) {
                 Image(uiImage: img).resizable().scaledToFill()
-                    .frame(width: 56, height: 56).clipShape(RoundedRectangle(cornerRadius: 8))
+                    .frame(width: 56, height: 56).clipShape(RoundedRectangle(cornerRadius: Radius.small))
             } else {
                 Image(systemName: "beach.umbrella").frame(width: 56, height: 56)
-                    .background(RoundedRectangle(cornerRadius: 8).fill(Theme.bg))
+                    .background(RoundedRectangle(cornerRadius: Radius.small).fill(Theme.bg))
                     .foregroundStyle(Theme.muted)
             }
             VStack(alignment: .leading, spacing: 2) {
@@ -99,8 +99,8 @@ struct VacationMapView: View {
         }
         .padding(10)
         .background(Theme.card)
-        .clipShape(RoundedRectangle(cornerRadius: 12))
-        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Theme.sep))
+        .clipShape(RoundedRectangle(cornerRadius: Radius.card))
+        .overlay(RoundedRectangle(cornerRadius: Radius.card).stroke(Theme.sep))
     }
 
     // MARK: Lande (opslag på enheden via Apple, gemt mellem visninger)

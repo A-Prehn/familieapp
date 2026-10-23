@@ -80,8 +80,8 @@ struct ChildAccessView: View {
                 }
                 .padding(24)
                 .background(Theme.card)
-                .clipShape(RoundedRectangle(cornerRadius: 16))
-                .overlay(RoundedRectangle(cornerRadius: 16).stroke(Theme.sep))
+                .clipShape(RoundedRectangle(cornerRadius: Radius.card))
+                .overlay(RoundedRectangle(cornerRadius: Radius.card).stroke(Theme.sep))
             } else if busy {
                 ProgressView().controlSize(.large)
             }

@@ -326,7 +326,7 @@ final class BookWriter {
     private func drawImage(_ img: UIImage, in rect: CGRect, fill: Bool) {
         let cg = ctx.cgContext
         cg.saveGState()
-        UIBezierPath(roundedRect: rect, cornerRadius: 4).addClip()
+        UIBezierPath(roundedRect: rect, cornerRadius: Radius.small).addClip()
         if fill {
             let s = max(rect.width / img.size.width, rect.height / img.size.height)
             let d = CGSize(width: img.size.width * s, height: img.size.height * s)
@@ -569,9 +569,9 @@ final class BookWriter {
             let x = frame.minX + CGFloat(col) * (w + gap)
             let box = CGRect(x: x, y: y, width: w, height: h)
             UIColor.white.withAlphaComponent(0.6).setFill()
-            UIBezierPath(roundedRect: box, cornerRadius: 6).fill()
+            UIBezierPath(roundedRect: box, cornerRadius: Radius.small).fill()
             sep.setStroke()
-            let path = UIBezierPath(roundedRect: box.insetBy(dx: 0.25, dy: 0.25), cornerRadius: 6)
+            let path = UIBezierPath(roundedRect: box.insetBy(dx: 0.25, dy: 0.25), cornerRadius: Radius.small)
             path.lineWidth = 0.5
             path.stroke()
             var iy = y + 12

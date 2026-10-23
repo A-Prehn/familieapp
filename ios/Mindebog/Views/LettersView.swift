@@ -79,9 +79,9 @@ struct LettersView: View {
         }
         .padding(14)
         .background(Theme.card)
-        .clipShape(RoundedRectangle(cornerRadius: 14))
-        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Theme.sep))
-        .contentShape(RoundedRectangle(cornerRadius: 14))
+        .clipShape(RoundedRectangle(cornerRadius: Radius.card))
+        .overlay(RoundedRectangle(cornerRadius: Radius.card).stroke(Theme.sep))
+        .contentShape(RoundedRectangle(cornerRadius: Radius.card))
         .onTapGesture { if !letter.isSealed { reading = letter } }
         .contextMenu {
             if !letter.isSealed {
@@ -139,8 +139,8 @@ struct LetterReadView: View {
                             }
                             .padding(12)
                             .background(Theme.card)
-                            .clipShape(RoundedRectangle(cornerRadius: 12))
-                            .overlay(RoundedRectangle(cornerRadius: 12).stroke(Theme.sep))
+                            .clipShape(RoundedRectangle(cornerRadius: Radius.card))
+                            .overlay(RoundedRectangle(cornerRadius: Radius.card).stroke(Theme.sep))
                         }
                         .buttonStyle(.plain)
                         .disabled(loadingVideo)
@@ -150,10 +150,10 @@ struct LetterReadView: View {
                     }
                     if let photo = letter.photo {
                         DataImage(data: photo, contentMode: .fit)
-                            .clipShape(RoundedRectangle(cornerRadius: 10))
+                            .clipShape(RoundedRectangle(cornerRadius: Radius.small))
                     }
                     Text(letter.text)
-                        .font(.system(size: 17, design: .serif))
+                        .font(.serif(17))
                         .lineSpacing(5)
                         .foregroundStyle(Theme.text)
                 }

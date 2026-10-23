@@ -170,8 +170,8 @@ struct CommentsSheet: View {
                         .padding(12)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .background(Theme.card)
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
-                        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Theme.sep))
+                        .clipShape(RoundedRectangle(cornerRadius: Radius.card))
+                        .overlay(RoundedRectangle(cornerRadius: Radius.card).stroke(Theme.sep))
                         .contextMenu {
                             if c.authorId == state.user?.id {
                                 Button(role: .destructive) { Task { await comments.delete(c, state: state) } } label: {
@@ -200,8 +200,8 @@ struct CommentsSheet: View {
                             .lineLimit(1...4)
                             .padding(.horizontal, 12).padding(.vertical, 8)
                             .background(Theme.card)
-                            .clipShape(RoundedRectangle(cornerRadius: 18))
-                            .overlay(RoundedRectangle(cornerRadius: 18).stroke(Theme.sep))
+                            .clipShape(RoundedRectangle(cornerRadius: Radius.large))
+                            .overlay(RoundedRectangle(cornerRadius: Radius.large).stroke(Theme.sep))
                         Button {
                             let text = draft
                             draft = ""

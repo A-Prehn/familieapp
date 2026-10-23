@@ -40,7 +40,7 @@ struct TimelineView<Item: Identifiable, Card: View>: View {
 
     private func yearBadge(_ year: Int) -> some View {
         Text(String(year))
-            .font(.system(size: 12, design: .serif))
+            .font(.serif(12))
             .foregroundStyle(Theme.muted)
             .padding(.horizontal, 10)
             .padding(.vertical, 3)

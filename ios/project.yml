@@ -25,6 +25,11 @@ targets:
     sources:
       - path: Mindebog
       - path: Shared
+    info:
+      path: Mindebog/Info.plist
+      properties:
+        # Lora (overskrifter) — filerne ligger i Mindebog/Fonts og kopieres med som ressourcer.
+        UIAppFonts: [Lora-Regular.ttf, Lora-Medium.ttf, Lora-SemiBold.ttf, Lora-Italic.ttf]
     dependencies:
       # Udvidelserne indlejres automatisk i appen (PlugIns/).
       - target: VoresFamilieWidget
@@ -83,6 +88,7 @@ targets:
       - path: Widget
       - path: Shared
       - path: Mindebog/Models/DailyQuotes.swift
+      - path: Mindebog/Fonts
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: net.prehn.mindebog.widget

@@ -63,12 +63,23 @@ enum Appearance: String, CaseIterable, Identifiable {
     }
 }
 
-// Lora bruges til overskrifter på websitet; iOS har ikke Lora indbygget.
-// Indtil en custom-font tilføjes, bruger vi systemets serif som pendant.
+// Lora — samme serif som på hjemmesiden (SIL Open Font License, ligger i Fonts/).
+// Vægte: regular, medium (overskrifter), semibold (tal) og kursiv (citater).
 extension Font {
-    static func serifTitle(_ size: CGFloat) -> Font {
-        .system(size: size, weight: .medium, design: .serif)
-    }
+    static func serifTitle(_ size: CGFloat) -> Font { .custom("Lora-Medium", size: size) }
+    static func serif(_ size: CGFloat) -> Font { .custom("Lora-Regular", size: size) }
+    static func serifBold(_ size: CGFloat) -> Font { .custom("Lora-SemiBold", size: size) }
+    static func serifItalic(_ size: CGFloat) -> Font { .custom("Lora-Italic", size: size) }
+}
+
+// Én skala for afrundinger, så kort, felter og knapper ser ens ud over hele appen.
+enum Radius {
+    /// Små ting: tags, tekstfelter, små billeder i rækker.
+    static let small: CGFloat = 8
+    /// Kort, knapper og billeder i kort.
+    static let card: CGFloat = 14
+    /// Store flader: fuldskærmskort, ark, forsidebilleder.
+    static let large: CGFloat = 20
 }
 
 extension View {

@@ -123,7 +123,7 @@ struct PhotoField: View {
             if let data {
                 DataImage(data: data, contentMode: .fit)
                     .frame(maxHeight: 220)
-                    .clipShape(RoundedRectangle(cornerRadius: 10))
+                    .clipShape(RoundedRectangle(cornerRadius: Radius.small))
             }
             HStack(spacing: 16) {
                 PhotosPicker(selection: $pickerItem, matching: .images) {
@@ -185,7 +185,7 @@ struct MultiPhotoField: View {
                 if let photo = photos.indices.contains(index) ? photos[index] : nil {
                     DataImage(data: photo, contentMode: .fit)
                         .frame(maxHeight: 180)
-                        .clipShape(RoundedRectangle(cornerRadius: 10))
+                        .clipShape(RoundedRectangle(cornerRadius: Radius.small))
                         .overlay(alignment: .topLeading) {
                             // Forside: vises på oversigten. Tryk på stjernen for at vælge et andet billede.
                             if let cover, photos.count > 1 {
@@ -286,7 +286,7 @@ struct PhotoSetEditor: View {
                 HStack(alignment: .top, spacing: 12) {
                     DataImage(data: photo)
                         .frame(width: 84, height: 84)
-                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                        .clipShape(RoundedRectangle(cornerRadius: Radius.small))
                         .overlay(alignment: .topLeading) {
                             if index == set.coverIndex {
                                 Text("Forside")

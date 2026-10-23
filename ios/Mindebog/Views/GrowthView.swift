@@ -50,8 +50,8 @@ struct GrowthView: View {
                     }
                     .padding(.horizontal, 14)
                     .background(Theme.card)
-                    .clipShape(RoundedRectangle(cornerRadius: 14))
-                    .overlay(RoundedRectangle(cornerRadius: 14).stroke(Theme.sep))
+                    .clipShape(RoundedRectangle(cornerRadius: Radius.card))
+                    .overlay(RoundedRectangle(cornerRadius: Radius.card).stroke(Theme.sep))
                 }
             }
             .padding(16)
@@ -115,8 +115,8 @@ struct GrowthView: View {
         }
         .padding(14)
         .background(Theme.card)
-        .clipShape(RoundedRectangle(cornerRadius: 14))
-        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Theme.sep))
+        .clipShape(RoundedRectangle(cornerRadius: Radius.card))
+        .overlay(RoundedRectangle(cornerRadius: Radius.card).stroke(Theme.sep))
     }
 
     private func row(_ m: Measurement) -> some View {

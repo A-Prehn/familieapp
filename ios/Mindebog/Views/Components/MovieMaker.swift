@@ -113,7 +113,7 @@ enum MovieMaker {
             let scale = min(maxW / image.size.width, maxH / image.size.height)
             let w = image.size.width * scale, h = image.size.height * scale
             let rect = CGRect(x: (size.width - w) / 2, y: 60 + (maxH - h) / 2, width: w, height: h)
-            UIBezierPath(roundedRect: rect, cornerRadius: 24).addClip()
+            UIBezierPath(roundedRect: rect, cornerRadius: Radius.large).addClip()
             image.draw(in: rect)
             ctx.resetClip()
             draw(caption, font: serif(56), color: ink, y: size.height - 200, maxWidth: size.width - 120)

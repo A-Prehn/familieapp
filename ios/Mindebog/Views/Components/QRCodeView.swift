@@ -14,7 +14,7 @@ struct QRCodeView: View {
                 .scaledToFit()
                 .padding(12)
                 .background(Color.white)
-                .clipShape(RoundedRectangle(cornerRadius: 12))
+                .clipShape(RoundedRectangle(cornerRadius: Radius.card))
                 .accessibilityLabel("QR-kode med delelink")
         }
     }

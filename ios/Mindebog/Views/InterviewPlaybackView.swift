@@ -64,7 +64,7 @@ struct InterviewPlaybackView: View, Identifiable {
                             ProgressView().tint(.white)
                         } else if let player, !isAudio {
                             VideoPlayer(player: player)
-                                .clipShape(RoundedRectangle(cornerRadius: 16))
+                                .clipShape(RoundedRectangle(cornerRadius: Radius.card))
                         } else if isAudio {
                             Image(systemName: paused ? "waveform" : "waveform")
                                 .font(.system(size: 90, weight: .light))
@@ -77,7 +77,7 @@ struct InterviewPlaybackView: View, Identifiable {
 
                     if !a.text.isEmpty {
                         Text("“\(a.text)”")
-                            .font(.system(size: 20, design: .serif).italic())
+                            .font(.serifItalic(20))
                             .foregroundStyle(.white)
                             .multilineTextAlignment(.center)
                             .padding(.horizontal, 28)

@@ -106,7 +106,7 @@ struct ChildAvatar: View {
                         .foregroundStyle(textTint)
                 } else {
                     Text(initials)
-                        .font(.system(size: size * 0.34, weight: .medium, design: .serif))
+                        .font(.serifTitle(size * 0.34))
                         .foregroundStyle(textTint)
                 }
             }
@@ -154,8 +154,8 @@ struct ChildCard: View {
             .background(Capsule().fill(Theme.tint.opacity(0.1)))
         }
         .frame(maxWidth: .infinity).padding(.vertical, 18)
-        .background(Theme.card).clipShape(RoundedRectangle(cornerRadius: 14))
-        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Theme.sep))
+        .background(Theme.card).clipShape(RoundedRectangle(cornerRadius: Radius.card))
+        .overlay(RoundedRectangle(cornerRadius: Radius.card).stroke(Theme.sep))
 
         .accessibilityHint("Åbner \(child.name)s mindebog")
     }
@@ -169,8 +169,8 @@ struct AddChildCard: View {
         }
         .foregroundStyle(Theme.tint)
         .frame(maxWidth: .infinity).padding(.vertical, 20)
-        .background(Theme.card).clipShape(RoundedRectangle(cornerRadius: 14))
-        .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(Theme.sep, style: StrokeStyle(lineWidth: 1, dash: [4])))
+        .background(Theme.card).clipShape(RoundedRectangle(cornerRadius: Radius.card))
+        .overlay(RoundedRectangle(cornerRadius: Radius.card).strokeBorder(Theme.sep, style: StrokeStyle(lineWidth: 1, dash: [4])))
     }
 }
 

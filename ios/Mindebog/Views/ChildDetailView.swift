@@ -146,7 +146,7 @@ struct ChildDetailView: View {
             if child.onTheWay, let due = child.dueDate {
                 let days = max(0, Calendar.current.dateComponents([.day], from: Date(), to: due).day ?? 0)
                 HStack(spacing: 20) {
-                    Text("\(days)").font(.system(size: 44, weight: .medium, design: .serif))
+                    Text("\(days)").font(.serifTitle(44))
                         .foregroundStyle(Theme.neutralDark)
                     VStack(alignment: .leading, spacing: 2) {
                         Text("dage til termin").font(.footnote).foregroundStyle(Theme.neutral)
@@ -156,13 +156,13 @@ struct ChildDetailView: View {
                 }
                 .padding(16)
                 .background(Theme.bgDark)
-                .clipShape(RoundedRectangle(cornerRadius: 10))
+                .clipShape(RoundedRectangle(cornerRadius: Radius.small))
             }
         }
         .padding(16)
         .background(Theme.card)
-        .clipShape(RoundedRectangle(cornerRadius: 16))
-        .overlay(RoundedRectangle(cornerRadius: 16).stroke(Theme.sep))
+        .clipShape(RoundedRectangle(cornerRadius: Radius.card))
+        .overlay(RoundedRectangle(cornerRadius: Radius.card).stroke(Theme.sep))
     }
 
     /// Bygger mindebogen som PDF og åbner del-arket (Gem i Filer, Mail, Udskriv …).
@@ -200,7 +200,7 @@ struct ChildDetailView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(14)
         .background(Theme.card)
-        .clipShape(RoundedRectangle(cornerRadius: 14))
-        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Theme.sep))
+        .clipShape(RoundedRectangle(cornerRadius: Radius.card))
+        .overlay(RoundedRectangle(cornerRadius: Radius.card).stroke(Theme.sep))
     }
 }

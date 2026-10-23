@@ -57,8 +57,8 @@ struct BirthdayPhotosView: View {
                                 }
                                 .frame(minWidth: 52)
                                 .padding(.vertical, 8).padding(.horizontal, 10)
-                                .background(RoundedRectangle(cornerRadius: 12).fill(age == a ? Theme.rose : Theme.card))
-                                .overlay(RoundedRectangle(cornerRadius: 12).stroke(age == a ? Theme.rose : Theme.sep))
+                                .background(RoundedRectangle(cornerRadius: Radius.card).fill(age == a ? Theme.rose : Theme.card))
+                                .overlay(RoundedRectangle(cornerRadius: Radius.card).stroke(age == a ? Theme.rose : Theme.sep))
                                 .foregroundStyle(age == a ? Color.white : Theme.text)
                             }
                             .buttonStyle(.plain)
@@ -104,7 +104,7 @@ struct BirthdayPhotosView: View {
                                 .aspectRatio(1, contentMode: .fit)
                                 .overlay { if let p = item.photo { DataImage(data: p) } else { Theme.bgDark } }
                                 .zoomSource(id: item.id, in: zoomNS)
-                                .clipShape(RoundedRectangle(cornerRadius: 8))
+                                .clipShape(RoundedRectangle(cornerRadius: Radius.small))
                                 .softAppear(index: i)
                                 .contentShape(Rectangle())
                                 .onTapGesture { open(item) }

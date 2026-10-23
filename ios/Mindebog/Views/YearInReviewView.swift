@@ -185,8 +185,8 @@ struct YearInReviewView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(14)
-        .background(Theme.card).clipShape(RoundedRectangle(cornerRadius: 14))
-        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Theme.sep))
+        .background(Theme.card).clipShape(RoundedRectangle(cornerRadius: Radius.card))
+        .overlay(RoundedRectangle(cornerRadius: Radius.card).stroke(Theme.sep))
     }
 
     private var photoGrid: some View {
@@ -199,7 +199,7 @@ struct YearInReviewView: View {
                         .aspectRatio(1, contentMode: .fill)
                         .frame(minWidth: 0)
                         .clipped()
-                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                        .clipShape(RoundedRectangle(cornerRadius: Radius.small))
                         .zoomSource(id: p.id, in: zoomNS)
                         .onTapGesture {
                             lightbox = LightboxState(photos: photos.map(\.data), index: photos.firstIndex { $0.id == p.id } ?? 0,
@@ -223,8 +223,8 @@ struct YearInReviewView: View {
                 }
                 .padding(12)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .background(Theme.card).clipShape(RoundedRectangle(cornerRadius: 12))
-                .overlay(RoundedRectangle(cornerRadius: 12).stroke(Theme.sep))
+                .background(Theme.card).clipShape(RoundedRectangle(cornerRadius: Radius.card))
+                .overlay(RoundedRectangle(cornerRadius: Radius.card).stroke(Theme.sep))
             }
         }
     }
@@ -241,8 +241,8 @@ struct YearInReviewView: View {
                 }
                 .padding(14)
                 .frame(maxWidth: .infinity)
-                .background(Theme.card).clipShape(RoundedRectangle(cornerRadius: 14))
-                .overlay(RoundedRectangle(cornerRadius: 14).stroke(Theme.sep))
+                .background(Theme.card).clipShape(RoundedRectangle(cornerRadius: Radius.card))
+                .overlay(RoundedRectangle(cornerRadius: Radius.card).stroke(Theme.sep))
             }
             .buttonStyle(.plain)
             .disabled(makingMovie || photos.count < 2)

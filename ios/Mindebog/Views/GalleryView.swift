@@ -149,8 +149,8 @@ struct GalleryView: View {
                 }
                 .padding(20)
                 .background(Theme.card)
-                .clipShape(RoundedRectangle(cornerRadius: 14))
-                .overlay(RoundedRectangle(cornerRadius: 14).stroke(Theme.sep))
+                .clipShape(RoundedRectangle(cornerRadius: Radius.card))
+                .overlay(RoundedRectangle(cornerRadius: Radius.card).stroke(Theme.sep))
             }
         }
         .alert("Filmen kunne ikke laves", isPresented: Binding(get: { movieError != nil }, set: { if !$0 { movieError = nil } })) {
@@ -179,16 +179,16 @@ struct GalleryView: View {
                     .aspectRatio(ImageTools.displayAspect(photo), contentMode: .fit)
                     .overlay { DataImage(data: photo) }
                     .zoomSource(id: item.id, in: zoomNS)
-                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                    .clipShape(RoundedRectangle(cornerRadius: Radius.small))
                     .onTapGesture { openLightbox(at: item) }
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(14)
         .background(Theme.card)
-        .clipShape(RoundedRectangle(cornerRadius: 14))
-        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Theme.sep))
-        .contentShape(RoundedRectangle(cornerRadius: 14))
+        .clipShape(RoundedRectangle(cornerRadius: Radius.card))
+        .overlay(RoundedRectangle(cornerRadius: Radius.card).stroke(Theme.sep))
+        .contentShape(RoundedRectangle(cornerRadius: Radius.card))
         .onTapGesture { if state.canEdit { editing = item } }
         .contextMenu {
             Button { if state.canEdit { editing = item } } label: { Label("Redigér", systemImage: "pencil") }
@@ -240,8 +240,8 @@ struct GalleryView: View {
             }
         }
         .background(Theme.card)
-        .clipShape(RoundedRectangle(cornerRadius: 14))
-        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Theme.sep))
+        .clipShape(RoundedRectangle(cornerRadius: Radius.card))
+        .overlay(RoundedRectangle(cornerRadius: Radius.card).stroke(Theme.sep))
         .contextMenu {
             Button { if state.canEdit { editing = item } } label: { Label("Redigér", systemImage: "pencil") }
         }

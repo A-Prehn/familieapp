@@ -53,7 +53,7 @@ struct PlaceMap: View {
             Marker(place.name, coordinate: coordinate).tint(Theme.rose)
         }
         .frame(height: height)
-        .clipShape(RoundedRectangle(cornerRadius: 8))
+        .clipShape(RoundedRectangle(cornerRadius: Radius.small))
         .contentShape(Rectangle())
         .onTapGesture { openInMaps() }
     }

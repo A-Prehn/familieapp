@@ -180,14 +180,14 @@ struct HomeView: View {
                 .foregroundStyle(Theme.rose.opacity(0.7))
                 .padding(.top, 2)
             Text(DailyQuotes.today())
-                .font(.system(size: 16, design: .serif).italic())
+                .font(.serifItalic(16))
                 .foregroundStyle(Theme.neutralDark)
                 .fixedSize(horizontal: false, vertical: true)
             Spacer(minLength: 0)
         }
         .padding(16)
         .background(Theme.bgDark)
-        .clipShape(RoundedRectangle(cornerRadius: 14))
+        .clipShape(RoundedRectangle(cornerRadius: Radius.card))
         .accessibilityLabel("Dagens citat: \(DailyQuotes.today())")
     }
 
@@ -198,8 +198,8 @@ struct HomeView: View {
                 .multilineTextAlignment(.center)
         }
         .frame(maxWidth: .infinity).padding(24)
-        .background(Theme.card).clipShape(RoundedRectangle(cornerRadius: 14))
-        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Theme.sep))
+        .background(Theme.card).clipShape(RoundedRectangle(cornerRadius: Radius.card))
+        .overlay(RoundedRectangle(cornerRadius: Radius.card).stroke(Theme.sep))
     }
 
     // MARK: Året der gik — i januar og omkring fødselsdagen
@@ -221,8 +221,8 @@ struct HomeView: View {
                         }
                         .padding(12)
                         .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(Theme.card).clipShape(RoundedRectangle(cornerRadius: 14))
-                        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Theme.sep))
+                        .background(Theme.card).clipShape(RoundedRectangle(cornerRadius: Radius.card))
+                        .overlay(RoundedRectangle(cornerRadius: Radius.card).stroke(Theme.sep))
                     }
                     .buttonStyle(.plain)
                 }
@@ -258,8 +258,8 @@ struct HomeView: View {
         }
         .padding(12)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Theme.card).clipShape(RoundedRectangle(cornerRadius: 14))
-        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Theme.sep))
+        .background(Theme.card).clipShape(RoundedRectangle(cornerRadius: Radius.card))
+        .overlay(RoundedRectangle(cornerRadius: Radius.card).stroke(Theme.sep))
     }
 
     /// Billederne fra ferien bliver ét højdepunkt for barnet med feriens navn.
@@ -320,8 +320,8 @@ struct HomeView: View {
             }
             .padding(12)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Theme.card).clipShape(RoundedRectangle(cornerRadius: 14))
-            .overlay(RoundedRectangle(cornerRadius: 14).stroke(Theme.sep))
+            .background(Theme.card).clipShape(RoundedRectangle(cornerRadius: Radius.card))
+            .overlay(RoundedRectangle(cornerRadius: Radius.card).stroke(Theme.sep))
         }
         .buttonStyle(.plain)
     }
@@ -348,8 +348,8 @@ struct HomeView: View {
                     .lineLimit(1).minimumScaleFactor(0.8)
             }
             .frame(maxWidth: .infinity).padding(.vertical, 12)
-            .background(Theme.card).clipShape(RoundedRectangle(cornerRadius: 12))
-            .overlay(RoundedRectangle(cornerRadius: 12).stroke(Theme.sep))
+            .background(Theme.card).clipShape(RoundedRectangle(cornerRadius: Radius.card))
+            .overlay(RoundedRectangle(cornerRadius: Radius.card).stroke(Theme.sep))
         }
         .buttonStyle(.plain)
         // Hold fingeren på en knap for at redigere, som på iPhonens hjemmeskærm.
@@ -388,11 +388,11 @@ struct HomeView: View {
                     if let photo = memory.photo {
                         DataImage(data: photo)
                             .frame(width: 64, height: 64)
-                            .clipShape(RoundedRectangle(cornerRadius: 8))
+                            .clipShape(RoundedRectangle(cornerRadius: Radius.small))
                             .zoomSource(id: memory.id, in: zoomNS)
                             .onTapGesture { lightbox = LightboxState(photos: [photo], sourceId: memory.id) }
                     } else {
-                        RoundedRectangle(cornerRadius: 8).fill(Theme.bgDark)
+                        RoundedRectangle(cornerRadius: Radius.small).fill(Theme.bgDark)
                             .frame(width: 64, height: 64)
                             .overlay(Image(systemName: memory.symbol).foregroundStyle(Theme.neutralDark))
                     }
@@ -417,8 +417,8 @@ struct HomeView: View {
                     Spacer(minLength: 0)
                 }
                 .padding(12)
-                .background(Theme.card).clipShape(RoundedRectangle(cornerRadius: 14))
-                .overlay(RoundedRectangle(cornerRadius: 14).stroke(Theme.sep))
+                .background(Theme.card).clipShape(RoundedRectangle(cornerRadius: Radius.card))
+                .overlay(RoundedRectangle(cornerRadius: Radius.card).stroke(Theme.sep))
                 .opacity(refreshing ? 0.55 : 1)
             }
         }

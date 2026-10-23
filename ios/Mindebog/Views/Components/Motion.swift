@@ -150,8 +150,8 @@ struct ShimmerGrid: View {
         LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 10), count: columns), spacing: 10) {
             ForEach(0..<(columns * 3), id: \.self) { _ in
                 Color.clear.aspectRatio(1, contentMode: .fit)
-                    .overlay { ShimmerPlaceholder(height: 400, cornerRadius: 12) }
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                    .overlay { ShimmerPlaceholder(height: 400, cornerRadius: Radius.card) }
+                    .clipShape(RoundedRectangle(cornerRadius: Radius.card))
             }
         }
         .padding(16)

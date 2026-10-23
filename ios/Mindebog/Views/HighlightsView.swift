@@ -125,7 +125,7 @@ struct HighlightsView: View {
                         }
                     }
                     .zoomSource(id: zoomId, in: zoomNS)
-                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                    .clipShape(RoundedRectangle(cornerRadius: Radius.small))
                     .onTapGesture {
                         lightbox = LightboxState.coverFirst(photos: highlight.photos, cover: highlight.coverIndex, sourceId: zoomId)
                     }
@@ -140,9 +140,9 @@ struct HighlightsView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(14)
         .background(Theme.card)
-        .clipShape(RoundedRectangle(cornerRadius: 14))
-        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Theme.sep))
-        .contentShape(RoundedRectangle(cornerRadius: 14))
+        .clipShape(RoundedRectangle(cornerRadius: Radius.card))
+        .overlay(RoundedRectangle(cornerRadius: Radius.card).stroke(Theme.sep))
+        .contentShape(RoundedRectangle(cornerRadius: Radius.card))
         .onTapGesture { if state.canEdit { editing = highlight } }
         .contextMenu {
             Button { if state.canEdit { editing = highlight } } label: { Label("Redigér", systemImage: "pencil") }

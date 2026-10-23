@@ -68,7 +68,7 @@ private struct SavingOverlay: View {
                 }
                 .padding(24)
                 .frame(maxWidth: 260)
-                .background(RoundedRectangle(cornerRadius: 18).fill(Theme.card))
+                .background(RoundedRectangle(cornerRadius: Radius.large).fill(Theme.card))
                 .shadow(color: .black.opacity(0.12), radius: 16, y: 6)
             }
             .transition(.opacity)

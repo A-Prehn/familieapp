@@ -12,7 +12,7 @@ private enum WTheme {
     static let rose = Color(red: 0.831, green: 0.329, blue: 0.478)
     static let accent = Color(red: 0.373, green: 0.322, blue: 0.220)
     static func serif(_ size: CGFloat, _ weight: Font.Weight = .medium) -> Font {
-        .system(size: size, weight: weight, design: .serif)
+        .custom(weight == .semibold ? "Lora-SemiBold" : weight == .regular ? "Lora-Regular" : "Lora-Medium", size: size)
     }
 }
 
@@ -203,7 +203,7 @@ struct DueView: View {
                 AccessoryWidgetBackground()
                 if let days {
                     VStack(spacing: -2) {
-                        Text("\(days)").font(.system(size: 22, weight: .semibold, design: .serif))
+                        Text("\(days)").font(WTheme.serif(22, .semibold))
                         Text("dage").font(.system(size: 9))
                     }
                 } else {

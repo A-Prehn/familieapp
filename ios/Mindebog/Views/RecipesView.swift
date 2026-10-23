@@ -69,8 +69,8 @@ struct RecipesView: View {
                     }
                     .padding(10)
                     .background(Theme.card)
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
-                    .overlay(RoundedRectangle(cornerRadius: 12).stroke(Theme.sep))
+                    .clipShape(RoundedRectangle(cornerRadius: Radius.card))
+                    .overlay(RoundedRectangle(cornerRadius: Radius.card).stroke(Theme.sep))
                 }
                 if usedCategories.count > 1 {
                     ScrollView(.horizontal, showsIndicators: false) {
@@ -104,7 +104,7 @@ struct RecipesView: View {
                 else { Theme.bgDark.overlay(Image(systemName: "fork.knife").foregroundStyle(Theme.neutralDark)) }
             }
             .frame(width: 72, height: 72)
-            .clipShape(RoundedRectangle(cornerRadius: 10))
+            .clipShape(RoundedRectangle(cornerRadius: Radius.small))
             VStack(alignment: .leading, spacing: 3) {
                 Text(r.title).font(.serifTitle(16)).foregroundStyle(Theme.text).lineLimit(2)
                 if !r.fromWhom.isEmpty {
@@ -119,9 +119,9 @@ struct RecipesView: View {
         }
         .padding(12)
         .background(Theme.card)
-        .clipShape(RoundedRectangle(cornerRadius: 14))
-        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Theme.sep))
-        .contentShape(RoundedRectangle(cornerRadius: 14))
+        .clipShape(RoundedRectangle(cornerRadius: Radius.card))
+        .overlay(RoundedRectangle(cornerRadius: Radius.card).stroke(Theme.sep))
+        .contentShape(RoundedRectangle(cornerRadius: Radius.card))
     }
 }
 
@@ -151,12 +151,12 @@ struct RecipeDetailView: View {
 
                 if !recipe.story.isEmpty {
                     Text(recipe.story)
-                        .font(.system(.body, design: .serif)).italic()
+                        .font(.serifItalic(17))
                         .foregroundStyle(Theme.text)
                         .padding(14)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .background(Theme.bgDark)
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                        .clipShape(RoundedRectangle(cornerRadius: Radius.card))
                 }
 
                 if !recipe.ingredientLines.isEmpty {

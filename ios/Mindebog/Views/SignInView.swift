@@ -65,8 +65,8 @@ struct SignInView: View {
                         .padding(14)
                         .frame(maxWidth: .infinity)
                         .background(Theme.card)
-                        .clipShape(RoundedRectangle(cornerRadius: 14))
-                        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Theme.sep))
+                        .clipShape(RoundedRectangle(cornerRadius: Radius.card))
+                        .overlay(RoundedRectangle(cornerRadius: Radius.card).stroke(Theme.sep))
                     }
                 }
                 .padding(.horizontal, 24)

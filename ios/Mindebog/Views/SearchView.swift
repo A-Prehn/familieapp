@@ -253,7 +253,7 @@ private struct SearchRow: View {
                 }
             }
             .frame(width: 48, height: 48)
-            .clipShape(RoundedRectangle(cornerRadius: 8))
+            .clipShape(RoundedRectangle(cornerRadius: Radius.small))
             VStack(alignment: .leading, spacing: 2) {
                 Text([item.label, item.childName ?? "Familie", item.date.map(Fmt.long)].compactMap { $0 }.joined(separator: " · "))
                     .font(.caption).foregroundStyle(Theme.muted)

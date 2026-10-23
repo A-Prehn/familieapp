@@ -182,8 +182,8 @@ struct FamilyView: View {
                 .contentShape(Rectangle())
                 .onTapGesture { if state.canEdit { editingEvent = event } }
                 .background(Theme.card)
-                .clipShape(RoundedRectangle(cornerRadius: 14))
-                .overlay(RoundedRectangle(cornerRadius: 14).stroke(Theme.sep))
+                .clipShape(RoundedRectangle(cornerRadius: Radius.card))
+                .overlay(RoundedRectangle(cornerRadius: Radius.card).stroke(Theme.sep))
             }
         }
     }
@@ -227,8 +227,8 @@ struct FamilyView: View {
                     .contentShape(Rectangle())
                     .onTapGesture { if state.canEdit { editingVacation = vacation } }
                     .background(Theme.card)
-                    .clipShape(RoundedRectangle(cornerRadius: 14))
-                    .overlay(RoundedRectangle(cornerRadius: 14).stroke(Theme.sep))
+                    .clipShape(RoundedRectangle(cornerRadius: Radius.card))
+                    .overlay(RoundedRectangle(cornerRadius: Radius.card).stroke(Theme.sep))
             }
             }
         }
@@ -296,7 +296,7 @@ struct FamilyView: View {
                         .frame(width: 60)
                         .padding(.vertical, 8)
                         .background(Theme.bgDark)
-                        .clipShape(RoundedRectangle(cornerRadius: 10))
+                        .clipShape(RoundedRectangle(cornerRadius: Radius.small))
 
                         VStack(alignment: .leading, spacing: 2) {
                             Text(row.name).font(.system(size: 15, weight: .medium))
@@ -315,8 +315,8 @@ struct FamilyView: View {
             }
             .padding(.horizontal, 16)
             .background(Theme.card)
-            .clipShape(RoundedRectangle(cornerRadius: 16))
-            .overlay(RoundedRectangle(cornerRadius: 16).stroke(Theme.sep))
+            .clipShape(RoundedRectangle(cornerRadius: Radius.card))
+            .overlay(RoundedRectangle(cornerRadius: Radius.card).stroke(Theme.sep))
         }
     }
 

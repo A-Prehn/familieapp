@@ -80,8 +80,8 @@ struct PaywallView: View {
                     }
                     .padding(16)
                     .background(Theme.card)
-                    .clipShape(RoundedRectangle(cornerRadius: 16))
-                    .overlay(RoundedRectangle(cornerRadius: 16).stroke(Theme.sep))
+                    .clipShape(RoundedRectangle(cornerRadius: Radius.card))
+                    .overlay(RoundedRectangle(cornerRadius: Radius.card).stroke(Theme.sep))
 
                     if purchases.loadingProducts && purchases.lifetime == nil {
                         HStack { Spacer(); ProgressView(); Spacer() }
@@ -93,8 +93,8 @@ struct PaywallView: View {
                                 Label("Prøv igen", systemImage: "arrow.clockwise")
                                     .font(.subheadline.weight(.semibold))
                                     .frame(maxWidth: .infinity).padding(.vertical, 12)
-                                    .background(RoundedRectangle(cornerRadius: 14).fill(Theme.card))
-                                    .overlay(RoundedRectangle(cornerRadius: 14).stroke(Theme.sep))
+                                    .background(RoundedRectangle(cornerRadius: Radius.card).fill(Theme.card))
+                                    .overlay(RoundedRectangle(cornerRadius: Radius.card).stroke(Theme.sep))
                             }
                             .buttonStyle(.plain)
                         }
@@ -186,8 +186,8 @@ struct PaywallView: View {
             }
             .padding(subtle ? 12 : 16)
             .frame(maxWidth: .infinity)
-            .background(RoundedRectangle(cornerRadius: 14).fill(primary ? Theme.rose : (subtle ? Theme.bg : Theme.card)))
-            .overlay(RoundedRectangle(cornerRadius: 14).stroke(primary ? Theme.rose : Theme.sep))
+            .background(RoundedRectangle(cornerRadius: Radius.card).fill(primary ? Theme.rose : (subtle ? Theme.bg : Theme.card)))
+            .overlay(RoundedRectangle(cornerRadius: Radius.card).stroke(primary ? Theme.rose : Theme.sep))
             .foregroundStyle(primary ? Color.white : (subtle ? Theme.muted : Theme.text))
         }
         .buttonStyle(.plain)
