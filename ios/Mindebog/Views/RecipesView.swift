@@ -89,7 +89,7 @@ struct RecipesView: View {
                 }
                 ForEach(Array(shown.enumerated()), id: \.element.id) { i, r in
                     NavigationLink { RecipeDetailView(recipe: r, onEdit: onEdit) } label: { card(r) }
-                        .buttonStyle(.plain)
+                        .buttonStyle(PressableCard())
                         .softAppear(index: i)
                         .id(r.id)
                 }
@@ -98,30 +98,13 @@ struct RecipesView: View {
     }
 
     private func card(_ r: Recipe) -> some View {
-        HStack(spacing: 12) {
-            Group {
-                if let photo = r.photo { DataImage(data: photo) }
-                else { Theme.bgDark.overlay(Image(systemName: "fork.knife").foregroundStyle(Theme.neutralDark)) }
-            }
-            .frame(width: 72, height: 72)
-            .clipShape(RoundedRectangle(cornerRadius: Radius.small))
-            VStack(alignment: .leading, spacing: 3) {
-                Text(r.title).font(.serifTitle(16)).foregroundStyle(Theme.text).lineLimit(2)
-                if !r.fromWhom.isEmpty {
-                    Label(r.fromWhom, systemImage: "heart").font(.caption).foregroundStyle(Theme.neutralDark)
-                }
-                let n = r.ingredientLines.count
-                let meta = [r.category, n > 0 ? "\(n) ingrediens\(n == 1 ? "" : "er")" : ""].filter { !$0.isEmpty }
-                if !meta.isEmpty { Text(meta.joined(separator: " · ")).font(.caption2).foregroundStyle(Theme.muted) }
-            }
-            Spacer(minLength: 0)
-            Image(systemName: "chevron.right").font(.caption).foregroundStyle(Theme.muted)
-        }
-        .padding(12)
-        .background(Theme.card)
-        .clipShape(RoundedRectangle(cornerRadius: Radius.card))
-        .overlay(RoundedRectangle(cornerRadius: Radius.card).stroke(Theme.sep))
-        .contentShape(RoundedRectangle(cornerRadius: Radius.card))
+        let n = r.ingredientLines.count
+        let meta = [r.category, n > 0 ? "\(n) ingrediens\(n == 1 ? "" : "er")" : ""].filter { !$0.isEmpty }
+        return PhotoCard(photos: r.photos, title: r.title,
+                         subtitle: meta.isEmpty ? nil : meta.joined(separator: " · "),
+                         about: r.fromWhom.isEmpty ? nil : "Fra \(r.fromWhom)",
+                         aspect: 4.0 / 3.0, onOpen: onLightbox)
+            .contentShape(RoundedRectangle(cornerRadius: Radius.large, style: .continuous))
     }
 }
 

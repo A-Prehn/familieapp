@@ -383,42 +383,16 @@ struct HomeView: View {
                         .transition(.opacity)
                     }
                 }
-            ForEach(items) { memory in
-                HStack(alignment: .top, spacing: 12) {
-                    if let photo = memory.photo {
-                        DataImage(data: photo)
-                            .frame(width: 64, height: 64)
-                            .clipShape(RoundedRectangle(cornerRadius: Radius.small))
-                            .zoomSource(id: memory.id, in: zoomNS)
-                            .onTapGesture { lightbox = LightboxState(photos: [photo], sourceId: memory.id) }
-                    } else {
-                        RoundedRectangle(cornerRadius: Radius.small).fill(Theme.bgDark)
-                            .frame(width: 64, height: 64)
-                            .overlay(Image(systemName: memory.symbol).foregroundStyle(Theme.neutralDark))
-                    }
-                    VStack(alignment: .leading, spacing: 3) {
-                        // Tryk på teksten: åbn den skærm, opslaget hører til (som fra en notifikation).
-                        Button { open(memory) } label: {
-                            VStack(alignment: .leading, spacing: 3) {
-                                Text(meta(memory))
-                                    .font(.caption).foregroundStyle(Theme.muted)
-                                Text(memory.text.isEmpty ? "Uden tekst" : memory.text)
-                                    .font(.footnote).foregroundStyle(Theme.text).lineLimit(2)
-                                if let date = memory.date {
-                                    Text(Fmt.long(date)).font(.caption2).foregroundStyle(Theme.muted)
-                                }
-                            }
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .contentShape(Rectangle())
-                        }
-                        .buttonStyle(.plain)
-                        CommentsBar(targetId: memory.id, title: memory.text)
-                    }
-                    Spacer(minLength: 0)
-                }
-                .padding(12)
-                .background(Theme.card).clipShape(RoundedRectangle(cornerRadius: Radius.card))
-                .overlay(RoundedRectangle(cornerRadius: Radius.card).stroke(Theme.sep))
+            ForEach(Array(items.enumerated()), id: \.element.id) { i, memory in
+                // Billedkort (#46): tryk på billedet = fuld skærm, tryk på kortet = åbn opslaget.
+                PhotoCard(photos: PhotoSet(single: memory.photo),
+                          title: memory.text.isEmpty ? "Uden tekst" : memory.text,
+                          subtitle: meta(memory),
+                          zoomId: memory.id, zoomNamespace: zoomNS,
+                          onOpen: { lightbox = $0 })
+                .contentShape(RoundedRectangle(cornerRadius: Radius.large, style: .continuous))
+                .pressableCard { open(memory) }
+                .softAppear(index: i)
                 .opacity(refreshing ? 0.55 : 1)
             }
         }

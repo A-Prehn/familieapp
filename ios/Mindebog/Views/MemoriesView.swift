@@ -32,33 +32,20 @@ struct MemoriesView: View {
         } else {
             TimelineView(items: memories,
                          year: { $0.date.map { Calendar.current.component(.year, from: $0) } }) { memory in
-                VStack(alignment: .leading, spacing: 8) {
-                    Text(memory.title).font(.serifTitle(16)).foregroundStyle(Theme.text)
-                    HStack(spacing: 6) {
-                        if let dateText = memory.dateText { Text(dateText) }
-                        if !names(memory).isEmpty {
-                            if memory.date != nil { Text("·") }
-                            Label(names(memory), systemImage: "person")
+                PhotoCard(photos: memory.photos, title: memory.title, subtitle: memory.dateText,
+                          about: names(memory).isEmpty ? nil : names(memory), onOpen: onLightbox) {
+                    VStack(alignment: .leading, spacing: 8) {
+                        if !memory.text.isEmpty {
+                            Text(memory.text).font(.footnote).foregroundStyle(Theme.text)
                         }
+                        if let place = memory.place {
+                            PlaceLabel(place: place)
+                            PlaceMap(place: place)
+                        }
+                        CommentsBar(targetId: memory.id, title: memory.title)
                     }
-                    .font(.caption).foregroundStyle(Theme.muted)
-                    if !memory.text.isEmpty {
-                        Text(memory.text).font(.footnote).foregroundStyle(Theme.text)
-                    }
-                    CoverPhotoView(set: memory.photos) { onLightbox($0) }
-                    if let place = memory.place {
-                        PlaceLabel(place: place)
-                        PlaceMap(place: place)
-                    }
-                    CommentsBar(targetId: memory.id, title: memory.title)
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(14)
-                .contentShape(Rectangle())
-                .onTapGesture { if state.canEdit { onEdit(memory) } }
-                .background(Theme.card)
-                .clipShape(RoundedRectangle(cornerRadius: Radius.card))
-                .overlay(RoundedRectangle(cornerRadius: Radius.card).stroke(Theme.sep))
+                .pressableCard { if state.canEdit { onEdit(memory) } }
             }
         }
     }

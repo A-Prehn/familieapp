@@ -157,3 +157,30 @@ struct ShimmerGrid: View {
         .padding(16)
     }
 }
+
+// MARK: - Kort, der kan trykkes på (#46)
+
+/// Kortet giver en anelse efter i hånden (skala 0.98), mens man trykker. Slået fra ved "Reducér bevægelse".
+struct PressableCard: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        PressableBody(configuration: configuration)
+    }
+
+    private struct PressableBody: View {
+        let configuration: ButtonStyleConfiguration
+        @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+        var body: some View {
+            configuration.label
+                .scaleEffect(configuration.isPressed && !reduceMotion ? 0.98 : 1)
+                .animation(reduceMotion ? nil : .spring(response: 0.3, dampingFraction: 0.7), value: configuration.isPressed)
+        }
+    }
+}
+
+extension View {
+    /// Gør et kort til en knap med PressableCard-tryk (tryk = redigér).
+    func pressableCard(_ action: @escaping () -> Void) -> some View {
+        Button(action: action) { self }.buttonStyle(PressableCard())
+    }
+}

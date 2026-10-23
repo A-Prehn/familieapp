@@ -101,49 +101,23 @@ struct HighlightsView: View {
 
     // Tryk på kortet = redigér; tryk på et billede = fuld skærm.
     private func card(_ highlight: Highlight) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            if let date = highlight.date {
-                Text(Fmt.long(date)).font(.caption).foregroundStyle(Theme.muted)
+        // Forsidebilledet bærer titel og dato; resten ses i fuld skærm med forsiden først.
+        PhotoCard(photos: PhotoSet(photos: highlight.photos, cover: highlight.coverIndex),
+                  title: highlight.text,
+                  subtitle: highlight.date.map(Fmt.long),
+                  zoomId: "\(highlight.id)_cover", zoomNamespace: zoomNS,
+                  onOpen: { lightbox = $0 }) {
+            VStack(alignment: .leading, spacing: 8) {
+                if let place = highlight.place {
+                    PlaceLabel(place: place)
+                    PlaceMap(place: place)
+                }
+                mediaButtons(highlight)
+                CommentsBar(targetId: highlight.id, title: highlight.text)
             }
-            Text(highlight.text)
-                .font(.serifTitle(16))
-                .foregroundStyle(Theme.text)
-            // Kun forsidebilledet på oversigten; resten ses i fuld skærm med forsiden først.
-            if let photo = highlight.coverPhoto {
-                let zoomId = "\(highlight.id)_cover"
-                Color.clear
-                    .aspectRatio(ImageTools.displayAspect(photo), contentMode: .fit)
-                    .overlay { DataImage(data: photo) }
-                    .overlay(alignment: .bottomTrailing) {
-                        if highlight.photos.count > 1 {
-                            Text("+\(highlight.photos.count - 1)")
-                                .font(.system(size: 12, weight: .semibold))
-                                .foregroundStyle(.white)
-                                .padding(.horizontal, 7).padding(.vertical, 3)
-                                .background(Capsule().fill(.black.opacity(0.55)))
-                                .padding(8)
-                        }
-                    }
-                    .zoomSource(id: zoomId, in: zoomNS)
-                    .clipShape(RoundedRectangle(cornerRadius: Radius.small))
-                    .onTapGesture {
-                        lightbox = LightboxState.coverFirst(photos: highlight.photos, cover: highlight.coverIndex, sourceId: zoomId)
-                    }
-            }
-            if let place = highlight.place {
-                PlaceLabel(place: place)
-                PlaceMap(place: place)
-            }
-            mediaButtons(highlight)
-            CommentsBar(targetId: highlight.id, title: highlight.text)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(14)
-        .background(Theme.card)
-        .clipShape(RoundedRectangle(cornerRadius: Radius.card))
-        .overlay(RoundedRectangle(cornerRadius: Radius.card).stroke(Theme.sep))
-        .contentShape(RoundedRectangle(cornerRadius: Radius.card))
-        .onTapGesture { if state.canEdit { editing = highlight } }
+        .contentShape(RoundedRectangle(cornerRadius: Radius.large, style: .continuous))
+        .pressableCard { if state.canEdit { editing = highlight } }
         .contextMenu {
             Button { if state.canEdit { editing = highlight } } label: { Label("Redigér", systemImage: "pencil") }
         }

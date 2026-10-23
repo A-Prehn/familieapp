@@ -50,6 +50,7 @@ struct FamilyView: View {
     @State private var editingBirthday: CustomBirthday?
     @State private var lightbox: LightboxState?
     @State private var showVacationMap = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         ScrollView {
@@ -58,7 +59,7 @@ struct FamilyView: View {
                 VStack(spacing: 0) {
                     HStack(spacing: 0) {
                         ForEach(Tab.visible) { t in
-                            Button { withAnimation(.easeInOut(duration: 0.2)) { tab = t } } label: {
+                            Button { if reduceMotion { tab = t } else { withAnimation(.snappy) { tab = t } } } label: {
                                 VStack(spacing: 4) {
                                     Image(systemName: t.symbol)
                                         .font(.system(size: 18, weight: tab == t ? .semibold : .light))
@@ -81,6 +82,7 @@ struct FamilyView: View {
                     Rectangle().fill(Theme.sep).frame(height: 1)
                 }
 
+                Group {
                 switch tab {
                 case .memories: MemoriesView(memories: memories, children: children, members: members, onEdit: { editingMemory = $0 },
                                              onAdd: { activeSheet = .memories }, onLightbox: { lightbox = $0 })
@@ -94,6 +96,9 @@ struct FamilyView: View {
                 case .recipes: RecipesView(recipes: recipes, onEdit: { editingRecipe = $0 },
                                            onAdd: { activeSheet = .recipes }, onLightbox: { lightbox = $0 })
                 }
+                }
+                .id(tab)
+                .transition(reduceMotion ? .identity : .opacity.combined(with: .move(edge: .trailing)))
             }
             .padding(16)
         }
@@ -164,26 +169,21 @@ struct FamilyView: View {
             // Tidslinje som ferier og højdepunkter: nyeste øverst, årstal når året skifter.
             TimelineView(items: events,
                          year: { $0.date.map { Calendar.current.component(.year, from: $0) } }) { event in
-                VStack(alignment: .leading, spacing: 8) {
-                    Text(event.title).font(.serifTitle(16))
-                    aboutLine(date: event.date.map(Fmt.long), childIds: event.childIds, personIds: event.personIds)
-                    if !event.details.isEmpty {
-                        Text(event.details).font(.footnote).foregroundStyle(Theme.muted)
+                PhotoCard(photos: event.photos, title: event.title, subtitle: event.date.map(Fmt.long),
+                          about: aboutText(childIds: event.childIds, personIds: event.personIds),
+                          zoomId: event.id, zoomNamespace: zoomNS, onOpen: { lightbox = $0 }) {
+                    VStack(alignment: .leading, spacing: 8) {
+                        if !event.details.isEmpty {
+                            Text(event.details).font(.footnote).foregroundStyle(Theme.muted)
+                        }
+                        if let place = event.place {
+                            PlaceLabel(place: place)
+                            PlaceMap(place: place)
+                        }
+                        CommentsBar(targetId: event.id, title: event.title)
                     }
-                    CoverPhotoView(set: event.photos, zoomId: event.id, zoomNamespace: zoomNS) { lightbox = $0 }
-                    if let place = event.place {
-                        PlaceLabel(place: place)
-                        PlaceMap(place: place)
-                    }
-                    CommentsBar(targetId: event.id, title: event.title)
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(14)
-                .contentShape(Rectangle())
-                .onTapGesture { if state.canEdit { editingEvent = event } }
-                .background(Theme.card)
-                .clipShape(RoundedRectangle(cornerRadius: Radius.card))
-                .overlay(RoundedRectangle(cornerRadius: Radius.card).stroke(Theme.sep))
+                .pressableCard { if state.canEdit { editingEvent = event } }
             }
         }
     }
@@ -209,26 +209,21 @@ struct FamilyView: View {
             // Tidslinje som på websitet: nyeste øverst, årstal hver gang året skifter.
             TimelineView(items: vacations,
                          year: { $0.startDate.map { Calendar.current.component(.year, from: $0) } }) { vacation in
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text(vacation.title).font(.serifTitle(16))
-                        aboutLine(date: dateRange(vacation), childIds: vacation.childIds, personIds: vacation.personIds)
-                        if !vacation.details.isEmpty {
-                            Text(vacation.details).font(.footnote).foregroundStyle(Theme.muted)
+                    PhotoCard(photos: vacation.photos, title: vacation.title, subtitle: dateRange(vacation),
+                              about: aboutText(childIds: vacation.childIds, personIds: vacation.personIds),
+                              zoomId: vacation.id, zoomNamespace: zoomNS, onOpen: { lightbox = $0 }) {
+                        VStack(alignment: .leading, spacing: 8) {
+                            if !vacation.details.isEmpty {
+                                Text(vacation.details).font(.footnote).foregroundStyle(Theme.muted)
+                            }
+                            if let place = vacation.place {
+                                PlaceLabel(place: place)
+                                PlaceMap(place: place)
+                            }
+                            CommentsBar(targetId: vacation.id, title: vacation.title)
                         }
-                        CoverPhotoView(set: vacation.photos, zoomId: vacation.id, zoomNamespace: zoomNS) { lightbox = $0 }
-                        if let place = vacation.place {
-                            PlaceLabel(place: place)
-                            PlaceMap(place: place)
-                        }
-                        CommentsBar(targetId: vacation.id, title: vacation.title)
                     }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(14)
-                    .contentShape(Rectangle())
-                    .onTapGesture { if state.canEdit { editingVacation = vacation } }
-                    .background(Theme.card)
-                    .clipShape(RoundedRectangle(cornerRadius: Radius.card))
-                    .overlay(RoundedRectangle(cornerRadius: Radius.card).stroke(Theme.sep))
+                    .pressableCard { if state.canEdit { editingVacation = vacation } }
             }
             }
         }
@@ -328,6 +323,12 @@ struct FamilyView: View {
         f.locale = Self.danish
         f.dateFormat = "d. MMMM"
         return f.string(from: date)
+    }
+
+    /// "Handler om" som tekst til PhotoCard, fx "William · Nohr"; nil hvis ingen er valgt.
+    private func aboutText(childIds: [String], personIds: [String]) -> String? {
+        let names = AboutPicker.names(childIds: childIds, personIds: personIds, children: children, members: members)
+        return names.isEmpty ? nil : names
     }
 
     /// Dato og "handler om" på én linje under titlen: "15. november 2024 · Nohr, Sheila".

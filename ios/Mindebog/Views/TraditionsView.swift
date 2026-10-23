@@ -28,9 +28,10 @@ struct TraditionsView: View {
             .padding(.top, 40)
         } else {
             VStack(spacing: 12) {
-                ForEach(traditions) { t in
+                ForEach(Array(traditions.enumerated()), id: \.element.id) { i, t in
                     TraditionCard(tradition: t, onLightbox: onLightbox)
-                        .onTapGesture { if state.canEdit { onEdit(t) } }
+                        .pressableCard { if state.canEdit { onEdit(t) } }
+                        .softAppear(index: i)
                         .id(t.id)
                 }
             }
@@ -46,43 +47,31 @@ private struct TraditionCard: View {
     @State private var loading = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(alignment: .top) {
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(tradition.title).font(.serifTitle(17)).foregroundStyle(Theme.text)
-                    if !tradition.when.isEmpty {
-                        Label(tradition.when, systemImage: "calendar").font(.caption).foregroundStyle(Theme.neutralDark)
-                    }
-                }
-                Spacer()
-                if let d = tradition.audioDuration {
-                    Button { Task { await toggle() } } label: {
-                        HStack(spacing: 6) {
-                            if loading { ProgressView().controlSize(.small) }
-                            else { Image(systemName: playback.isPlaying ? "stop.fill" : "play.fill") }
-                            Text(MediaFiles.format(d))
+        PhotoCard(photos: tradition.photos, title: tradition.title,
+                  subtitle: tradition.when.isEmpty ? nil : tradition.when, onOpen: onLightbox) {
+            if !tradition.details.isEmpty || tradition.audioDuration != nil {
+                VStack(alignment: .leading, spacing: 10) {
+                    if let d = tradition.audioDuration {
+                        Button { Task { await toggle() } } label: {
+                            HStack(spacing: 6) {
+                                if loading { ProgressView().controlSize(.small) }
+                                else { Image(systemName: playback.isPlaying ? "stop.fill" : "play.fill") }
+                                Text(MediaFiles.format(d))
+                            }
+                            .font(.caption.weight(.semibold))
+                            .padding(.horizontal, 10).padding(.vertical, 6)
+                            .background(Capsule().fill(Theme.rose.opacity(0.15)))
+                            .foregroundStyle(Theme.rose)
                         }
-                        .font(.caption.weight(.semibold))
-                        .padding(.horizontal, 10).padding(.vertical, 6)
-                        .background(Capsule().fill(Theme.rose.opacity(0.15)))
-                        .foregroundStyle(Theme.rose)
+                        .buttonStyle(.plain)
                     }
-                    .buttonStyle(.plain)
+                    if !tradition.details.isEmpty {
+                        Text(tradition.details).font(.subheadline).foregroundStyle(Theme.muted).lineLimit(4)
+                    }
                 }
-            }
-            if !tradition.details.isEmpty {
-                Text(tradition.details).font(.subheadline).foregroundStyle(Theme.muted).lineLimit(4)
-            }
-            if !tradition.photos.isEmpty {
-                CoverPhotoView(set: tradition.photos) { onLightbox($0) }
             }
         }
-        .padding(14)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Theme.card)
-        .clipShape(RoundedRectangle(cornerRadius: Radius.card))
-        .overlay(RoundedRectangle(cornerRadius: Radius.card).stroke(Theme.sep))
-        .contentShape(RoundedRectangle(cornerRadius: Radius.card))
+        .contentShape(RoundedRectangle(cornerRadius: Radius.large, style: .continuous))
     }
 
     private func toggle() async {
