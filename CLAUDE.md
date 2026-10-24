@@ -22,7 +22,8 @@ har godkendt versionen, og den er ude i App Store. Brug `gh` (logget ind som A-P
 
 ## Builds
 
-Repoet er offentligt (siden 22. okt. 2026), så GitHub Actions-minutterne er gratis. Byg stadig kun, når
+Repoet er privat igen (siden 24. okt. 2026; var offentligt 22.–24. okt. for gratis minutter). Builds tæller
+mod den gratis månedskvote, som nulstilles den 1.; uden kort blokeres builds, når den er brugt. Byg kun, når
 brugeren beder om det, og saml flere ændringer i ét build. Build-nummeret = kørselsnummeret på
 "iOS TestFlight". Xcode Cloud er forberedt (`ios/ci_scripts/`), men kræver en Mac én gang (issue #38).
 Ingen hemmeligheder i repoet: certifikat og nøgle ligger kun lokalt i `ios/signing/` (gitignored) og i GitHub Secrets.
