@@ -171,7 +171,8 @@ struct FamilyView: View {
                          year: { $0.date.map { Calendar.current.component(.year, from: $0) } }) { event in
                 PhotoCard(photos: event.photos, title: event.title, subtitle: event.date.map(Fmt.long),
                           about: aboutText(childIds: event.childIds, personIds: event.personIds),
-                          zoomId: event.id, zoomNamespace: zoomNS, onOpen: { lightbox = $0 }) {
+                          zoomId: event.id, zoomNamespace: zoomNS,
+                          onEdit: state.canEdit ? { editingEvent = event } : nil, onOpen: { lightbox = $0 }) {
                     VStack(alignment: .leading, spacing: 8) {
                         if !event.details.isEmpty {
                             Text(event.details).font(.footnote).foregroundStyle(Theme.muted)
@@ -211,7 +212,8 @@ struct FamilyView: View {
                          year: { $0.startDate.map { Calendar.current.component(.year, from: $0) } }) { vacation in
                     PhotoCard(photos: vacation.photos, title: vacation.title, subtitle: dateRange(vacation),
                               about: aboutText(childIds: vacation.childIds, personIds: vacation.personIds),
-                              zoomId: vacation.id, zoomNamespace: zoomNS, onOpen: { lightbox = $0 }) {
+                              zoomId: vacation.id, zoomNamespace: zoomNS,
+                              onEdit: state.canEdit ? { editingVacation = vacation } : nil, onOpen: { lightbox = $0 }) {
                         VStack(alignment: .leading, spacing: 8) {
                             if !vacation.details.isEmpty {
                                 Text(vacation.details).font(.footnote).foregroundStyle(Theme.muted)

@@ -29,7 +29,7 @@ struct TraditionsView: View {
         } else {
             VStack(spacing: 12) {
                 ForEach(Array(traditions.enumerated()), id: \.element.id) { i, t in
-                    TraditionCard(tradition: t, onLightbox: onLightbox)
+                    TraditionCard(tradition: t, onEdit: state.canEdit ? { onEdit(t) } : nil, onLightbox: onLightbox)
                         .pressableCard { if state.canEdit { onEdit(t) } }
                         .softAppear(index: i)
                         .id(t.id)
@@ -42,13 +42,14 @@ struct TraditionsView: View {
 private struct TraditionCard: View {
     @EnvironmentObject var state: AppState
     let tradition: Tradition
+    var onEdit: (() -> Void)? = nil
     var onLightbox: (LightboxState) -> Void
     @StateObject private var playback = AudioPlayback()
     @State private var loading = false
 
     var body: some View {
         PhotoCard(photos: tradition.photos, title: tradition.title,
-                  subtitle: tradition.when.isEmpty ? nil : tradition.when, onOpen: onLightbox) {
+                  subtitle: tradition.when.isEmpty ? nil : tradition.when, onEdit: onEdit, onOpen: onLightbox) {
             if !tradition.details.isEmpty || tradition.audioDuration != nil {
                 VStack(alignment: .leading, spacing: 10) {
                     if let d = tradition.audioDuration {

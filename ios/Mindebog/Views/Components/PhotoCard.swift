@@ -18,6 +18,8 @@ struct PhotoCard<Extra: View>: View {
     var aspect: CGFloat? = nil
     var zoomId: String? = nil
     var zoomNamespace: Namespace.ID? = nil
+    /// Sat = vis en "Redigér"-knap på kortet (og i menuen ved langt tryk). nil = kun visning.
+    var onEdit: (() -> Void)? = nil
     let onOpen: (LightboxState) -> Void
     @ViewBuilder var extra: () -> Extra
 
@@ -28,7 +30,12 @@ struct PhotoCard<Extra: View>: View {
             if let cover = photos.coverPhoto {
                 picture(cover)
             } else {
-                header(onPhoto: false).padding(14)
+                HStack(alignment: .top) {
+                    header(onPhoto: false)
+                    Spacer(minLength: 8)
+                    editButton(onPhoto: false)
+                }
+                .padding(14)
             }
             extra()
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -38,6 +45,26 @@ struct PhotoCard<Extra: View>: View {
         .background(Theme.card)
         .clipShape(RoundedRectangle(cornerRadius: Radius.large, style: .continuous))
         .overlay(RoundedRectangle(cornerRadius: Radius.large, style: .continuous).stroke(Theme.sep))
+        .contextMenu {
+            if let onEdit { Button(action: onEdit) { Label("Redigér", systemImage: "pencil") } }
+        }
+    }
+
+    /// Lille rund knap: oven på billedet (øverst til venstre, så "+N" har højre hjørne) eller i titelrækken.
+    @ViewBuilder
+    private func editButton(onPhoto: Bool) -> some View {
+        if let onEdit {
+            Button(action: onEdit) {
+                Image(systemName: "pencil")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(onPhoto ? Color.white : Theme.muted)
+                    .frame(width: 32, height: 32)
+                    .background(Circle().fill(onPhoto ? Color.black.opacity(0.45) : Theme.bgDark))
+                    .contentShape(Circle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Redigér")
+        }
     }
 
     private func picture(_ cover: Data) -> some View {
@@ -51,6 +78,7 @@ struct PhotoCard<Extra: View>: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .background(scrim)
             }
+            .overlay(alignment: .topLeading) { editButton(onPhoto: true).padding(10) }
             .overlay(alignment: .topTrailing) {
                 if photos.count > 1 {
                     Text("+\(photos.count - 1)")
@@ -96,9 +124,10 @@ struct PhotoCard<Extra: View>: View {
 
 extension PhotoCard where Extra == EmptyView {
     init(photos: PhotoSet, title: String, subtitle: String? = nil, about: String? = nil, aspect: CGFloat? = nil,
-         zoomId: String? = nil, zoomNamespace: Namespace.ID? = nil, onOpen: @escaping (LightboxState) -> Void) {
+         zoomId: String? = nil, zoomNamespace: Namespace.ID? = nil, onEdit: (() -> Void)? = nil,
+         onOpen: @escaping (LightboxState) -> Void) {
         self.init(photos: photos, title: title, subtitle: subtitle, about: about, aspect: aspect,
-                  zoomId: zoomId, zoomNamespace: zoomNamespace, onOpen: onOpen) { EmptyView() }
+                  zoomId: zoomId, zoomNamespace: zoomNamespace, onEdit: onEdit, onOpen: onOpen) { EmptyView() }
     }
 }
 

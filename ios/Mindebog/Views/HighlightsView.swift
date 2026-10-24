@@ -106,6 +106,7 @@ struct HighlightsView: View {
                   title: highlight.text,
                   subtitle: highlight.date.map(Fmt.long),
                   zoomId: "\(highlight.id)_cover", zoomNamespace: zoomNS,
+                  onEdit: state.canEdit ? { editing = highlight } : nil,
                   onOpen: { lightbox = $0 }) {
             VStack(alignment: .leading, spacing: 8) {
                 if let place = highlight.place {
@@ -118,9 +119,6 @@ struct HighlightsView: View {
         }
         .contentShape(RoundedRectangle(cornerRadius: Radius.large, style: .continuous))
         .pressableCard { if state.canEdit { editing = highlight } }
-        .contextMenu {
-            Button { if state.canEdit { editing = highlight } } label: { Label("Redigér", systemImage: "pencil") }
-        }
     }
 
     private func load() async {

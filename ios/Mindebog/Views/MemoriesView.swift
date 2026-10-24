@@ -33,7 +33,8 @@ struct MemoriesView: View {
             TimelineView(items: memories,
                          year: { $0.date.map { Calendar.current.component(.year, from: $0) } }) { memory in
                 PhotoCard(photos: memory.photos, title: memory.title, subtitle: memory.dateText,
-                          about: names(memory).isEmpty ? nil : names(memory), onOpen: onLightbox) {
+                          about: names(memory).isEmpty ? nil : names(memory),
+                          onEdit: state.canEdit ? { onEdit(memory) } : nil, onOpen: onLightbox) {
                     VStack(alignment: .leading, spacing: 8) {
                         if !memory.text.isEmpty {
                             Text(memory.text).font(.footnote).foregroundStyle(Theme.text)
