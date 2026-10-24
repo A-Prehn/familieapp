@@ -102,6 +102,13 @@ enum WeeklyQuestion {
         "Hvad er {navn} god til, som I vil huske?",
     ]
 
+    /// Ferier giver kun mening for et barn, der er født og fyldt et år.
+    static func hasHolidays(_ child: Child, at date: Date = Date()) -> Bool {
+        guard !child.onTheWay, let birth = child.birthDate,
+              let oneYear = Calendar.current.date(byAdding: .year, value: 1, to: birth) else { return false }
+        return date >= oneYear
+    }
+
     /// Lørdage kl. 10 de næste uger, med spørgsmålet i teksten og som "deep link" til dagbogen.
     static func requests(for child: Child, prefix: String) -> [UNNotificationRequest] {
         guard isEnabled else { return [] }
@@ -115,8 +122,10 @@ enum WeeklyQuestion {
             guard let date = cal.date(byAdding: .day, value: n * 7, to: day),
                   let fire = cal.date(bySettingHour: 10, minute: 0, second: 0, of: date), fire > now else { continue }
             let week = cal.component(.weekOfYear, from: fire) + cal.component(.year, from: fire) * 53
-            // Lørdagen efter en skoleferie: spørg til ferien i stedet for ugens almindelige spørgsmål.
-            let q = SchoolHolidays.justEnded(before: fire).map { "Hvad var det bedste ved \($0.name) for \(child.name)?" }
+            // Lørdagen efter en skoleferie: spørg til ferien i stedet for ugens almindelige spørgsmål —
+            // kun for børn, der er født og mindst et år (ikke "efterårsferien for Baby Blob", #49).
+            let holiday = hasHolidays(child, at: fire) ? SchoolHolidays.justEnded(before: fire) : nil
+            let q = holiday.map { "Hvad var det bedste ved \($0.name) for \(child.name)?" }
                 ?? question(for: child, week: week)
             let content = UNMutableNotificationContent()
             content.title = "Ugens spørgsmål om \(child.name) ✏️"

@@ -57,7 +57,7 @@ struct HomeView: View {
                     if state.canEdit { quickAddSection.softAppear(index: 3) }
                     if showFirstSteps { firstSteps.softAppear(index: 4) }
                     yearCards.softAppear(index: 4)
-                    if let holiday, state.canEdit { holidayCard(holiday).softAppear(index: 4) }
+                    if let holiday, state.canEdit, !holidayChildren.isEmpty { holidayCard(holiday).softAppear(index: 4) }
                     if !onThisDay.isEmpty {
                         memorySection("På denne dag", onThisDay) { m in
                             "\(yearsAgo(m.date)) · \(m.childName) · \(m.kind)"
@@ -133,7 +133,7 @@ struct HomeView: View {
             }
         }
         .confirmationDialog("Hvilket barn?", isPresented: $chooseHolidayChild, titleVisibility: .visible) {
-            ForEach(children) { child in Button(child.name) { holidayChild = child } }
+            ForEach(holidayChildren) { child in Button(child.name) { holidayChild = child } }
         }
         .confirmationDialog("Hvilket barn?", isPresented: $chooseImportChild, titleVisibility: .visible) {
             ForEach(bornChildren) { child in Button(child.name) { importChild = child } }
@@ -160,7 +160,7 @@ struct HomeView: View {
             .presentationDetents([.medium, .large])
         }
         .fullScreenCover(item: $lightbox) { LightboxView(state: $0).zoomTarget(id: $0.sourceId, in: zoomNS) }
-        .refreshable { await load() }
+        .refreshable { await pullToRefresh() }
         .task { await loadIfStale() }
         .reloadOnStoreChange { await load() }
         // Kommer appen frem igen midt i en hentning, kan den hentning være gået i stå — start en ny,
@@ -231,6 +231,9 @@ struct HomeView: View {
     }
 
     // MARK: Skoleferie, der er ved at slutte
+    /// Kun børn, der er født og fyldt et år — ingen feriebilleder til et barn på vej (#49).
+    private var holidayChildren: [Child] { children.filter { WeeklyQuestion.hasHolidays($0) } }
+
     private func holidayCard(_ h: SchoolHolidays.Holiday) -> some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 12) {
@@ -245,7 +248,7 @@ struct HomeView: View {
             }
             HStack(spacing: 10) {
                 Button {
-                    if children.count == 1 { holidayChild = children[0] } else { chooseHolidayChild = true }
+                    if holidayChildren.count == 1 { holidayChild = holidayChildren[0] } else { chooseHolidayChild = true }
                 } label: {
                     Label("Vælg fra Fotos", systemImage: "photo.on.rectangle").font(.caption.weight(.semibold))
                         .padding(.horizontal, 12).padding(.vertical, 8)
@@ -440,6 +443,17 @@ struct HomeView: View {
         var day: String   // "På denne dag" gælder kun samme dato
     }
 
+    /// Træk ned for at opdatere (#42): iOS' hjul bliver stående, til denne funktion er færdig. Vent derfor kun,
+    /// til listen er opdateret (eller højst 10 sekunder) — billederne hentes færdigt bagefter, uden hjul.
+    private func pullToRefresh() async {
+        let started = Date()
+        Task { await load() }
+        try? await Task.sleep(for: .milliseconds(300))
+        while refreshing, Date().timeIntervalSince(started) < 10 {
+            try? await Task.sleep(for: .milliseconds(200))
+        }
+    }
+
     /// Ved fanebladsskift: hent kun igen, hvis det er et stykke tid siden.
     private func loadIfStale() async {
         if let last = lastLoad, Date().timeIntervalSince(last) < 30 { return }
@@ -457,9 +471,9 @@ struct HomeView: View {
         guard let familyId = state.familyId else { return }
         let cacheKey = "home_\(familyId)"
         refreshing = true
-        // Vagt (#22): svarer iCloud ikke inden for 20 sekunder, fjernes hjulet alligevel — listen fra sidst bliver stående.
+        // Vagt (#22, #42): svarer iCloud ikke inden for 12 sekunder, fjernes hjulet alligevel — listen fra sidst bliver stående.
         Task {
-            try? await Task.sleep(for: .seconds(20))
+            try? await Task.sleep(for: .seconds(12))
             if isCurrent() && refreshing { refreshing = false; loading = false }
         }
         let todayKey = Fmt.iso(Date())
