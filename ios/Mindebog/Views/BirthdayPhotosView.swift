@@ -196,7 +196,13 @@ struct BirthdayPhotosView: View {
         error = nil
         for photo in photos {
             do {
-                let item = try await state.store.addGalleryItem(childId: child.id, kind: .birthday, caption: caption, photo: photo)
+                var item = try await state.store.addGalleryItem(childId: child.id, kind: .birthday, caption: caption, photo: photo)
+                // Datoen er fødselsdagen — eller hvornår billedet er taget, hvis det står i filen —
+                // ikke dagen det blev lagt op (ellers havner 2025-billeder i "Året der gik" for 2026).
+                if let taken = ImageTools.captureDate(photo) ?? birthdayDate {
+                    item.date = taken
+                    try? await state.store.updateGalleryItem(childId: child.id, item)
+                }
                 items.append(item)
             } catch {
                 self.error = SaveError.message(for: error)

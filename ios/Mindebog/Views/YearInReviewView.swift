@@ -264,7 +264,16 @@ struct YearInReviewView: View {
         highlights = (try? await h) ?? []
         diary = (try? await d) ?? []
         measurements = (try? await m) ?? []
-        gallery = ((try? await g1) ?? []) + ((try? await g2) ?? []) + ((try? await g3) ?? [])
+        // Fødselsdagsbilleder uden dato (lagt op før datoen blev gemt) hører til selve fødselsdagen —
+        // fx William 12 år = 20. december 2025, også selv om billederne først kom ind i 2026.
+        let birthdays = ((try? await g3) ?? []).map { item -> GalleryItem in
+            guard item.date == nil, let birth = child.birthDate, let age = Int(item.caption),
+                  let day = Calendar.current.date(byAdding: .year, value: age, to: birth) else { return item }
+            var fixed = item
+            fixed.date = day
+            return fixed
+        }
+        gallery = ((try? await g1) ?? []) + ((try? await g2) ?? []) + birthdays
     }
 
     private func makeMovie() async {

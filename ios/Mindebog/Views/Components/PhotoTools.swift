@@ -17,7 +17,28 @@ enum ImageTools {
         let output = renderer.image { _ in
             image.draw(in: CGRect(origin: .zero, size: size))
         }
-        return output.jpegData(compressionQuality: 0.8)
+        guard let jpeg = output.jpegData(compressionQuality: 0.8) else { return nil }
+        // Behold hvornår billedet er taget, så "Året der gik" og datoforslag også virker på gemte billeder.
+        guard let taken = captureDate(data) else { return jpeg }
+        return withCaptureDate(jpeg, taken) ?? jpeg
+    }
+
+    /// Skriver optagelsesdatoen (EXIF DateTimeOriginal) ind i en JPEG uden at genkode billedet.
+    private static func withCaptureDate(_ jpeg: Data, _ date: Date) -> Data? {
+        guard let source = CGImageSourceCreateWithData(jpeg as CFData, nil),
+              let type = CGImageSourceGetType(source) else { return nil }
+        let out = NSMutableData()
+        guard let dest = CGImageDestinationCreateWithData(out, type, 1, nil) else { return nil }
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "en_US_POSIX")
+        f.dateFormat = "yyyy:MM:dd HH:mm:ss"
+        let stamp = f.string(from: date)
+        let meta: [CFString: Any] = [
+            kCGImagePropertyExifDictionary: [kCGImagePropertyExifDateTimeOriginal: stamp],
+            kCGImagePropertyTIFFDictionary: [kCGImagePropertyTIFFDateTime: stamp],
+        ]
+        CGImageDestinationAddImageFromSource(dest, source, 0, meta as CFDictionary)
+        return CGImageDestinationFinalize(dest) ? out as Data : nil
     }
 
     /// Billedets egen form til visning på kort — så intet beskæres væk.
