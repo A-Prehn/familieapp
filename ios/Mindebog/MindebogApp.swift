@@ -110,6 +110,7 @@ final class AppState: ObservableObject {
             familyId = savedFamily
             ready = true
             Task { await verifyInBackground(userId: savedId, familyId: savedFamily) }
+            await handlePendingShare()
             return
         }
 
@@ -129,6 +130,13 @@ final class AppState: ObservableObject {
         }
         ready = true
         Task { await publishDisplayName(); await refreshPermissions() }
+        await handlePendingShare()
+    }
+
+    /// Koldstart fra et delelink: invitationen blev accepteret, før brugeren og familierne var hentet.
+    private func handlePendingShare() async {
+        guard let zoneName = PendingShare.zoneName else { return }
+        await didAcceptShare(zoneName: zoneName)
     }
 
     /// Demo-familien til skærmbilleder: hukommelseslager, ingen iCloud, intet gemt.
@@ -201,7 +209,7 @@ final class AppState: ObservableObject {
             errorMessage = "Det er linket til App Store. Brug invitationslinket fra beskeden — det starter med icloud.com/share."
             return
         }
-        if usingCloud, !text.contains("icloud.com/share") {
+        if usingCloud, !text.contains("icloud.com") {
             errorMessage = "Det ligner ikke en invitation. Kopiér linket fra beskeden (det starter med icloud.com/share), og prøv igen."
             return
         }
@@ -210,22 +218,38 @@ final class AppState: ObservableObject {
             let family = try await store.acceptInvite(userId: user.id, code: text)
             setFamily(family.id)
         } catch {
-            errorMessage = "Invitationen kunne ikke åbnes. Tjek, at du er logget ind på iCloud, og bed evt. om et nyt link."
+            errorMessage = "Invitationen kunne ikke åbnes. Tjek, at du er logget ind på iCloud. Er familien delt med \"kun inviterede\", skal du bruge den Apple-konto, invitationen blev sendt til — ellers kan ejeren vælge \"alle med linket\" og sende igen."
         }
     }
 
     /// Kaldes når brugeren har trykket på et delelink og iOS har accepteret delingen.
+    /// Virker også for en helt ny bruger (ingen "Kom i gang" endnu) og lige efter koldstart.
     func didAcceptShare(zoneName: String) async {
+        guard ready, usingCloud else { return }   // bootstrap samler den op via PendingShare
+        if user == nil {
+            // Ny bruger, der kommer ind via en invitation: log ind med det samme (navnet rettes under Mere).
+            guard let u = try? await store.signIn(name: "") else { return }
+            user = u
+            UserDefaults.standard.set(u.id, forKey: userIdKey)
+        }
         guard let user else { return }
+        PendingShare.zoneName = nil
         // Et enkelt barn delt med én (den anden forælder): vis det under Børn.
         if zoneName.hasPrefix(CloudKitStore.childZonePrefix) {
             NotificationCenter.default.post(name: .storeDidChange, object: nil)
             return
         }
-        let fams = (try? await store.families(for: user.id)) ?? []
-        if let match = fams.first(where: { $0.id == zoneName }) {
-            setFamily(match.id)
+        // Den delte zone kan være et øjeblik om at dukke op i den delte database — prøv et par gange.
+        for attempt in 0..<4 {
+            let fams = (try? await store.families(for: user.id)) ?? []
+            if let match = fams.first(where: { $0.id == zoneName }) {
+                setFamily(match.id)
+                errorMessage = nil
+                return
+            }
+            if attempt < 3 { try? await Task.sleep(for: .seconds(1.5)) }
         }
+        errorMessage = "Invitationen blev accepteret, men familien er ikke dukket op endnu. Prøv at åbne appen igen om lidt."
     }
 
     /// Navnet bruges i hilsenen på Hjem. Gemmes lokalt på enheden (samme nøgle som CloudKitStore).
