@@ -45,7 +45,7 @@ struct OnboardingView: View {
                         .textInputAutocapitalization(state.usingCloud ? .never : .characters)
                         .autocorrectionDisabled()
                     if state.usingCloud {
-                        Text("Har du fået et link fra din partner? Tryk på det, eller indsæt det her.")
+                        Text("Har du fået en invitation? Gå tilbage til beskeden, og tryk på linket igen — så åbner appen og tilmelder dig af sig selv. Du kan også holde fingeren på linket, vælge Kopiér og indsætte det her.")
                             .font(.footnote).foregroundStyle(Theme.muted)
                             .multilineTextAlignment(.center)
                     }

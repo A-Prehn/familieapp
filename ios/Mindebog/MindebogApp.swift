@@ -195,10 +195,23 @@ final class AppState: ObservableObject {
 
     func acceptInvite(code: String) async {
         guard let user else { return }
+        let text = code.trimmingCharacters(in: .whitespacesAndNewlines)
+        // Et App Store-link er ikke en invitation — sig det på dansk i stedet for iCloud's engelske fejl.
+        if usingCloud, text.contains("apps.apple.com") {
+            errorMessage = "Det er linket til App Store. Brug invitationslinket fra beskeden — det starter med icloud.com/share."
+            return
+        }
+        if usingCloud, !text.contains("icloud.com/share") {
+            errorMessage = "Det ligner ikke en invitation. Kopiér linket fra beskeden (det starter med icloud.com/share), og prøv igen."
+            return
+        }
+        errorMessage = nil
         do {
-            let family = try await store.acceptInvite(userId: user.id, code: code)
+            let family = try await store.acceptInvite(userId: user.id, code: text)
             setFamily(family.id)
-        } catch { errorMessage = error.localizedDescription }
+        } catch {
+            errorMessage = "Invitationen kunne ikke åbnes. Tjek, at du er logget ind på iCloud, og bed evt. om et nyt link."
+        }
     }
 
     /// Kaldes når brugeren har trykket på et delelink og iOS har accepteret delingen.

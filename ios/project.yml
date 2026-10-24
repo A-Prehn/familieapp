@@ -30,6 +30,9 @@ targets:
       properties:
         # Lora (overskrifter) — filerne ligger i Mindebog/Fonts og kopieres med som ressourcer.
         UIAppFonts: [Lora-Regular.ttf, Lora-Medium.ttf, Lora-SemiBold.ttf, Lora-Italic.ttf]
+        # Uden denne tror iOS, at appen ikke kan åbne iCloud-invitationer, og sender modtageren til
+        # App Store ("Opdater Vores familie") i stedet for at åbne appen og acceptere delingen.
+        CKSharingSupported: true
     dependencies:
       # Udvidelserne indlejres automatisk i appen (PlugIns/).
       - target: VoresFamilieWidget
