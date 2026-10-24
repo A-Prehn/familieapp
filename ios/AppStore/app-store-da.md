@@ -4,6 +4,44 @@ Udkast til App Store Connect. Tegngrænser står i parentes; tallene efter er de
 
 ---
 
+## Version 1.2 — klar til App Store Connect
+
+### Nyheder i denne version (What's New, 4000)
+> Nyt udseende: billederne fylder nu hele kortet, med titel og dato lagt oven på, og en ny skrift, der passer til en rigtig mindebog.
+>
+> • Verdenskort over jeres rejser — se alle de steder, familien har været, med antal steder og lande
+> • Invitationer virker nu med ét tryk: når familien trykker på delelinket, åbner appen og tilmelder dem med det samme
+> • Mavebilleder får selv ugen på, fx "Uge 28+2", ud fra terminen
+> • Træk et billede nedad for at lukke det
+> • Fødselsdagsbilleder lægger sig på selve fødselsdagen, så de havner i det rigtige år i "Året der gik"
+> • Tydelig redigér-knap på billederne
+> • Opdateringshjulet på Hjem bliver ikke længere hængende
+> • Ugens spørgsmål spørger ikke længere om ferier for børn, der ikke er født endnu
+
+(ca. 720)
+
+### Promoveringstekst (170) — kan ændres uden ny version
+> Nyt: verdenskort over familiens rejser, et frisk udseende og invitationer med ét tryk. Saml de små øjeblikke, før de glider væk.
+
+(130)
+
+### Beskrivelse — én tilføjelse
+Under **HELE FAMILIEN**, første punkt ændres til:
+> • Minder, begivenheder og rejser — med sted, billeder og et verdenskort over alle de steder, I har været
+
+### Tjekliste i App Store Connect (version 1.2, "Prepare for Submission")
+- [x] Version 1.2 oprettet; Support URL og Marketing URL peger på apps.prehn.net
+- [ ] **Build:** vælg build 98 (når den er testet i TestFlight — især invitationen, #53)
+- [ ] **Nyheder i denne version:** teksten ovenfor
+- [ ] **Promoveringstekst:** teksten ovenfor (kan også rettes senere)
+- [ ] **Beskrivelse:** ret punktet om rejser (ovenfor)
+- [ ] **Skærmbilleder:** de nye fra workflowet (`ios/AppStore/screenshots/6.9` og `6.3`) — det nye design
+- [ ] **App Review Information → Notes:** som før (afsnittet nederst); tilføj gerne "Version 1.2 fixes the CloudKit share-link handling (CKSharingSupported)"
+- [ ] **Version Release:** vælg "Automatically release this version" — så kommer den ud, så snart Apple godkender (invitationsfejlen skal ud hurtigt)
+- [ ] **Add for Review → Submit**
+
+---
+
 ## Navn (30)
 **Vores familie** — 13
 
