@@ -78,6 +78,25 @@ final class ScreenshotTests: XCTestCase {
         // 10. Rejser (med kort)
         tapText("Rejser"); settle(5)
         snap("rejser")
+
+        // 11. Breve til barnet (landingssiden, #50) — Børn-fanen står stadig på Nohrs side.
+        tab("Børn"); settle()
+        if !app.staticTexts["Breve til dig"].exists { tapText("Nohr"); settle() }
+        swipeUpIfNeeded(toFind: "Breve til dig")
+        tapText("Breve til dig"); settle(2)
+        snap("breve")
+        back()
+
+        // 12. Mindebogen som PDF (landingssiden, #50): menuen ••• → Lav mindebog → til skærm.
+        app.swipeDown(); settle(1)
+        let menu = app.navigationBars.buttons.element(boundBy: app.navigationBars.buttons.count - 1)
+        if menu.waitForExistence(timeout: 5) {
+            menu.tap(); settle(1)
+            tapText("Lav mindebog (PDF)"); settle(1)
+            tapText("Til skærm og hjemmeprint")
+            settle(10)   // bogen bygges, og del-arket med forhåndsvisning åbner
+            snap("bog")
+        }
         // Søgning er taget ud: ét resultat og et stort tastatur gør sig dårligt i App Store.
     }
 
