@@ -28,6 +28,27 @@ brugeren beder om det, og saml flere ændringer i ét build. Build-nummeret = k�
 "iOS TestFlight". Xcode Cloud er forberedt (`ios/ci_scripts/`), men kræver en Mac én gang (issue #38).
 Ingen hemmeligheder i repoet: certifikat og nøgle ligger kun lokalt i `ios/signing/` (gitignored) og i GitHub Secrets.
 
+## Sikkerhed og privatliv (gælder al kode)
+
+Appen gemmer familiers minder, som ikke kan erstattes. Fejl, der mister eller lækker data, er det værste, der kan ske.
+
+- **Ingen hemmeligheder i kode eller repo**: ingen API-nøgler, tokens, certifikater eller kodeord. Signering ligger kun i
+  `ios/signing/` (gitignored) og GitHub Secrets.
+- **Data forlader aldrig brugernes iCloud**: ingen egen server, ingen upload til tredjepart, ingen analyse-, reklame-
+  eller sporings-SDK'er i appen (fx Firebase, Meta SDK, Crashlytics). Kun Apples egne biblioteker; nye
+  tredjepartspakker kræver brugerens godkendelse. Meta Pixel findes kun på hjemmesiden, efter samtykke.
+- **Bekræftelse før sletning**: alt, der sletter indhold, familier eller deling, kræver en bekræftelsesdialog, der siger,
+  hvad der forsvinder, og for hvem.
+- **Tests af det farlige**: ny eller ændret kode, der sletter, deler, flytter eller migrerer data, skal have tests i
+  `ios/MindebogTests` (kører før hvert TestFlight-build, #54). Flytninger skal kunne genoptages, hvis de stoppes halvvejs,
+  og må aldrig slette originalen, før kopien er bekræftet.
+- **iCloud-skemaet er permanent i produktion**: felter og recordtyper kan ikke slettes eller omdøbes, når de er udgivet.
+  Tilføj kun nye felter, test i CloudKit-udviklingsmiljøet, og deploy skemaet til produktion først, når brugeren siger til.
+- **Deling og rettigheder**: respektér "kun visning" (`canEdit`) i al ny UI; brugere uden redigeringsret må aldrig kunne
+  ændre eller slette.
+- **Ingen rigtige billeder af børn** i skærmbilleder, demo-data eller markedsføring — kun demo-familien.
+- **Input fra brugere og links** valideres (fx delelinks via `AppState.inviteProblem`), og fejl vises på dansk.
+
 ## Skærmbilleder og App Store-materiale
 
 Workflowet "Skærmbilleder (demo-familie)" (`.github/workflows/ios-screenshots.yml`, manuelt) starter appen med
