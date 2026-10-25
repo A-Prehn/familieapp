@@ -68,6 +68,22 @@ targets:
         # anvendes når appen signeres med Apple Developer-kontoen.
         CODE_SIGN_ENTITLEMENTS: Mindebog/Mindebog.entitlements
 
+  # Automatiske tests af logik og datalag (MemoryStore). Køres før hvert TestFlight-build (#54).
+  MindebogTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: MindebogTests
+    dependencies:
+      - target: Mindebog
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: net.prehn.mindebog.tests
+        GENERATE_INFOPLIST_FILE: "YES"
+        TARGETED_DEVICE_FAMILY: "1"
+        TEST_HOST: "$(BUILT_PRODUCTS_DIR)/Vores familie.app/Vores familie"
+        BUNDLE_LOADER: "$(TEST_HOST)"
+
   # UI-test, der tager App Store-skærmbilleder af demo-familien (ios-screenshots.yml). Kun simulator.
   MindebogUITests:
     type: bundle.ui-testing
@@ -155,11 +171,13 @@ schemes:
       targets:
         Mindebog: all
         MindebogUITests: [test]
+        MindebogTests: [test]
     run:
       config: Debug
     test:
       config: Debug
       targets:
+        - MindebogTests
         - MindebogUITests
     archive:
       config: Release

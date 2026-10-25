@@ -204,15 +204,7 @@ final class AppState: ObservableObject {
     func acceptInvite(code: String) async {
         guard let user else { return }
         let text = code.trimmingCharacters(in: .whitespacesAndNewlines)
-        // Et App Store-link er ikke en invitation — sig det på dansk i stedet for iCloud's engelske fejl.
-        if usingCloud, text.contains("apps.apple.com") {
-            errorMessage = "Det er linket til App Store. Brug invitationslinket fra beskeden — det starter med icloud.com/share."
-            return
-        }
-        if usingCloud, !text.contains("icloud.com") {
-            errorMessage = "Det ligner ikke en invitation. Kopiér linket fra beskeden (det starter med icloud.com/share), og prøv igen."
-            return
-        }
+        if usingCloud, let problem = Self.inviteProblem(text) { errorMessage = problem; return }
         errorMessage = nil
         do {
             let family = try await store.acceptInvite(userId: user.id, code: text)
@@ -220,6 +212,19 @@ final class AppState: ObservableObject {
         } catch {
             errorMessage = "Invitationen kunne ikke åbnes. Tjek, at du er logget ind på iCloud. Er familien delt med \"kun inviterede\", skal du bruge den Apple-konto, invitationen blev sendt til — ellers kan ejeren vælge \"alle med linket\" og sende igen."
         }
+    }
+
+    /// Dansk besked, hvis den indsatte tekst ikke er et iCloud-invitationslink (nil = ser rigtig ud).
+    /// Fx et App Store-link i stedet for invitationen — så får man ikke iCloud's engelske fejl.
+    static func inviteProblem(_ text: String) -> String? {
+        let t = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        if t.contains("apps.apple.com") {
+            return "Det er linket til App Store. Brug invitationslinket fra beskeden — det starter med icloud.com/share."
+        }
+        if !t.contains("icloud.com") {
+            return "Det ligner ikke en invitation. Kopiér linket fra beskeden (det starter med icloud.com/share), og prøv igen."
+        }
+        return nil
     }
 
     /// Kaldes når brugeren har trykket på et delelink og iOS har accepteret delingen.
