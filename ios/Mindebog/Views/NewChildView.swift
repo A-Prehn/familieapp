@@ -104,7 +104,7 @@ struct NewChildView: View {
     }
 
     private func delete() async {
-        guard let child = editing else { return }
+        guard !saving, let child = editing else { return }
         saving = true
         errorMessage = nil
         do {
@@ -121,7 +121,8 @@ struct NewChildView: View {
     }
 
     private func save() async {
-        guard let familyId = state.familyId else { return }
+        // Dobbelttryk: knappen bliver først grå efter næste tegning, så den anden opgave stopper her.
+        guard !saving, let familyId = state.familyId else { return }
         saving = true
         errorMessage = nil
         do {
