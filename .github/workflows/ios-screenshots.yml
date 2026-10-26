@@ -84,7 +84,7 @@ jobs:
               -scheme Mindebog \
               -destination "platform=iOS Simulator,id=$udid" \
               -derivedDataPath build/dd \
-              -only-testing:MindebogUITests \
+              -only-testing:MindebogUITests/ScreenshotTests \
               -resultBundlePath "$GITHUB_WORKSPACE/out/$size.xcresult" 2>&1 \
               | tee "$GITHUB_WORKSPACE/out/test-$size.log" \
               | grep --line-buffered -E "Test Case|error|failed|XCTAssert|Testing started|\*\* TEST" \
@@ -95,6 +95,24 @@ jobs:
           mkdir -p "$GITHUB_WORKSPACE/out"
           run_size 6.9 "iPhone 17 Pro Max" "iPhone 16 Pro Max" || echo "::warning::6,9\" mislykkedes"
           run_size 6.3 "iPhone 17 Pro" "iPhone 16 Pro" || echo "::warning::6,3\" mislykkedes"
+          # Video af verdenskortet (til opslag): optag skærmen, mens MapTourTests kører.
+          udid=$(pick "iPhone 17 Pro" "iPhone 16 Pro")
+          xcrun simctl boot "$udid" 2>/dev/null || true
+          gtimeout 300 xcrun simctl bootstatus "$udid" -b || true
+          xcrun simctl status_bar "$udid" override --time "9:41" --batteryState discharging --batteryLevel 100 \
+            --wifiBars 3 --cellularBars 4 --operatorName ""
+          mkdir -p "$GITHUB_WORKSPACE/out/video"
+          xcrun simctl io "$udid" recordVideo --codec=h264 --force "$GITHUB_WORKSPACE/out/video/verdenskort.mp4" &
+          rec=$!
+          sleep 3
+          TEST_RUNNER_DEMO_PHOTOS_DIR="$DEMO_PHOTOS_DIR" gtimeout 600 xcodebuild test-without-building \
+            -project Mindebog.xcodeproj -scheme Mindebog \
+            -destination "platform=iOS Simulator,id=$udid" -derivedDataPath build/dd \
+            -only-testing:MindebogUITests/MapTourTests 2>&1 | grep -E "Test Case|error|\*\* TEST" \
+            || echo "::warning::Kortvideoen mislykkedes"
+          kill -INT $rec; wait $rec || true
+          ls -la "$GITHUB_WORKSPACE/out/video" || true
+          xcrun simctl shutdown "$udid" || true
           ls "$GITHUB_WORKSPACE"/out/screenshots/*/*.png >/dev/null 2>&1 || { echo "::error::Ingen skærmbilleder blev taget"; exit 1; }
 
       - name: Web-versioner, delingsbillede og App Store-header
@@ -109,6 +127,7 @@ jobs:
             out/web
             out/og-image.jpg
             out/header.png
+            out/video
           if-no-files-found: error
 
       - name: Gem testrapporter og logfiler
