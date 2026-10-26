@@ -25,7 +25,7 @@ enum SaveError {
                 break
             }
         }
-        return "Kunne ikke gemme: \(error.localizedDescription)"
+        return "Kunne ikke gemme: \(error.userMessage)"
     }
 }
 

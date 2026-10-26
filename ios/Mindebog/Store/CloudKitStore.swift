@@ -1781,20 +1781,32 @@ actor CloudKitStore: Store {
             config.timeoutIntervalForResource = 30 * 60  // hele uploaden, fx en video på mobilnet
             op.configuration = config
             var saved: CKRecord?
+            var recordError: Error?
             op.perRecordSaveBlock = { _, result in
-                if case .success(let r) = result { saved = r }
+                switch result {
+                case .success(let r): saved = r
+                case .failure(let e): recordError = e
+                }
             }
             op.modifyRecordsResultBlock = { result in
                 switch result {
                 case .success:
                     if let saved { continuation.resume(returning: saved) }
-                    else { continuation.resume(throwing: CKError(.internalError)) }
+                    // Fejlen på selve recorden (fx et billede, der ikke kunne uploades) må ikke gå tabt.
+                    else { continuation.resume(throwing: recordError ?? CKError(.internalError)) }
                 case .failure(let error):
-                    continuation.resume(throwing: error)
+                    continuation.resume(throwing: Self.unwrapped(error))
                 }
             }
             db.add(op)
         }
+    }
+
+    /// Ved "delvis fejl" (kode 2) ligger den rigtige fejl pr. record indeni — den er mere sigende.
+    private static func unwrapped(_ error: Error) -> Error {
+        guard let ck = error as? CKError, ck.code == .partialFailure,
+              let inner = ck.partialErrorsByItemID?.values.first else { return error }
+        return inner
     }
 
     /// Sletter en record og husker det, så den ikke dukker op igen i næste søgning.

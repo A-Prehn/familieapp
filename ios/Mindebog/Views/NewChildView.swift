@@ -115,7 +115,7 @@ struct NewChildView: View {
             errorMessage = "Kun den, der har oprettet familien, kan slette et barn."
             saving = false
         } catch {
-            errorMessage = "Kunne ikke slette: \(error.localizedDescription)"
+            errorMessage = "Kunne ikke slette: \(error.userMessage)"
             saving = false
         }
     }
@@ -156,7 +156,7 @@ struct NewChildView: View {
             }
             dismiss()
         } catch {
-            errorMessage = "Kunne ikke gemme: \(error.localizedDescription)"
+            errorMessage = "Kunne ikke gemme: \(error.userMessage)"
             saving = false
         }
     }

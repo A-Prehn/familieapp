@@ -1,3 +1,4 @@
+import CloudKit
 import Foundation
 
 // Datalag bag ét interface — præcis som i web-prototypen.
@@ -145,6 +146,16 @@ enum StoreError: LocalizedError {
         case .notOwner: return "Kun den, der har oprettet familien, kan gøre det."
         case .moveIncomplete(let type): return "Flytningen blev ikke færdig (\(type)). Prøv igen — intet er slettet."
         }
+    }
+}
+
+extension Error {
+    /// Fejltekst til brugeren — med iClouds egen forklaring, når der er en (så vi kan se, hvad der gik galt).
+    var userMessage: String {
+        guard let ck = self as? CKError else { return localizedDescription }
+        let server = ck.userInfo["ServerErrorDescription"] as? String
+            ?? (ck.userInfo[NSUnderlyingErrorKey] as? Error)?.localizedDescription
+        return server.map { "\(ck.localizedDescription) \($0)" } ?? ck.localizedDescription
     }
 }
 
