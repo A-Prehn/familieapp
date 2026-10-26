@@ -49,6 +49,15 @@ actor MemoryStore: Store {
         for (id, child) in childrenById where child.familyId == familyId { childrenById[id] = nil }
     }
 
+    func deleteChild(_ child: Child) async throws {
+        childrenById[child.id] = nil
+        highlightsByChild[child.id] = nil
+        milestonesByChild[child.id] = nil
+        answersByChild[child.id] = nil
+        diaryByChild[child.id] = nil
+        galleryByChild[child.id] = nil
+    }
+
     func members(familyId: String) async throws -> [AppUser] {
         guard let family = families[familyId] else { return [] }
         return family.memberIds.compactMap { users[$0] }

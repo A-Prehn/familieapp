@@ -112,6 +112,25 @@ actor CloudKitStore: Store {
         }
     }
 
+    /// Sletter barnet og alt dets indhold. Kun familiens ejer.
+    /// I familiezonen har alt barnets indhold childRef med .deleteSelf, så CloudKit sletter det med barnet.
+    /// Har barnet sin egen zone, slettes zonen (og dermed en evt. deling af barnet) og skiltet i familiezonen.
+    func deleteChild(_ child: Child) async throws {
+        let (db, familyZone) = try await locate(child.familyId)
+        guard db === privateDB else { throw StoreError.notOwner }
+        if await childHasOwnZone(childId: child.id),
+           let (_, ownZone) = try? await locateChild(child.id), ownZone != familyZone {
+            _ = try await privateDB.deleteRecordZone(withID: ownZone)
+            forgetZone(ownZone.zoneName)
+        }
+        let id = CKRecord.ID(recordName: child.id, zoneID: familyZone)
+        do { try await remove(id, in: db) }
+        catch let error as CKError where error.code == .unknownItem {}
+        var map = UserDefaults.standard.dictionary(forKey: Self.childZoneKey) as? [String: String] ?? [:]
+        map[child.id] = nil
+        UserDefaults.standard.set(map, forKey: Self.childZoneKey)
+    }
+
     private func forgetZone(_ zoneName: String) {
         zoneCache[zoneName] = nil
         var index = UserDefaults.standard.dictionary(forKey: Self.zoneIndexKey) as? [String: String] ?? [:]

@@ -12,6 +12,7 @@ protocol Store {
     func createFamily(userId: String, name: String) async throws -> Family
     /// Sletter familien og alt dens indhold for altid (kun ejeren). Også for dem, den er delt med.
     func deleteFamily(familyId: String) async throws
+    func deleteChild(_ child: Child) async throws   // barnet og alt dets indhold
     func members(familyId: String) async throws -> [AppUser]
     /// false for medlemmer med "Kun visning" (fx bedsteforældre) — så skjules tilføj/redigér/slet.
     func canEdit(familyId: String) async -> Bool

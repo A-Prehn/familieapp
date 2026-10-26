@@ -8,6 +8,8 @@ struct NewChildView: View {
     /// Sat ved redigering; nil ved oprettelse.
     var editing: Child? = nil
     var onSaved: (Child) -> Void = { _ in }
+    /// Kaldes, når barnet er slettet (kun ved redigering).
+    var onDeleted: () -> Void = {}
 
     @State private var name = ""
     @State private var born = true
@@ -20,6 +22,7 @@ struct NewChildView: View {
     @State private var saving = false
     @State private var errorMessage: String?
     @State private var loaded = false
+    @State private var confirmDelete = false
 
     var body: some View {
         NavigationStack {
@@ -56,6 +59,14 @@ struct NewChildView: View {
                 if let errorMessage {
                     Text(errorMessage).font(.footnote).foregroundStyle(Theme.rose)
                 }
+                if editing != nil {
+                    Section {
+                        Button("Slet barn", role: .destructive) { confirmDelete = true }
+                            .disabled(saving)
+                    } footer: {
+                        Text("Sletter barnet og alt i barnets bog for alle i familien.")
+                    }
+                }
                 }.listRowBackground(Theme.card)
             }
             .themedList()
@@ -71,6 +82,13 @@ struct NewChildView: View {
                 }
             }
             .onAppear(perform: fillFromEditing)
+            .confirmationDialog("Slet \(editing?.name ?? "barnet") og alt indhold?",
+                                isPresented: $confirmDelete, titleVisibility: .visible) {
+                Button("Slet \(editing?.name ?? "barnet")", role: .destructive) { Task { await delete() } }
+                Button("Annullér", role: .cancel) {}
+            } message: {
+                Text("Højdepunkter, milepæle, dagbog, breve og billeder slettes. Det kan ikke fortrydes.")
+            }
         }
     }
 
@@ -83,6 +101,23 @@ struct NewChildView: View {
         born = child.birthDate != nil
         if let b = child.birthDate { birthDate = b }
         if let d = child.dueDate { dueDate = d }
+    }
+
+    private func delete() async {
+        guard let child = editing else { return }
+        saving = true
+        errorMessage = nil
+        do {
+            try await state.store.deleteChild(child)
+            dismiss()
+            onDeleted()
+        } catch StoreError.notOwner {
+            errorMessage = "Kun den, der har oprettet familien, kan slette et barn."
+            saving = false
+        } catch {
+            errorMessage = "Kunne ikke slette: \(error.localizedDescription)"
+            saving = false
+        }
     }
 
     private func save() async {

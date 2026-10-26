@@ -59,6 +59,17 @@ final class StoreTests: XCTestCase {
         XCTAssertTrue(nohrLetters.isEmpty)
     }
 
+    func testDeleteChildOnlyRemovesThatChild() async throws {
+        let (store, family, nohr) = try await familyWithChild()
+        let william = try await store.createChild(familyId: family.id, name: "William", gender: .boy, birthDate: nil, dueDate: nil)
+        _ = try await store.addHighlight(childId: nohr.id, date: nil, text: "Første skridt", photos: [], cover: 0, place: nil)
+        try await store.deleteChild(nohr)
+        let kids = try await store.children(familyId: family.id)
+        XCTAssertEqual(kids.map(\.id), [william.id], "Kun det slettede barn må forsvinde")
+        let left = try await store.highlights(childId: nohr.id)
+        XCTAssertTrue(left.isEmpty, "Barnets indhold skal slettes med")
+    }
+
     func testDeleteFamilyRemovesItsChildren() async throws {
         let (store, family, _) = try await familyWithChild()
         try await store.deleteFamily(familyId: family.id)

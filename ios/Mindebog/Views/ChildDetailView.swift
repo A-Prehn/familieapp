@@ -2,6 +2,7 @@ import SwiftUI
 
 struct ChildDetailView: View {
     @EnvironmentObject var state: AppState
+    @Environment(\.dismiss) private var dismiss
     @State private var child: Child
     @State private var editing = false
     @State private var makingBook = false
@@ -114,7 +115,7 @@ struct ChildDetailView: View {
         .sheet(item: $paywall) { PaywallView(reason: $0) }
         .saveErrorAlert($bookError)
         .sheet(isPresented: $editing) {
-            NewChildView(editing: child) { updated in child = updated }
+            NewChildView(editing: child, onSaved: { updated in child = updated }, onDeleted: { dismiss() })
         }
         .sheet(isPresented: $showAccess, onDismiss: { Task { await refreshChild() } }) {
             NavigationStack { ChildAccessView(child: child) }
