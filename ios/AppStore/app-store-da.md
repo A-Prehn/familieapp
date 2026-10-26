@@ -4,6 +4,17 @@ Udkast til App Store Connect. Tegngrænser står i parentes; tallene efter er de
 
 ---
 
+## Version 1.3 — hurtig rettelse
+
+### Nyheder i denne version (What's New, 4000)
+```
+Små forbedringer og rettelser:
+• Du kan nu slette et barn, du har oprettet ved en fejl (Redigér barn → Slet barn)
+• Tydeligere beskeder, hvis noget ikke kan gemmes – fx hvis din iCloud-plads er fuld
+• Et barn oprettes ikke længere to gange, hvis billedet ikke kunne gemmes
+• Mindre rettelser og forbedringer af stabiliteten
+```
+
 ## Version 1.2 — klar til App Store Connect
 
 ### Nyheder i denne version (What's New, 4000)
