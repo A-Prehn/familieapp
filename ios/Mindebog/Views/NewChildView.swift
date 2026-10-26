@@ -15,6 +15,8 @@ struct NewChildView: View {
     @State private var dueDate = Date()
     @State private var gender: Gender = .unspecified
     @State private var photo: Data?
+    /// Barnet er oprettet, men billedet fejlede: "Gem" igen opdaterer i stedet for at oprette et barn mere.
+    @State private var created: Child?
     @State private var saving = false
     @State private var errorMessage: String?
     @State private var loaded = false
@@ -88,7 +90,7 @@ struct NewChildView: View {
         saving = true
         errorMessage = nil
         do {
-            if var child = editing {
+            if var child = editing ?? created {
                 child.name = name
                 child.gender = gender
                 child.photo = photo
@@ -104,9 +106,16 @@ struct NewChildView: View {
                     familyId: familyId, name: name, gender: gender,
                     birthDate: born ? birthDate : nil,
                     dueDate: born ? nil : dueDate)
+                created = child
                 if let photo {
                     child.photo = photo
-                    child = try await state.store.updateChild(child)
+                    do {
+                        child = try await state.store.updateChild(child)
+                    } catch {
+                        errorMessage = "\(name) er oprettet, men billedet kunne ikke gemmes. Tryk Gem for at prøve igen."
+                        saving = false
+                        return
+                    }
                 }
                 onSaved(child)
             }
