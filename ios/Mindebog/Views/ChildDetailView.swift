@@ -5,6 +5,8 @@ struct ChildDetailView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var child: Child
     @State private var editing = false
+    /// Barnet er slettet i redigér-arket: luk barnets side, når arket er væk.
+    @State private var deleted = false
     @State private var makingBook = false
     @State private var bookShare: ShareSheet?
     @State private var bookError: String?
@@ -114,8 +116,8 @@ struct ChildDetailView: View {
         .sheet(item: $bookShare) { $0 }
         .sheet(item: $paywall) { PaywallView(reason: $0) }
         .saveErrorAlert($bookError)
-        .sheet(isPresented: $editing) {
-            NewChildView(editing: child, onSaved: { updated in child = updated }, onDeleted: { dismiss() })
+        .sheet(isPresented: $editing, onDismiss: { if deleted { dismiss() } }) {
+            NewChildView(editing: child, onSaved: { updated in child = updated }, onDeleted: { deleted = true })
         }
         .sheet(isPresented: $showAccess, onDismiss: { Task { await refreshChild() } }) {
             NavigationStack { ChildAccessView(child: child) }

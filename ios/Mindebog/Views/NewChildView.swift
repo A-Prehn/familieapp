@@ -109,8 +109,8 @@ struct NewChildView: View {
         errorMessage = nil
         do {
             try await state.store.deleteChild(child)
-            dismiss()
             onDeleted()
+            dismiss()
         } catch StoreError.notOwner {
             errorMessage = "Kun den, der har oprettet familien, kan slette et barn."
             saving = false
@@ -147,7 +147,7 @@ struct NewChildView: View {
                     do {
                         child = try await state.store.updateChild(child)
                     } catch {
-                        errorMessage = "\(name) er oprettet, men billedet kunne ikke gemmes. Tryk Gem for at prøve igen."
+                        errorMessage = "\(name) er oprettet, men billedet kunne ikke gemmes: \(error.userMessage) Tryk Gem for at prøve igen."
                         saving = false
                         return
                     }
