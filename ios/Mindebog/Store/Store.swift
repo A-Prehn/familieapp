@@ -150,12 +150,24 @@ enum StoreError: LocalizedError {
 }
 
 extension Error {
-    /// Fejltekst til brugeren — med iClouds egen forklaring, når der er en (så vi kan se, hvad der gik galt).
+    /// Fejltekst til brugeren. Kendte iCloud-fejl får en forklaring på dansk; ellers vises iClouds egen tekst,
+    /// så vi kan se, hvad der gik galt.
     var userMessage: String {
         guard let ck = self as? CKError else { return localizedDescription }
-        let server = ck.userInfo["ServerErrorDescription"] as? String
-            ?? (ck.userInfo[NSUnderlyingErrorKey] as? Error)?.localizedDescription
-        return server.map { "\(ck.localizedDescription) \($0)" } ?? ck.localizedDescription
+        switch ck.code {
+        case .quotaExceeded:
+            return "Din iCloud-plads er fuld. Frigør plads eller køb mere under Indstillinger → [dit navn] → iCloud, og prøv igen."
+        case .notAuthenticated:
+            return "Du er ikke logget ind på iCloud. Log ind under Indstillinger, og prøv igen."
+        case .networkUnavailable, .networkFailure:
+            return "Ingen forbindelse til iCloud. Tjek dit netværk, og prøv igen."
+        case .accountTemporarilyUnavailable:
+            return "Din iCloud-konto er midlertidigt utilgængelig. Prøv igen om lidt."
+        default:
+            let server = ck.userInfo["ServerErrorDescription"] as? String
+                ?? (ck.userInfo[NSUnderlyingErrorKey] as? Error)?.localizedDescription
+            return server.map { "\(ck.localizedDescription) \($0)" } ?? ck.localizedDescription
+        }
     }
 }
 
