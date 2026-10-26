@@ -4,7 +4,7 @@ Udkast til App Store Connect. Tegngrænser står i parentes; tallene efter er de
 
 ---
 
-## Version 1.3 — hurtig rettelse
+## Version 1.2.1 — hurtig rettelse
 
 ### Nyheder i denne version (What's New, 4000)
 ```
