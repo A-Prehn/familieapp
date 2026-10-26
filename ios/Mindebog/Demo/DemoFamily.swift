@@ -253,6 +253,26 @@ enum DemoFamily {
             photos: set("skagen-klit", "strand-born"),
             place: Place(name: "Skagen", address: "Skagen, Danmark", latitude: 57.7209, longitude: 10.5839),
             childIds: [william.id, nohr.id], personIds: [])
+        // Flere rejser, så verdenskortet har nåle i flere lande (skærmbilleder og opslag).
+        let trips: [(String, Int, String, Place, PhotoSet)] = [
+            ("Påske på Bornholm", -200, "Røgede sild i Gudhjem og cykeltur rundt om Hammeren.",
+             Place(name: "Gudhjem", address: "Gudhjem, Danmark", latitude: 55.2126, longitude: 14.9725), set("regnbue")),
+            ("Efterårsferie i Rom", -380, "Is hver dag, og Nohr ville kun se Colosseum igen.",
+             Place(name: "Rom", address: "Rom, Italien", latitude: 41.9028, longitude: 12.4964), PhotoSet()),
+            ("Sommer i Lissabon", -470, "Sporvogn 28, kager på Belém og lange aftener i Alfama.",
+             Place(name: "Lissabon", address: "Lissabon, Portugal", latitude: 38.7223, longitude: -9.1393), PhotoSet()),
+            ("Skiferie i Norge", -620, "Williams første tur på ski — og første styrt.",
+             Place(name: "Hemsedal", address: "Hemsedal, Norge", latitude: 60.8636, longitude: 8.5527), set("skov")),
+            ("Bedsteforældrenes hus i Skotland", -760, "Mormor og morfar fejrede rubinbryllup ved Loch Ness.",
+             Place(name: "Inverness", address: "Inverness, Storbritannien", latitude: 57.4778, longitude: -4.2247), PhotoSet()),
+        ]
+        for (title, offset, details, place, photos) in trips {
+            let start = cal.date(byAdding: .day, value: offset, to: today)!
+            _ = try await store.addVacation(familyId: fid, title: title,
+                start: start, end: cal.date(byAdding: .day, value: 5, to: start),
+                details: details, photos: photos, place: place,
+                childIds: [william.id, nohr.id], personIds: [])
+        }
 
         _ = try await store.addEvent(familyId: fid, title: "Williams 9-års fødselsdag", date: daysAgo(41),
             details: "Lagkage med jordbær, skattejagt i haven og ni venner på besøg.",

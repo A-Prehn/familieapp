@@ -78,6 +78,12 @@ final class ScreenshotTests: XCTestCase {
         // 10. Rejser (med kort)
         tapText("Rejser"); settle(5)
         snap("rejser")
+        // Verdenskortet med alle rejserne (til opslag og landingsside).
+        if app.buttons["Kort"].exists { app.buttons["Kort"].tap() } else { tapText("Kort") }
+        settle(6)
+        snap("rejser-kort")
+        if app.buttons["Liste"].exists { app.buttons["Liste"].tap() }
+        settle()
 
         // 11. Breve til barnet (landingssiden, #50) — Børn-fanen står stadig på Nohrs side.
         tab("Børn"); settle()
