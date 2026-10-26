@@ -8,6 +8,10 @@ extension Notification.Name {
 
 /// En invitation, der blev accepteret, før appen var klar (koldstart fra et delelink).
 /// AppState samler den op, når brugeren og familierne er hentet.
+/// Kører appen som vært for de automatiske tests? Så rører den hverken iCloud, notifikationer eller widgets —
+/// testappen er ikke signeret, og iCloud stopper den med det samme.
+let isRunningTests = ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
+
 @MainActor
 enum PendingShare {
     static var zoneName: String?
@@ -20,6 +24,7 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
 
     func application(_ application: UIApplication,
                      didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
+        if isRunningTests { return true }
         UNUserNotificationCenter.current().delegate = notificationDelegate
         Task { @MainActor in NotificationManager.refreshOnLaunch() }
         return true

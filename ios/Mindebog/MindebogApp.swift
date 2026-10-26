@@ -9,6 +9,7 @@ struct MindebogApp: App {
     @AppStorage(Appearance.key) private var appearance = Appearance.system.rawValue
 
     init() {
+        if isRunningTests { return }
         // Skærmbilleder (issue #20): "-demo" viser en fiktiv familie fra hukommelsen, aldrig iCloud.
         if DemoFamily.isActive { DemoFamily.prepareDefaults() }
         // Sættes før fanebjælken findes — ellers vises ikonerne sorte, indtil siden tegnes igen.
@@ -19,6 +20,11 @@ struct MindebogApp: App {
 
     var body: some Scene {
         WindowGroup {
+            if isRunningTests { Color.clear } else { app }
+        }
+    }
+
+    private var app: some View {
             RootView()
                 .environmentObject(state)
                 .environmentObject(comments)
@@ -41,7 +47,6 @@ struct MindebogApp: App {
                         Task { await state.didAcceptShare(zoneName: zoneName) }
                     }
                 }
-        }
     }
 }
 
