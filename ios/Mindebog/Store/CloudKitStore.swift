@@ -64,6 +64,27 @@ actor CloudKitStore: Store {
         UserDefaults.standard.removeObject(forKey: Self.childZoneKey)
     }
 
+    /// Stille push ved ændringer i iCloud (#62): så hentes nyt fra de andre i familien inden for sekunder,
+    /// uden at brugeren behøver have notifikationer slået til. Oprettes én gang pr. installation.
+    func registerSyncPush() async {
+        let key = "mindebog.sync.push.v1"
+        guard !UserDefaults.standard.bool(forKey: key) else { return }
+        func subscription(_ id: String) -> CKDatabaseSubscription {
+            let sub = CKDatabaseSubscription(subscriptionID: id)
+            let info = CKSubscription.NotificationInfo()
+            info.shouldSendContentAvailable = true   // stille: ingen banner, ingen lyd
+            sub.notificationInfo = info
+            return sub
+        }
+        do {
+            _ = try await privateDB.modifySubscriptions(saving: [subscription("mindebog-sync-private")], deleting: [])
+            _ = try await sharedDB.modifySubscriptions(saving: [subscription("mindebog-sync-shared")], deleting: [])
+            UserDefaults.standard.set(true, forKey: key)
+        } catch {
+            // Prøves igen ved næste opstart.
+        }
+    }
+
     /// Hvilken database en zone hører til: egne zoner har standard-ejeren, delte zoner ejerens id.
     private func database(for zone: CKRecordZone.ID) -> CKDatabase {
         zone.ownerName == CKCurrentUserDefaultName ? privateDB : sharedDB
@@ -106,7 +127,7 @@ actor CloudKitStore: Store {
         // bedsteforælders familie "forsvinder" ikke, bare fordi nettet var væk et øjeblik (#60).
         // Kun hvis der slet ingen kopi er, kastes fejlen videre.
         do {
-            try await sync.syncAll(throttle: 10)
+            try await sync.syncAll(throttle: 3)
         } catch {
             if local.snapshotZones().isEmpty { throw error }
         }

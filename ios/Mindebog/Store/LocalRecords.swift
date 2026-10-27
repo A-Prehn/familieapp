@@ -166,14 +166,17 @@ final class LocalRecords: @unchecked Sendable {
         return map
     }
 
+    /// Skrives med det samme (filen er lille: kun tekstfelter), så en genstart aldrig kan nå at komme
+    /// før skrivningen. Kaldes aldrig fra hovedtråden (sync og gem kører på CloudKit-aktøren).
     private func save(_ zone: CKRecordZone.ID) {
         let records = Array((zones[zone] ?? [:]).values)
         let target = url(zone)
-        knownOnDisk?.insert(zone)
-        // Skrives i baggrunden; NSKeyedArchiver arbejder på en kopi (CKRecord er NSCopying via arkivering).
-        guard let data = try? NSKeyedArchiver.archivedData(withRootObject: records as NSArray, requiringSecureCoding: true) else { return }
-        Task.detached(priority: .utility) {
-            try? data.write(to: target, options: .atomic)
+        do {
+            let data = try NSKeyedArchiver.archivedData(withRootObject: records as NSArray, requiringSecureCoding: true)
+            try data.write(to: target, options: .atomic)
+            knownOnDisk?.insert(zone)
+        } catch {
+            assertionFailure("Kunne ikke gemme kopien af \(zone.zoneName): \(error)")
         }
     }
 }

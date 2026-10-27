@@ -43,6 +43,10 @@ struct MindebogApp: App {
                 // Lyst, mørkt eller følg system — vælges under Mere → Udseende.
                 .preferredColorScheme(Appearance(rawValue: appearance)?.colorScheme)
                 .task { await state.bootstrap() }
+                // Nyt fra de andre i familien (stille push): hent ændringer til kopien med det samme.
+                .onReceive(NotificationCenter.default.publisher(for: .cloudKitChanged)) { _ in
+                    Task { await state.syncFromCloud(force: true) }
+                }
                 .onReceive(NotificationCenter.default.publisher(for: .cloudKitShareAccepted)) { note in
                     if let zoneName = note.object as? String {
                         Task { await state.didAcceptShare(zoneName: zoneName) }
@@ -182,6 +186,7 @@ final class AppState: ObservableObject {
         guard let cloud = store as? CloudKitStore else { return }
         let changed = force ? ((try? await cloud.refresh()) ?? false) : await cloud.syncIfStale()
         if changed { NotificationCenter.default.post(name: .storeDidChange, object: nil) }
+        if !force { await cloud.registerSyncPush() }
     }
 
     /// Koldstart fra et delelink: invitationen blev accepteret, før brugeren og familierne var hentet.

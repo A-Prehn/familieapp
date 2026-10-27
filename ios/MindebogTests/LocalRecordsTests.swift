@@ -57,20 +57,16 @@ final class LocalRecordsTests: XCTestCase {
         XCTAssertNotNil(r["photos"], "Originalen må ikke ændres")
     }
 
-    func testSurvivesRestart() async throws {
+    func testSurvivesRestart() throws {
         let first = LocalRecords(directory: dir)
         first.apply(changed: [highlight("a", text: "gemt")], deleted: [], in: zone)
-        // Skrivningen sker i baggrunden — giv den et øjeblik.
-        for _ in 0..<50 where !LocalRecords(directory: dir).hasSnapshot(zone) {
-            try await Task.sleep(for: .milliseconds(20))
-        }
         let second = LocalRecords(directory: dir)
         XCTAssertTrue(second.hasSnapshot(zone))
         XCTAssertEqual(second.record(CKRecord.ID(recordName: "a", zoneID: zone))?["text"] as? String, "gemt")
         XCTAssertEqual(second.snapshotZones(), [zone])
     }
 
-    func testPurgeRemovesZone() async throws {
+    func testPurgeRemovesZone() throws {
         let local = LocalRecords(directory: dir)
         local.apply(changed: [highlight("a", text: "x")], deleted: [], in: zone)
         local.purge(named: "family_test")
