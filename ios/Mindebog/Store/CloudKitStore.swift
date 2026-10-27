@@ -2,6 +2,7 @@ import Foundation
 import CloudKit
 import CoreLocation
 import CryptoKit
+import Network
 
 // CloudKit-implementering af Store — ægte lagring i brugerens egen iCloud.
 //
@@ -1755,6 +1756,9 @@ actor CloudKitStore: Store {
     private func saveWithRetry(_ record: CKRecord, in db: CKDatabase) async throws -> CKRecord {
         var attempt = 0
         while true {
+            // Uden netværk venter CloudKit ellers på forbindelsen (op til 30 min for store videoer) —
+            // sig det med det samme i stedet for et evigt "Gemmer…".
+            guard NetworkWatch.shared.isOnline else { throw CKError(.networkUnavailable) }
             do {
                 return try await saveOnce(record, in: db)
             } catch let error as CKError where attempt < 3 && Self.isRetryable(error) {
@@ -2133,5 +2137,23 @@ actor CloudKitStore: Store {
 
     private static func assetsData(_ value: Any?) -> [Data] {
         (value as? [CKAsset] ?? []).compactMap { $0.fileURL.flatMap { try? Data(contentsOf: $0) } }
+    }
+}
+
+/// Holder øje med, om telefonen har netværk (Wi-Fi eller mobil). Bruges til at fejle hurtigt ved gem.
+final class NetworkWatch: @unchecked Sendable {
+    static let shared = NetworkWatch()
+    private let monitor = NWPathMonitor()
+    private let lock = NSLock()
+    private var online = true   // antag ja, indtil første opdatering
+
+    var isOnline: Bool { lock.lock(); defer { lock.unlock() }; return online }
+
+    private init() {
+        monitor.pathUpdateHandler = { [weak self] path in
+            guard let self else { return }
+            self.lock.lock(); self.online = path.status == .satisfied; self.lock.unlock()
+        }
+        monitor.start(queue: DispatchQueue(label: "net.prehn.mindebog.network"))
     }
 }
