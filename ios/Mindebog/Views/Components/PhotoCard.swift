@@ -27,7 +27,7 @@ struct PhotoCard<Extra: View>: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            if let cover = photos.coverPhoto {
+            if let cover = photos.listPhoto {   // thumb fra kopien, ellers originalens forside (#62)
                 picture(cover)
             } else {
                 HStack(alignment: .top) {

@@ -84,17 +84,17 @@ struct FamilyView: View {
 
                 Group {
                 switch tab {
-                case .memories: MemoriesView(memories: memories, children: children, members: members, onEdit: { editingMemory = $0 },
-                                             onAdd: { activeSheet = .memories }, onLightbox: { lightbox = $0 })
+                case .memories: MemoriesView(memories: memories, children: children, members: members, onEdit: { editMemory($0) },
+                                             onAdd: { activeSheet = .memories }, onLightbox: { openLightbox($0) })
                 case .events: eventsList
                 case .vacations: vacationsList
                 case .birthdays: birthdaysList
                 case .tree: FamilyTreeView(persons: persons, children: children,
-                                           onEdit: { editingPerson = $0 }, onAdd: { activeSheet = .tree })
-                case .traditions: TraditionsView(traditions: traditions, onEdit: { editingTradition = $0 },
-                                                 onAdd: { activeSheet = .traditions }, onLightbox: { lightbox = $0 })
-                case .recipes: RecipesView(recipes: recipes, onEdit: { editingRecipe = $0 },
-                                           onAdd: { activeSheet = .recipes }, onLightbox: { lightbox = $0 })
+                                           onEdit: { editPerson($0) }, onAdd: { activeSheet = .tree })
+                case .traditions: TraditionsView(traditions: traditions, onEdit: { editTradition($0) },
+                                                 onAdd: { activeSheet = .traditions }, onLightbox: { openLightbox($0) })
+                case .recipes: RecipesView(recipes: recipes, onEdit: { editRecipe($0) },
+                                           onAdd: { activeSheet = .recipes }, onLightbox: { openLightbox($0) })
                 }
                 }
                 .id(tab)
@@ -172,7 +172,7 @@ struct FamilyView: View {
                 PhotoCard(photos: event.photos, title: event.title, subtitle: event.date.map(Fmt.long),
                           about: aboutText(childIds: event.childIds, personIds: event.personIds),
                           zoomId: event.id, zoomNamespace: zoomNS,
-                          onEdit: state.canEdit ? { editingEvent = event } : nil, onOpen: { lightbox = $0 }) {
+                          onEdit: state.canEdit ? { editEvent(event) } : nil, onOpen: { openLightbox($0) }) {
                     VStack(alignment: .leading, spacing: 8) {
                         if !event.details.isEmpty {
                             Text(event.details).font(.footnote).foregroundStyle(Theme.muted)
@@ -184,7 +184,7 @@ struct FamilyView: View {
                         CommentsBar(targetId: event.id, title: event.title)
                     }
                 }
-                .pressableCard { if state.canEdit { editingEvent = event } }
+                .pressableCard { if state.canEdit { editEvent(event) } }
             }
         }
     }
@@ -204,7 +204,7 @@ struct FamilyView: View {
             .pickerStyle(.segmented)
             if showVacationMap {
                 VacationMapView(vacations: vacations, dateText: dateRange) { v in
-                    if state.canEdit { editingVacation = v } else { showVacationMap = false }
+                    if state.canEdit { editVacation(v) } else { showVacationMap = false }
                 }
             } else {
             // Tidslinje som på websitet: nyeste øverst, årstal hver gang året skifter.
@@ -213,7 +213,7 @@ struct FamilyView: View {
                     PhotoCard(photos: vacation.photos, title: vacation.title, subtitle: dateRange(vacation),
                               about: aboutText(childIds: vacation.childIds, personIds: vacation.personIds),
                               zoomId: vacation.id, zoomNamespace: zoomNS,
-                              onEdit: state.canEdit ? { editingVacation = vacation } : nil, onOpen: { lightbox = $0 }) {
+                              onEdit: state.canEdit ? { editVacation(vacation) } : nil, onOpen: { openLightbox($0) }) {
                         VStack(alignment: .leading, spacing: 8) {
                             if !vacation.details.isEmpty {
                                 Text(vacation.details).font(.footnote).foregroundStyle(Theme.muted)
@@ -225,7 +225,7 @@ struct FamilyView: View {
                             CommentsBar(targetId: vacation.id, title: vacation.title)
                         }
                     }
-                    .pressableCard { if state.canEdit { editingVacation = vacation } }
+                    .pressableCard { if state.canEdit { editVacation(vacation) } }
             }
             }
         }
@@ -367,6 +367,51 @@ struct FamilyView: View {
         var traditions: [Tradition] = []
         var memories: [FamilyMemory] = []
         var recipes: [Recipe] = []
+    }
+
+    // MARK: Originaler (#62)
+    // Listerne viser thumbs fra kopien. Fuld skærm åbner med thumbet og skifter til originalerne, når de er
+    // hentet; redigering venter på originalerne, så et gem aldrig kan ændre billederne uden at have dem.
+
+    private func openLightbox(_ shown: LightboxState) {
+        lightbox = shown
+        guard shown.needsOriginals, let id = shown.sourceId else { return }
+        Task {
+            await CloudKitStore.withOriginals { await load() }
+            if let set = photoSet(for: id), !set.photos.isEmpty { lightbox = LightboxState.coverFirst(set, sourceId: id) }
+        }
+    }
+
+    private func photoSet(for id: String) -> PhotoSet? {
+        events.first { $0.id == id }?.photos
+            ?? vacations.first { $0.id == id }?.photos
+            ?? traditions.first { $0.id == id }?.photos
+            ?? memories.first { $0.id == id }?.photos
+            ?? recipes.first { $0.id == id }?.photos
+    }
+
+    private func withOriginals(_ loaded: Bool, then open: @escaping () -> Void) {
+        if loaded { open(); return }
+        Task { await CloudKitStore.withOriginals { await load() }; open() }
+    }
+
+    private func editEvent(_ e: FamilyEvent) {
+        withOriginals(e.photos.loaded) { editingEvent = events.first { $0.id == e.id } ?? e }
+    }
+    private func editVacation(_ v: Vacation) {
+        withOriginals(v.photos.loaded) { editingVacation = vacations.first { $0.id == v.id } ?? v }
+    }
+    private func editTradition(_ t: Tradition) {
+        withOriginals(t.photos.loaded) { editingTradition = traditions.first { $0.id == t.id } ?? t }
+    }
+    private func editMemory(_ m: FamilyMemory) {
+        withOriginals(m.photos.loaded) { editingMemory = memories.first { $0.id == m.id } ?? m }
+    }
+    private func editRecipe(_ r: Recipe) {
+        withOriginals(r.photos.loaded) { editingRecipe = recipes.first { $0.id == r.id } ?? r }
+    }
+    private func editPerson(_ p: Person) {
+        withOriginals(p.photoLoaded) { editingPerson = persons.first { $0.id == p.id } ?? p }
     }
 
     private func load() async {

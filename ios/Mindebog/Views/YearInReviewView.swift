@@ -253,6 +253,11 @@ struct YearInReviewView: View {
 
     // MARK: Data
     private func load() async {
+        // Året der gik bruger billederne i fuld størrelse (film, deling) — hent originalerne (#62).
+        await CloudKitStore.withOriginals { await loadOriginals() }
+    }
+
+    private func loadOriginals() async {
         defer { loading = false }
         let store = state.store, id = child.id
         async let h = store.highlights(childId: id)

@@ -102,7 +102,7 @@ struct BirthdayPhotosView: View {
                         ForEach(Array(forAge.enumerated()), id: \.element.id) { i, item in
                             Color.clear
                                 .aspectRatio(1, contentMode: .fit)
-                                .overlay { if let p = item.photo { DataImage(data: p) } else { Theme.bgDark } }
+                                .overlay { if let p = item.listPhoto { DataImage(data: p) } else { Theme.bgDark } }
                                 .zoomSource(id: item.id, in: zoomNS)
                                 .clipShape(RoundedRectangle(cornerRadius: Radius.small))
                                 .softAppear(index: i)
@@ -110,7 +110,7 @@ struct BirthdayPhotosView: View {
                                 .onTapGesture { open(item) }
                                 .contextMenu {
                                     if state.canEdit {
-                                        Button { editing = item } label: { Label("Redigér / kommentar", systemImage: "pencil") }
+                                        Button { edit(item) } label: { Label("Redigér / kommentar", systemImage: "pencil") }
                                     }
                                 }
                         }
@@ -173,9 +173,31 @@ struct BirthdayPhotosView: View {
     }
 
     private func open(_ item: GalleryItem) {
-        let list = forAge.filter { $0.photo != nil }
-        guard let i = list.firstIndex(where: { $0.id == item.id }) else { return }
-        lightbox = LightboxState(photos: list.compactMap(\.photo), index: i, captions: list.map(\.note), sourceId: item.id)
+        // Originalerne, hvis de er hentet — ellers thumbs nu, og originalerne så snart de er hentet (#62).
+        if forAge.allSatisfy(\.photoLoaded) {
+            lightbox = lightboxState(at: item.id, photos: forAge.map(\.photo))
+            return
+        }
+        lightbox = lightboxState(at: item.id, photos: forAge.map(\.listPhoto))
+        Task {
+            await CloudKitStore.withOriginals { await load() }
+            if let state = lightboxState(at: item.id, photos: forAge.map(\.photo)) { lightbox = state }
+        }
+    }
+
+    private func lightboxState(at id: String, photos: [Data?]) -> LightboxState? {
+        let pairs = zip(forAge, photos).compactMap { item, photo in photo.map { (item, $0) } }
+        guard let i = pairs.firstIndex(where: { $0.0.id == id }) else { return nil }
+        return LightboxState(photos: pairs.map(\.1), index: i, captions: pairs.map(\.0.note), sourceId: id)
+    }
+
+    /// Redigering kræver originalen (ellers ville et gem ikke kunne ændre billedet).
+    private func edit(_ item: GalleryItem) {
+        if item.photoLoaded { editing = item; return }
+        Task {
+            await CloudKitStore.withOriginals { await load() }
+            editing = items.first { $0.id == item.id } ?? item
+        }
     }
 
     private func load() async {

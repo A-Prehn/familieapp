@@ -4,6 +4,8 @@ import UserNotifications
 
 extension Notification.Name {
     static let cloudKitShareAccepted = Notification.Name("mindebog.cloudKitShareAccepted")
+    /// iCloud har sendt en stille push: noget er ændret i familien (#62).
+    static let cloudKitChanged = Notification.Name("mindebog.cloudKitChanged")
 }
 
 /// Kører appen som vært for de automatiske tests? Så rører den hverken iCloud, notifikationer eller widgets —
@@ -29,7 +31,17 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
         if isRunningTests { return true }
         UNUserNotificationCenter.current().delegate = notificationDelegate
         Task { @MainActor in NotificationManager.refreshOnLaunch() }
+        // Stille push til sync kræver ingen tilladelse fra brugeren.
+        application.registerForRemoteNotifications()
         return true
+    }
+
+    /// Stille push fra iCloud (database-abonnement): hent ændringer til den lokale kopi.
+    func application(_ application: UIApplication,
+                     didReceiveRemoteNotification userInfo: [AnyHashable: Any]) async -> UIBackgroundFetchResult {
+        guard CKNotification(fromRemoteNotificationDictionary: userInfo) != nil else { return .noData }
+        NotificationCenter.default.post(name: .cloudKitChanged, object: nil)
+        return .newData
     }
 
     func application(_ application: UIApplication,

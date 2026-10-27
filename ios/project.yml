@@ -33,6 +33,8 @@ targets:
         # Uden denne tror iOS, at appen ikke kan åbne iCloud-invitationer, og sender modtageren til
         # App Store ("Opdater Vores familie") i stedet for at åbne appen og acceptere delingen.
         CKSharingSupported: true
+        # Stille push fra iCloud, når nogen i familien har lagt noget op — så hentes det til kopien (#62).
+        UIBackgroundModes: [remote-notification]
     dependencies:
       # Udvidelserne indlejres automatisk i appen (PlugIns/).
       - target: VoresFamilieWidget

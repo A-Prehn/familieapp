@@ -459,6 +459,8 @@ struct HomeView: View {
     /// til listen er opdateret (eller højst 10 sekunder) — billederne hentes færdigt bagefter, uden hjul.
     private func pullToRefresh() async {
         let started = Date()
+        // Træk-for-at-opdatere: hent ændringer fra iCloud til kopien først (#62), så indlæs.
+        await state.syncFromCloud(force: true)
         Task { await load() }
         try? await Task.sleep(for: .milliseconds(300))
         while refreshing, Date().timeIntervalSince(started) < 10 {

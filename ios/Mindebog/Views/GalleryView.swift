@@ -174,7 +174,7 @@ struct GalleryView: View {
             if !item.caption.isEmpty {
                 Text(Fmt.long(item.shownDate)).font(.caption).foregroundStyle(Theme.muted)
             }
-            if let photo = item.photo {
+            if let photo = item.listPhoto {
                 Color.clear
                     .aspectRatio(ImageTools.displayAspect(photo), contentMode: .fit)
                     .overlay { DataImage(data: photo) }
@@ -189,9 +189,9 @@ struct GalleryView: View {
         .clipShape(RoundedRectangle(cornerRadius: Radius.card))
         .overlay(RoundedRectangle(cornerRadius: Radius.card).stroke(Theme.sep))
         .contentShape(RoundedRectangle(cornerRadius: Radius.card))
-        .onTapGesture { if state.canEdit { editing = item } }
+        .onTapGesture { if state.canEdit { edit(item) } }
         .contextMenu {
-            Button { if state.canEdit { editing = item } } label: { Label("Redigér", systemImage: "pencil") }
+            Button { if state.canEdit { edit(item) } } label: { Label("Redigér", systemImage: "pencil") }
         }
     }
 
@@ -200,7 +200,7 @@ struct GalleryView: View {
             Color.clear
                 .aspectRatio(1, contentMode: .fit)
                 .overlay {
-                    if let photo = item.photo {
+                    if let photo = item.listPhoto {
                         DataImage(data: photo)
                     } else {
                         Theme.bgDark
@@ -213,7 +213,7 @@ struct GalleryView: View {
                 // Lille blyant: redigér tekst/billede (tryk på selve billedet = fuld skærm).
                 .overlay(alignment: .topTrailing) {
                     if state.canEdit {
-                        Button { editing = item } label: {
+                        Button { edit(item) } label: {
                             Image(systemName: "pencil.circle.fill")
                                 .font(.title3)
                                 .symbolRenderingMode(.palette)
@@ -236,25 +236,46 @@ struct GalleryView: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(10)
                     .contentShape(Rectangle())
-                    .onTapGesture { if state.canEdit { editing = item } }
+                    .onTapGesture { if state.canEdit { edit(item) } }
             }
         }
         .background(Theme.card)
         .clipShape(RoundedRectangle(cornerRadius: Radius.card))
         .overlay(RoundedRectangle(cornerRadius: Radius.card).stroke(Theme.sep))
         .contextMenu {
-            Button { if state.canEdit { editing = item } } label: { Label("Redigér", systemImage: "pencil") }
+            Button { if state.canEdit { edit(item) } } label: { Label("Redigér", systemImage: "pencil") }
         }
     }
 
     private func openLightbox(at item: GalleryItem) {
-        let withPhotos = sorted.filter { $0.photo != nil }
-        let photos = withPhotos.compactMap { $0.photo }
-        guard !photos.isEmpty else { return }
-        let index = withPhotos.firstIndex(where: { $0.id == item.id }) ?? 0
+        // Alle originaler hentet: åbn med dem. Ellers thumbs nu, og originalerne så snart de er hentet (#62).
+        if sorted.allSatisfy(\.photoLoaded) {
+            lightbox = lightboxState(at: item.id, photos: sorted.map(\.photo))
+            return
+        }
+        lightbox = lightboxState(at: item.id, photos: sorted.map(\.listPhoto))
+        Task {
+            await CloudKitStore.withOriginals { await load() }
+            if let state = lightboxState(at: item.id, photos: sorted.map(\.photo)) { lightbox = state }
+        }
+    }
+
+    private func lightboxState(at id: String, photos: [Data?]) -> LightboxState? {
+        let pairs = zip(sorted, photos).compactMap { item, photo in photo.map { (item, $0) } }
+        guard !pairs.isEmpty else { return nil }
+        let index = pairs.firstIndex(where: { $0.0.id == id }) ?? 0
         // Tegninger: beskrivelsen vises kun her, i fuld skærm.
-        let captions = withPhotos.map { $0.note.isEmpty ? $0.caption : ($0.caption.isEmpty ? $0.note : "\($0.caption) · \($0.note)") }
-        lightbox = LightboxState(photos: photos, index: index, captions: captions, sourceId: item.id)
+        let captions = pairs.map { $0.0.note.isEmpty ? $0.0.caption : ($0.0.caption.isEmpty ? $0.0.note : "\($0.0.caption) · \($0.0.note)") }
+        return LightboxState(photos: pairs.map(\.1), index: index, captions: captions, sourceId: id)
+    }
+
+    /// Redigering kræver originalen (ellers ville et gem ikke kunne ændre billedet).
+    private func edit(_ item: GalleryItem) {
+        if item.photoLoaded { editing = item; return }
+        Task {
+            await CloudKitStore.withOriginals { await load() }
+            editing = items.first { $0.id == item.id } ?? item
+        }
     }
 
     private func load() async {

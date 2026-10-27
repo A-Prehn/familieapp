@@ -8,6 +8,12 @@ Udkast til App Store Connect. Tegngrænser står i parentes; tallene efter er de
 
 ### Nyheder i denne version (What's New, 4000)
 ```
+Meget hurtigere:
+• Appen har nu en kopi af familien på telefonen. Hjem, Børn, Familie og Mere åbner med det samme – også på dårligt net og i flytilstand
+• Billeder vises straks i alle lister; fuld størrelse hentes først, når du åbner dem
+• Nyt fra de andre i familien kommer af sig selv inden for sekunder
+• Træk ned på Hjem for at hente nyt, og "Hent alt igen" under Mere, hvis noget ser forkert ud
+
 Nyt, roligere udseende:
 • Varme, dæmpede farver i hele appen – også i mørk tilstand, på widgets og i PDF-mindebogen
 • Hjem siger godmorgen med dagens dato øverst
@@ -17,6 +23,8 @@ Nyt, roligere udseende:
 Og lidt praktisk:
 • Tag billeder direkte med kameraet – ved profilbilledet, højdepunkter, maven måned for måned og alle andre billeder
 • Barnet kan få sin egen adgang: inviter barnets Apple-konto, og kobl den til barnets profil. Så starter barnet i sin egen bog, ser "(dig)" ved sit navn – og først brevene, når de må åbnes
+• Bedsteforældre skal ikke længere indsætte invitationslinket igen
+• Opret familie kan ikke længere komme til at lave to familier ved hurtige tryk
 • Besked med det samme, hvis der ikke er forbindelse til iCloud
 • Mindre rettelser og forbedringer af stabiliteten
 ```
@@ -26,7 +34,8 @@ Nye i den nye palet: `ios/AppStore/screenshots/6.9/` og `6.3/` (12 skærme). For
 01-hjem, 03-barn, 04-hoejdepunkter, 06-milepaele, 05-interview, 12-breve, 11-rejser-kort, 07-familie-minder, 08-opskrifter, 09-traditioner. Se #57.
 
 ### Build
-Build 109 eller nyere (108 mangler barneadgangen #48).
+Build 114 eller nyere (lokal kopi + sync #62, thumbs, #58/#59/#60). Kræver, at `thumb`-feltet er deployet til
+CloudKit Production (gjort 27. okt. 2026).
 
 ## Version 1.2.1 — hurtig rettelse
 

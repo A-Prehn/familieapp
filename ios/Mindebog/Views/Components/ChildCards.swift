@@ -92,7 +92,7 @@ struct ChildAvatar: View {
 
     var body: some View {
         ZStack {
-            if let photo = child.photo {
+            if let photo = child.listPhoto {
                 DataImage(data: photo)
                     .frame(width: size, height: size)
                     .clipShape(Circle())

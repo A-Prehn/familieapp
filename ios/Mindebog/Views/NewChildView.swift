@@ -101,7 +101,20 @@ struct NewChildView: View {
         born = child.birthDate != nil
         if let b = child.birthDate { birthDate = b }
         if let d = child.dueDate { dueDate = d }
+        // Listen havde kun thumbet: hent originalen, så et nyt billede (eller fjernelse) kan gemmes (#62).
+        if !child.photoLoaded {
+            Task {
+                let kids = (try? await CloudKitStore.withOriginals { try await state.store.children(familyId: child.familyId) }) ?? []
+                if let fresh = kids.first(where: { $0.id == child.id }) {
+                    withOriginal = fresh
+                    if photo == child.photo { photo = fresh.photo }
+                }
+            }
+        }
     }
+
+    /// Barnet med originalbilledet hentet (se fillFromEditing) — bruges ved gem i stedet for listens kopi.
+    @State private var withOriginal: Child?
 
     private func delete() async {
         guard !saving, let child = editing else { return }
@@ -126,7 +139,7 @@ struct NewChildView: View {
         saving = true
         errorMessage = nil
         do {
-            if var child = editing ?? created {
+            if var child = withOriginal ?? editing ?? created {
                 child.name = name
                 child.gender = gender
                 child.photo = photo

@@ -36,6 +36,11 @@ struct Child: Identifiable, Hashable, Codable {
     var gender: Gender
     /// Profilbillede (valgfrit); ellers vises en emoji efter alder og køn.
     var photo: Data? = nil
+    /// Lille udgave af billedet fra kopien på telefonen — vises i lister (#62).
+    var thumb: Data? = nil
+    /// false = originalen er ikke hentet endnu (kun thumb). Et gem uden originalen rører ikke billedet i iCloud.
+    var photoLoaded: Bool = true
+    var listPhoto: Data? { thumb ?? photo }
     /// Sat, når barnet bor i sin egen iCloud-zone (delt med fx den anden forælder).
     var ownZone: String? = nil
     /// Barnets egen iCloud-konto i familien (#48): bruger-id på den deltager, der ER dette barn.
@@ -62,9 +67,17 @@ struct Highlight: Identifiable, Hashable, Codable {
     /// Det billede, der vises på oversigten (resten ses, når man åbner højdepunktet).
     var cover: Int = 0
     var place: Place? = nil
+    /// Lille forsidebillede fra kopien på telefonen — vises i lister, mens originalerne hentes (#62).
+    var thumb: Data? = nil
+    /// false = originalerne er ikke hentet endnu (kun thumb). Redigering og fuld skærm henter dem først;
+    /// et gem uden originaler rører ikke billederne i iCloud.
+    var photosLoaded: Bool = true
 
     var coverIndex: Int { photos.indices.contains(cover) ? cover : 0 }
     var coverPhoto: Data? { photos.isEmpty ? nil : photos[coverIndex] }
+    /// Til lister: thumb, ellers originalens forside.
+    var listPhoto: Data? { thumb ?? coverPhoto }
+    var hasPhotos: Bool { !photos.isEmpty || thumb != nil }
 }
 
 /// Flere billeder med ét valgt forsidebillede og evt. billedtekst pr. billede
@@ -73,20 +86,31 @@ struct PhotoSet: Hashable, Codable {
     var photos: [Data] = []
     var captions: [String] = []     // samme rækkefølge som photos; "" = ingen tekst
     var cover: Int = 0
+    /// Lille forsidebillede fra kopien på telefonen — vises i lister, mens originalerne hentes (#62).
+    var thumb: Data? = nil
+    /// false = originalerne er ikke hentet endnu (kun thumb). Et gem uden originaler rører ikke billederne i iCloud.
+    var loaded: Bool = true
 
-    init(photos: [Data] = [], captions: [String] = [], cover: Int = 0) {
+    init(photos: [Data] = [], captions: [String] = [], cover: Int = 0, thumb: Data? = nil, loaded: Bool = true) {
         self.photos = photos
         self.captions = captions
         self.cover = cover
+        self.thumb = thumb
+        self.loaded = loaded
     }
 
     /// Bagudkompatibelt: ét enkelt billede (eller intet).
-    init(single: Data?) { self.init(photos: single.map { [$0] } ?? []) }
+    init(single: Data?, thumb: Data? = nil, loaded: Bool = true) {
+        self.init(photos: single.map { [$0] } ?? [], thumb: thumb, loaded: loaded)
+    }
 
-    var isEmpty: Bool { photos.isEmpty }
+    /// Ingen billeder overhovedet (hverken originaler eller thumb).
+    var isEmpty: Bool { photos.isEmpty && thumb == nil }
     var count: Int { photos.count }
     private var safeCover: Int { photos.indices.contains(cover) ? cover : 0 }
     var coverPhoto: Data? { photos.isEmpty ? nil : photos[safeCover] }
+    /// Til lister: thumb, ellers originalens forside.
+    var listPhoto: Data? { thumb ?? coverPhoto }
     var coverCaption: String { caption(at: safeCover) }
     var coverIndex: Int { safeCover }
 
@@ -123,6 +147,9 @@ struct DiaryEntry: Identifiable, Hashable, Codable {
     var text: String
     var photo: Data?
     var createdAt: Date
+    var thumb: Data? = nil
+    var photoLoaded: Bool = true
+    var listPhoto: Data? { thumb ?? photo }
 }
 
 enum GalleryKind: String, Codable, Hashable {
@@ -166,6 +193,9 @@ struct GalleryItem: Identifiable, Hashable, Codable {
     var date: Date? = nil
     var photo: Data?
     var createdAt: Date
+    var thumb: Data? = nil
+    var photoLoaded: Bool = true
+    var listPhoto: Data? { thumb ?? photo }
     /// Datoen, der vises og sorteres efter.
     var shownDate: Date { date ?? createdAt }
 }
@@ -225,6 +255,9 @@ struct Letter: Identifiable, Hashable, Codable {
     var writtenAt: Date
     var openDate: Date?         // nil = kan læses med det samme
     var photo: Data? = nil
+    var thumb: Data? = nil
+    var photoLoaded: Bool = true
+    var listPhoto: Data? { thumb ?? photo }
     /// Videobrev: varighed i sekunder, hvis der er en video (filen hentes først ved afspilning).
     var videoDuration: Double? = nil
 
@@ -269,6 +302,9 @@ struct Person: Identifiable, Hashable, Codable {
     /// Kort rolle/beskrivelse, fx "Mormor" eller "Farfar".
     var role: String = ""
     var photo: Data? = nil
+    var thumb: Data? = nil
+    var photoLoaded: Bool = true
+    var listPhoto: Data? { thumb ?? photo }
     var parentIds: [String] = []
     var partnerIds: [String] = []
     var childId: String? = nil

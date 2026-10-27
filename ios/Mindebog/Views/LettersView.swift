@@ -83,14 +83,33 @@ struct LettersView: View {
         .clipShape(RoundedRectangle(cornerRadius: Radius.card))
         .overlay(RoundedRectangle(cornerRadius: Radius.card).stroke(Theme.sep))
         .contentShape(RoundedRectangle(cornerRadius: Radius.card))
-        .onTapGesture { if !letter.isSealed { reading = letter } }
+        .onTapGesture { if !letter.isSealed { read(letter) } }
         .contextMenu {
             if !letter.isSealed {
-                Button { reading = letter } label: { Label("Læs", systemImage: "envelope.open") }
+                Button { read(letter) } label: { Label("Læs", systemImage: "envelope.open") }
             }
             if state.canEdit {
-                Button { editing = letter } label: { Label("Redigér", systemImage: "pencil") }
+                Button { edit(letter) } label: { Label("Redigér", systemImage: "pencil") }
             }
+        }
+    }
+
+    /// Læs: åbnes med det samme (thumb), og billedet i fuld størrelse følger, når det er hentet (#62).
+    private func read(_ letter: Letter) {
+        reading = letter
+        guard !letter.photoLoaded else { return }
+        Task {
+            await CloudKitStore.withOriginals { await load() }
+            if reading?.id == letter.id, let fresh = letters.first(where: { $0.id == letter.id }) { reading = fresh }
+        }
+    }
+
+    /// Redigering kræver originalen (ellers ville et gem ikke kunne ændre billedet).
+    private func edit(_ letter: Letter) {
+        if letter.photoLoaded { editing = letter; return }
+        Task {
+            await CloudKitStore.withOriginals { await load() }
+            editing = letters.first { $0.id == letter.id } ?? letter
         }
     }
 
@@ -149,7 +168,7 @@ struct LetterReadView: View {
                             Text(videoError).font(.footnote).foregroundStyle(Theme.rose)
                         }
                     }
-                    if let photo = letter.photo {
+                    if let photo = letter.listPhoto {
                         DataImage(data: photo, contentMode: .fit)
                             .clipShape(RoundedRectangle(cornerRadius: Radius.small))
                     }

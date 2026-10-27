@@ -35,3 +35,12 @@ jobs:
             -scheme Mindebog \
             -destination 'generic/platform=iOS Simulator' \
             CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO
+
+      - name: Kør tests (MindebogTests)
+        working-directory: ios
+        run: |
+          set -o pipefail
+          udid=$(xcrun simctl list devices available -j | python3 -c "import json,sys; d=json.load(sys.stdin)['devices']; print(next(x['udid'] for r,xs in sorted(d.items(), reverse=True) if 'iOS' in r for x in xs if x['name'].startswith('iPhone')))")
+          echo "Simulator: $udid"
+          xcodebuild test -project Mindebog.xcodeproj -scheme Mindebog -destination "platform=iOS Simulator,id=$udid" -only-testing:MindebogTests CODE_SIGNING_ALLOWED=NO 2>&1 | tee test.log | grep -E "Test Case|error:|failed|passed|\*\* TEST" || true
+          grep -q "\*\* TEST SUCCEEDED \*\*" test.log || { grep -A40 "Testing failed:" test.log; grep -E "error:|XCTAssert|failed \(" test.log | head -60; echo "::error::Testene fejlede."; exit 1; }

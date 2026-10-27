@@ -47,6 +47,11 @@ struct BookContent {
     var answers: [String: String] = [:]
 
     static func load(child: Child, store: Store, familyName: String) async -> BookContent {
+        // Bogen skal have billederne i fuld størrelse, ikke listernes thumbs (#62).
+        await CloudKitStore.withOriginals { await loadWithOriginals(child: child, store: store, familyName: familyName) }
+    }
+
+    private static func loadWithOriginals(child: Child, store: Store, familyName: String) async -> BookContent {
         var c = BookContent(child: child, familyName: familyName)
         let id = child.id
         async let ms = store.milestones(childId: id)

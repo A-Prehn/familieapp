@@ -93,7 +93,7 @@ struct PersonCard: View {
     var child: Child? = nil
 
     private var name: String { child?.name ?? person.name }
-    private var photo: Data? { child?.photo ?? person.photo }
+    private var photo: Data? { child?.listPhoto ?? person.listPhoto }
     private var birth: Date? { child?.birthDate ?? person.birthDate }
 
     var body: some View {
