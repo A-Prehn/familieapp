@@ -353,6 +353,7 @@ enum MeChild {
     static var id: String? = UserDefaults.standard.string(forKey: "mindebog.meChild")
     static func set(_ childId: String?) {
         id = childId
+        SharedNames.meChild = childId   // notifikations-udvidelsen skal heller ikke fortælle om breve til barnet
         if let childId { UserDefaults.standard.set(childId, forKey: "mindebog.meChild") }
         else { UserDefaults.standard.removeObject(forKey: "mindebog.meChild") }
     }

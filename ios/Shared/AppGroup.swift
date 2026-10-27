@@ -69,6 +69,11 @@ enum SharedNames {
         get { AppGroup.defaults.dictionary(forKey: memberKey) as? [String: String] ?? [:] }
         set { AppGroup.defaults.set(newValue, forKey: memberKey) }
     }
+    /// Barnet selv, hvis den, der er logget ind, er et barn med egen konto (#48) — så får det ikke besked om breve til sig.
+    static var meChild: String? {
+        get { AppGroup.defaults.string(forKey: "names.meChild") }
+        set { AppGroup.defaults.set(newValue, forKey: "names.meChild") }
+    }
 }
 
 /// De seneste notifikationer — til klokken på Hjem. Notifikations-udvidelsen skriver, når der kommer

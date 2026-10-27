@@ -61,8 +61,17 @@ final class NotificationService: UNNotificationServiceExtension {
     enum Description { case text(String, CKRecord), onlyOwnChanges, unknown }
 
     private static func describe(_ records: [CKRecord]) -> Description {
-        // Kun indhold — ikke delings-/navne-/familie-records.
-        let content = records.filter { what($0) != nil }
+        // Kun indhold — ikke delings-/navne-/familie-records. Et barn med egen konto (#48) får ingen
+        // besked om breve til sig selv: de er en overraskelse, til de må åbnes.
+        let meChild = SharedNames.meChild
+        let content = records.filter { r in
+            guard what(r) != nil else { return false }
+            if let meChild, r.recordType == "Letter",
+               (r["childRef"] as? CKRecord.Reference)?.recordID.recordName == meChild { return false }
+            return true
+        }
+        // Kun breve til barnet selv → ingen notifikation (samme som egne ændringer).
+        if content.isEmpty, meChild != nil, records.contains(where: { $0.recordType == "Letter" }) { return .onlyOwnChanges }
         guard !content.isEmpty else { return .unknown }
 
         let others = content.filter { author($0) != CKCurrentUserDefaultName }
