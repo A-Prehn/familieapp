@@ -6,7 +6,9 @@ import UIKit
 // få lov at "gemme" billederne (det ville slette dem i iCloud).
 final class ThumbnailTests: XCTestCase {
     private func jpeg(width: Int, height: Int) -> Data {
-        let renderer = UIGraphicsImageRenderer(size: CGSize(width: width, height: height))
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1   // ellers tegnes der i skærmens skala (2×/3×), og 200 px bliver 400 px
+        let renderer = UIGraphicsImageRenderer(size: CGSize(width: width, height: height), format: format)
         return renderer.image { ctx in
             UIColor.systemPink.setFill()
             ctx.fill(CGRect(x: 0, y: 0, width: width, height: height))
