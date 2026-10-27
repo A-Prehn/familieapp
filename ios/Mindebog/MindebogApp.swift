@@ -110,6 +110,26 @@ final class AppState: ObservableObject {
     private let userIdKey = "mindebog.userId"
     private let familyKey = "mindebog.familyId"
     private let usedCloudKey = "mindebog.usedCloud"
+    private static let familiesKey = "mindebog.families"
+
+    /// Familierne, man er med i, som de så ud sidst. Gemmes på enheden, så Mere kan vise
+    /// "Skift familie" med det samme i stedet for at vente på iCloud (#58).
+    @Published private(set) var families: [Family] = {
+        guard let data = UserDefaults.standard.data(forKey: AppState.familiesKey) else { return [] }
+        return (try? JSONDecoder().decode([Family].self, from: data)) ?? []
+    }()
+
+    func rememberFamilies(_ fams: [Family]) {
+        guard fams != families else { return }
+        families = fams
+        UserDefaults.standard.set(try? JSONEncoder().encode(fams), forKey: Self.familiesKey)
+    }
+
+    /// Henter familierne fra iCloud og husker dem. Fejler opslaget, beholdes listen fra sidst.
+    func refreshFamilies() async {
+        guard let user, let fams = try? await store.families(for: user.id) else { return }
+        rememberFamilies(fams)
+    }
 
     func bootstrap() async {
         guard !ready else { return }
@@ -143,6 +163,7 @@ final class AppState: ObservableObject {
             user = restored
             let saved = defaults.string(forKey: familyKey)
             if let fams = try? await store.families(for: restored.id) {
+                rememberFamilies(fams)
                 familyId = fams.first { $0.id == saved }?.id ?? fams.first?.id
             } else {
                 familyId = saved   // kunne ikke spørge iCloud lige nu: behold familien fra sidst (#60)
@@ -184,12 +205,14 @@ final class AppState: ObservableObject {
             return
         }
         guard status == .available, var fams = try? await store.families(for: userId) else { return }
+        rememberFamilies(fams)
         if !fams.contains(where: { $0.id == savedFamily }) {
             // Familien fra sidst mangler. En delt familie kan være et øjeblik om at dukke op i den delte
             // database — spørg igen, før den glemmes, så bedsteforældre ikke skal indsætte linket igen (#60).
             try? await Task.sleep(for: .seconds(3))
             guard let again = try? await store.families(for: userId) else { return }
             fams = again
+            rememberFamilies(fams)
             if !fams.contains(where: { $0.id == savedFamily }) { setFamily(fams.first?.id) }
         }
         await publishDisplayName()   // også for navne sat før denne version
@@ -204,6 +227,7 @@ final class AppState: ObservableObject {
             user = u
             UserDefaults.standard.set(u.id, forKey: userIdKey)
             let fams = (try? await store.families(for: u.id)) ?? []
+            rememberFamilies(fams)
             setFamily(fams.first?.id)
         } catch { errorMessage = error.localizedDescription }
     }
@@ -217,6 +241,7 @@ final class AppState: ObservableObject {
         defer { joiningFamily = false }
         do {
             let family = try await store.createFamily(userId: user.id, name: name)
+            rememberFamilies(families + [family])
             setFamily(family.id)
         } catch { errorMessage = error.userMessage }
     }
@@ -226,7 +251,8 @@ final class AppState: ObservableObject {
         guard let user else { return }
         try await store.deleteFamily(familyId: id)
         ScreenCache.clear()
-        let rest = ((try? await store.families(for: user.id)) ?? []).filter { $0.id != id }
+        let rest = ((try? await store.families(for: user.id)) ?? families).filter { $0.id != id }
+        rememberFamilies(rest)
         setFamily(rest.first?.id)
         NotificationCenter.default.post(name: .storeDidChange, object: nil)
     }
@@ -240,6 +266,7 @@ final class AppState: ObservableObject {
         defer { joiningFamily = false }
         do {
             let family = try await store.acceptInvite(userId: user.id, code: text)
+            rememberFamilies(families.filter { $0.id != family.id } + [family])
             setFamily(family.id)
         } catch {
             errorMessage = "Invitationen kunne ikke åbnes. Tjek, at du er logget ind på iCloud. Er familien delt med \"kun inviterede\", skal du bruge den Apple-konto, invitationen blev sendt til — ellers kan ejeren vælge \"alle med linket\" og sende igen."
@@ -280,6 +307,7 @@ final class AppState: ObservableObject {
         for attempt in 0..<4 {
             let fams = (try? await store.families(for: user.id)) ?? []
             if let match = fams.first(where: { $0.id == zoneName }) {
+                rememberFamilies(fams)
                 setFamily(match.id)
                 errorMessage = nil
                 return
@@ -310,6 +338,7 @@ final class AppState: ObservableObject {
         familyId = nil
         UserDefaults.standard.removeObject(forKey: userIdKey)
         UserDefaults.standard.removeObject(forKey: familyKey)
+        rememberFamilies([])
         ScreenCache.clear()
     }
 
@@ -325,6 +354,6 @@ final class AppState: ObservableObject {
         familyId = id
         if let id { UserDefaults.standard.set(id, forKey: familyKey) }
         else { UserDefaults.standard.removeObject(forKey: familyKey) }
-        if id != nil { Task { await publishDisplayName(); await refreshPermissions() } }   // fx lige efter man har accepteret en deling
+        if id != nil { Task { await publishDisplayName(); await refreshPermissions(); await refreshFamilies() } }   // fx lige efter man har accepteret en deling
     }
 }

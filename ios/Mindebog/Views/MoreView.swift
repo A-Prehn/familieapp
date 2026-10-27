@@ -110,7 +110,7 @@ struct MoreView: View {
                     ForEach(allFamilies) { f in
                         Button {
                             state.switchFamily(f.id)
-                            family = nil; members = []; allFamilies = []   // så den nye families data vises, ikke den gamles
+                            family = allFamilies.first { $0.id == f.id }; members = []   // den nye families data, ikke den gamles — listen bliver stående
                             Task { await load() }
                         } label: {
                             HStack {
@@ -467,10 +467,15 @@ struct MoreView: View {
         guard let familyId = state.familyId else { return }
         // Vis det sidst viste med det samme; alt hentes så samtidig i baggrunden.
         let cacheKey = "more_\(familyId)"
-        if family == nil, let cached = ScreenCache.load(MoreCache.self, key: cacheKey) {
-            family = cached.family; allFamilies = cached.families; members = cached.members
+        if members.isEmpty, let cached = ScreenCache.load(MoreCache.self, key: cacheKey) {
+            family = cached.family; members = cached.members
             myBirthday = cached.myBirthday; invite = cached.invite; shareIsPublic = cached.shareIsPublic
             if let b = cached.myBirthday { birthdayDraft = b.date }
+        }
+        // Familierne fra sidst (gemt på enheden) vises med det samme — iCloud opdaterer listen bagefter (#58).
+        if !state.families.isEmpty {
+            allFamilies = sortedFamilies(state.families, current: familyId)
+            if family == nil { family = state.families.first { $0.id == familyId } }
         }
         let store = state.store
         let userId = state.user?.id ?? ""
@@ -483,12 +488,9 @@ struct MoreView: View {
         // Kun læsning: delingen rettes først, når man åbner delingsindstillingerne (#58).
         async let shareTask: (isPublic: Bool, url: String?)? = (store as? CloudKitStore)?.shareInfo(familyId: familyId)
         if let fetched = try? await familiesTask {
+            state.rememberFamilies(fetched)
             family = fetched.first { $0.id == familyId }
-            // Alle familier vises — også tomme egne (fx en testfamilie), så de kan vælges og slettes.
-            allFamilies = fetched.sorted { a, b in
-                if (a.id == familyId) != (b.id == familyId) { return a.id == familyId }
-                return a.name.localizedCompare(b.name) == .orderedAscending
-            }
+            allFamilies = sortedFamilies(fetched, current: familyId)
         }
         if let m = try? await membersTask { members = m }
         if let id = birthdayId, let found = (await birthdaysTask)?.first(where: { $0.id == id }) {
@@ -498,6 +500,14 @@ struct MoreView: View {
         if let info = await shareTask { shareIsPublic = info.isPublic; invite = info.url }
         ScreenCache.save(MoreCache(family: family, families: allFamilies, members: members, myBirthday: myBirthday,
                                    invite: invite, shareIsPublic: shareIsPublic), key: cacheKey)
+    }
+
+    /// Alle familier vises — også tomme egne (fx en testfamilie), så de kan vælges og slettes. Den valgte først.
+    private func sortedFamilies(_ fams: [Family], current: String) -> [Family] {
+        fams.sorted { a, b in
+            if (a.id == current) != (b.id == current) { return a.id == current }
+            return a.name.localizedCompare(b.name) == .orderedAscending
+        }
     }
 
     private struct MoreCache: Codable {
