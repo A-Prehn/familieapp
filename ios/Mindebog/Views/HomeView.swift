@@ -80,7 +80,7 @@ struct HomeView: View {
             .padding(16)
         }
         .background(Theme.bg.ignoresSafeArea())
-        .navigationTitle("Hjem")
+        .navigationTitle("")   // hilsenen i indholdet er titlen (#47)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             // Titlen vises kun som familievælger, når der er flere familier — ellers står hilsenen alene.
@@ -188,8 +188,9 @@ struct HomeView: View {
             Spacer(minLength: 0)
         }
         .padding(16)
-        .background(Theme.bgDark)
+        .background(Theme.card)
         .clipShape(RoundedRectangle(cornerRadius: Radius.card))
+        .overlay(RoundedRectangle(cornerRadius: Radius.card).stroke(Theme.sep))
         .accessibilityLabel("Dagens citat: \(DailyQuotes.today())")
     }
 
