@@ -147,6 +147,7 @@ final class AppState: ObservableObject {
             familyId = savedFamily
             ready = true
             Task { await verifyInBackground(userId: savedId, familyId: savedFamily) }
+            Task { await syncFromCloud() }
             await handlePendingShare()
             return
         }
@@ -172,6 +173,15 @@ final class AppState: ObservableObject {
         ready = true
         Task { await publishDisplayName(); await refreshPermissions() }
         await handlePendingShare()
+    }
+
+    /// Henter ændringer fra iCloud til den lokale kopi (#62) — ved opstart, aktivering og træk-for-at-opdatere.
+    /// Var der noget nyt, får skærmene besked og indlæser igen (fra kopien, øjeblikkeligt).
+    /// `force`: også selvom det lige er gjort (træk-for-at-opdatere).
+    func syncFromCloud(force: Bool = false) async {
+        guard let cloud = store as? CloudKitStore else { return }
+        let changed = force ? ((try? await cloud.refresh()) ?? false) : await cloud.syncIfStale()
+        if changed { NotificationCenter.default.post(name: .storeDidChange, object: nil) }
     }
 
     /// Koldstart fra et delelink: invitationen blev accepteret, før brugeren og familierne var hentet.
@@ -356,6 +366,8 @@ final class AppState: ObservableObject {
         UserDefaults.standard.removeObject(forKey: familyKey)
         rememberFamilies([])
         ScreenCache.clear()
+        // Den lokale kopi hører til den bruger, der var logget ind.
+        if let cloud = store as? CloudKitStore { Task { await cloud.forgetLocalCopy() } }
     }
 
     /// Skift til en anden familie, man er med i (fx søsterens, man følger med kun visning).

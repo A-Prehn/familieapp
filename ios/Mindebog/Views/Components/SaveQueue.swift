@@ -51,9 +51,22 @@ final class SaveQueue: ObservableObject {
 /// Banner nederst på skærmen: "Gemmer…" mens der uploades, og fejl med "Prøv igen".
 struct SaveQueueBanner: View {
     @ObservedObject private var queue = SaveQueue.shared
+    @ObservedObject private var sync = SyncStatus.shared
 
     var body: some View {
         VStack(spacing: 8) {
+            // Første gang en familie hentes til telefonen (#62): vis, at der sker noget.
+            if sync.fetching {
+                HStack(spacing: 8) {
+                    ProgressView().controlSize(.small)
+                    Text(sync.fetchedRecords > 0 ? "Henter familien … \(sync.fetchedRecords)" : "Henter familien …")
+                        .font(.caption.weight(.medium))
+                }
+                .padding(.horizontal, 14).padding(.vertical, 8)
+                .background(Capsule().fill(Theme.card))
+                .overlay(Capsule().stroke(Theme.sep))
+                .foregroundStyle(Theme.text)
+            }
             ForEach(queue.failed) { item in
                 VStack(alignment: .leading, spacing: 6) {
                     Text("Kunne ikke gemme \(item.label)").font(.subheadline.weight(.semibold))
@@ -86,6 +99,7 @@ struct SaveQueueBanner: View {
         .padding(.bottom, 8)
         .animation(.easeInOut(duration: 0.2), value: queue.running)
         .animation(.easeInOut(duration: 0.2), value: queue.failed.count)
+        .animation(.easeInOut(duration: 0.2), value: sync.fetching)
     }
 }
 

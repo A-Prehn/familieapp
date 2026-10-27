@@ -185,6 +185,8 @@ struct MainTabView: View {
                 await openPendingInterview()
                 await openPendingPrompt()
             }
+            // Nyt fra de andre i familien siden sidst (#62): hent ændringer, og lad skærmene indlæse igen.
+            Task { await state.syncFromCloud() }
         }
         .task {
             // To gentegninger: én så snart første billede er vist, og én lidt senere, hvis glas-tabbaren var sen.

@@ -74,6 +74,8 @@ struct MoreView: View {
     @State private var invite: String?
     @State private var busy = false
     @State private var loading = false   // henter fra iCloud: vises øverst, så man kan se, at den arbejder (#58)
+    @State private var resyncing = false
+    @State private var resyncMessage: String?
     @State private var showQR = false
     @State private var shareIsPublic = false
     @State private var displayName = ""
@@ -413,11 +415,35 @@ struct MoreView: View {
                 Text("Hent alle billeder, videoer, tekster og mindebøger ud i én ZIP-fil — fx som backup, eller hvis I en dag vil stoppe med appen.")
             }
 
-            Section("Konto") {
+            Section {
                 Label(state.usingCloud ? "Data gemmes i din iCloud" : "Data gemmes kun i hukommelsen (ingen iCloud)",
                       systemImage: state.usingCloud ? "icloud" : "icloud.slash")
                     .font(.footnote).foregroundStyle(Theme.muted)
+                if state.usingCloud {
+                    // Kopien på telefonen (#62) kan altid smides væk og hentes igen — intet i iCloud røres.
+                    Button {
+                        Task { await resyncAll() }
+                    } label: {
+                        HStack {
+                            Label(resyncing ? "Henter alt igen…" : "Hent alt igen fra iCloud", systemImage: "arrow.triangle.2.circlepath")
+                            if resyncing { Spacer(); ProgressView() }
+                        }
+                    }
+                    .disabled(resyncing)
+                    if let resyncMessage {
+                        Text(resyncMessage).font(.footnote).foregroundStyle(resyncMessage.hasPrefix("Kunne") ? Theme.rose : Theme.muted)
+                    }
+                    if SyncLog.isVisible {
+                        NavigationLink("iCloud-tider (test)") { SyncTimingsView() }
+                    }
+                }
                 Button("Log ud / skift bruger", role: .destructive) { state.signOut() }
+            } header: {
+                Text("Konto")
+            } footer: {
+                if state.usingCloud {
+                    Text("Appen har en kopi af familien på telefonen, så alt åbner med det samme. Ser noget forkert ud, kan du hente kopien forfra her.")
+                }
             }
             }.listRowBackground(Theme.card)
         }
@@ -500,6 +526,23 @@ struct MoreView: View {
         if let info = await shareTask { shareIsPublic = info.isPublic; invite = info.url }
         ScreenCache.save(MoreCache(family: family, families: allFamilies, members: members, myBirthday: myBirthday,
                                    invite: invite, shareIsPublic: shareIsPublic), key: cacheKey)
+    }
+
+    /// "Hent alt igen": smid kopien på telefonen væk, og hent familien forfra fra iCloud.
+    private func resyncAll() async {
+        guard let cloud = state.store as? CloudKitStore else { return }
+        resyncing = true
+        resyncMessage = nil
+        defer { resyncing = false }
+        do {
+            ScreenCache.clear()
+            try await cloud.resetLocalCopy()
+            NotificationCenter.default.post(name: .storeDidChange, object: nil)
+            resyncMessage = "Alt er hentet igen."
+            Haptics.success()
+        } catch {
+            resyncMessage = "Kunne ikke hente: \(error.userMessage)"
+        }
     }
 
     /// Alle familier vises — også tomme egne (fx en testfamilie), så de kan vælges og slettes. Den valgte først.

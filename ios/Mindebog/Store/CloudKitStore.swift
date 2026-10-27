@@ -25,10 +25,62 @@ actor CloudKitStore: Store {
     private var zoneCache: [String: (db: CKDatabase, zone: CKRecordZone.ID)] = [:]
     private let nameKey = "mindebog.displayName"
 
+    // Den lokale kopi (#62): skærmene læser herfra; SyncEngine henter kun ændringer fra iCloud.
+    private let local = LocalRecords()
+    private let sync: SyncEngine
+
     init(containerIdentifier: String = "iCloud.net.prehn.mindebog") {
         self.container = CKContainer(identifier: containerIdentifier)
+        self.sync = SyncEngine(container: container, local: local)
         Self.clearUploadDir()   // ingen uploads kører endnu ved oprettelse
         Task.detached(priority: .background) { AssetCache.prune() }
+    }
+
+    // MARK: - Sync (den lokale kopi)
+
+    /// Hent ændringer fra iCloud nu (fx træk-for-at-opdatere). true = noget var ændret.
+    @discardableResult
+    func refresh() async throws -> Bool {
+        try await sync.syncAll().anythingChanged
+    }
+
+    /// Hent ændringer, hvis det er mere end et minut siden (ved opstart og aktivering). Fejl sluges:
+    /// kopien fra sidst er stadig god. true = noget var ændret, så skærmene bør indlæse igen.
+    func syncIfStale(seconds: TimeInterval = 60) async -> Bool {
+        (try? await sync.syncAll(throttle: seconds).anythingChanged) ?? false
+    }
+
+    /// "Hent alt igen" under Mere: smid kopien væk, og hent alt forfra. Intet i iCloud røres.
+    func resetLocalCopy() async throws {
+        await forgetLocalCopy()
+        try await sync.syncAll()
+    }
+
+    /// Ved log ud: kopien hører til den bruger, der var logget ind.
+    func forgetLocalCopy() async {
+        await sync.reset()
+        zoneCache.removeAll()
+        UserDefaults.standard.removeObject(forKey: Self.zoneIndexKey)
+        UserDefaults.standard.removeObject(forKey: Self.childZoneKey)
+    }
+
+    /// Hvilken database en zone hører til: egne zoner har standard-ejeren, delte zoner ejerens id.
+    private func database(for zone: CKRecordZone.ID) -> CKDatabase {
+        zone.ownerName == CKCurrentUserDefaultName ? privateDB : sharedDB
+    }
+
+    /// Sørger for, at zonen findes i kopien. Første gang hentes hele zonen (brugeren venter, med banner);
+    /// derefter er kopien altid klar, og nyt kommer via syncIfStale/refresh.
+    private func ensureSynced(_ zoneID: CKRecordZone.ID, db: CKDatabase) async throws {
+        if local.hasSnapshot(zoneID) { return }
+        await SyncStatus.shared.started()
+        do {
+            try await sync.fetchZones([zoneID], db: db)
+            await SyncStatus.shared.finished()
+        } catch {
+            await SyncStatus.shared.failed(error)
+            throw error
+        }
     }
 
     // MARK: - Auth
@@ -49,38 +101,22 @@ actor CloudKitStore: Store {
     // MARK: - Familie
 
     func families(for userId: String) async throws -> [Family] {
-        // Begge databaser og alle zoner på én gang; familie-posten hentes direkte på sit id ("family"),
-        // ikke med en søgning — det er hurtigere og uafhængigt af søgeindekset.
-        // Fejler opslaget i den delte database (dårligt net), kastes fejlen videre — ellers ville en
-        // bedsteforælders familie "forsvinde", og appen glemme den (#60).
-        async let privateZones = privateDB.allRecordZones()
-        async let sharedZones = sharedDB.allRecordZones()
-        let zoneSets: [(CKDatabase, [CKRecordZone])] = [(privateDB, try await privateZones), (sharedDB, try await sharedZones)]
-        var familyZones: [(CKDatabase, CKRecordZone.ID)] = []
-        for (db, zones) in zoneSets {
-            // Barnezoner (børn delt med fx den anden forælder) huskes også, så locate() finder dem.
-            for zone in zones where zone.zoneID.zoneName.hasPrefix(Self.childZonePrefix) { remember(zone.zoneID, in: db) }
-            for zone in zones where zone.zoneID.zoneName.hasPrefix("family_") { familyZones.append((db, zone.zoneID)) }
-        }
-        // Mangler familie-posten (zonen er tom eller slettet), springes zonen over. Alle andre fejl
-        // (netværk, iCloud utilgængelig) kastes videre, så en kendt familie ikke tabes på gulvet.
-        let records: [(CKRecordZone.ID, CKRecord)?] = try await withThrowingTaskGroup(of: (CKRecordZone.ID, CKRecord)?.self) { group in
-            for (db, zoneID) in familyZones {
-                group.addTask {
-                    do {
-                        return (zoneID, try await db.record(for: CKRecord.ID(recordName: "family", zoneID: zoneID)))
-                    } catch let error as CKError where error.code == .unknownItem || error.code == .zoneNotFound {
-                        return nil
-                    }
-                }
-            }
-            var out: [(CKRecordZone.ID, CKRecord)?] = []
-            for try await r in group { out.append(r) }
-            return out
+        // Familierne er zonerne i den lokale kopi. Først hentes ændringer fra iCloud (to små kald,
+        // sprunget over hvis det lige er gjort). Fejler det, bruges kopien fra sidst — så en
+        // bedsteforælders familie "forsvinder" ikke, bare fordi nettet var væk et øjeblik (#60).
+        // Kun hvis der slet ingen kopi er, kastes fejlen videre.
+        do {
+            try await sync.syncAll(throttle: 10)
+        } catch {
+            if local.snapshotZones().isEmpty { throw error }
         }
         var result: [Family] = []
-        for case let (zoneID, record)? in records {
-            let db = familyZones.first { $0.1 == zoneID }?.0 ?? privateDB
+        for zoneID in local.snapshotZones() {
+            let db = database(for: zoneID)
+            // Barnezoner (børn delt med fx den anden forælder) huskes også, så locate() finder dem.
+            if zoneID.zoneName.hasPrefix(Self.childZonePrefix) { remember(zoneID, in: db); continue }
+            guard zoneID.zoneName.hasPrefix("family_"),
+                  let record = local.record(CKRecord.ID(recordName: "family", zoneID: zoneID)) else { continue }
             remember(zoneID, in: db)
             result.append(Self.family(from: record, zoneName: zoneID.zoneName))
         }
@@ -144,6 +180,7 @@ actor CloudKitStore: Store {
 
     private func forgetZone(_ zoneName: String) {
         zoneCache[zoneName] = nil
+        local.purge(named: zoneName)
         var index = UserDefaults.standard.dictionary(forKey: Self.zoneIndexKey) as? [String: String] ?? [:]
         index[zoneName] = nil
         UserDefaults.standard.set(index, forKey: Self.zoneIndexKey)
@@ -334,23 +371,27 @@ actor CloudKitStore: Store {
 
     /// Børn, der er delt med én direkte (fx fra den anden forælders familie) — uden at man er med i familien.
     func sharedChildren() async throws -> [Child] {
-        let zones = (try? await sharedDB.allRecordZones()) ?? []
+        _ = try? await sync.syncAll(throttle: 10)
         var out: [Child] = []
-        for zone in zones where zone.zoneID.zoneName.hasPrefix(Self.childZonePrefix) {
-            remember(zone.zoneID, in: sharedDB)
-            let childId = String(zone.zoneID.zoneName.dropFirst(Self.childZonePrefix.count))
-            rememberChild(childId, zoneName: zone.zoneID.zoneName)
+        for zoneID in local.snapshotZones()
+        where zoneID.zoneName.hasPrefix(Self.childZonePrefix) && zoneID.ownerName != CKCurrentUserDefaultName {
+            remember(zoneID, in: sharedDB)
+            let childId = String(zoneID.zoneName.dropFirst(Self.childZonePrefix.count))
+            rememberChild(childId, zoneName: zoneID.zoneName)
             guard let r = try? await childRecord(childId) else { continue }
             var kid = Self.child(from: r, familyId: Child.sharedFamilyId)
-            kid.ownZone = zone.zoneID.zoneName
+            kid.ownZone = zoneID.zoneName
             out.append(kid)
         }
         return out.sorted { $0.name < $1.name }
     }
 
+    /// Barnets record fra kopien (med billedet fra cachen).
     private func childRecord(_ childId: String) async throws -> CKRecord {
         let (db, zoneID) = try await locateChild(childId)
-        return try await db.record(for: CKRecord.ID(recordName: childId, zoneID: zoneID))
+        try await ensureSynced(zoneID, db: db)
+        guard let record = local.record(CKRecord.ID(recordName: childId, zoneID: zoneID)) else { throw StoreError.notFound }
+        return await fillAssets([record.copy() as! CKRecord], keys: ["photo"], db: db)[0]
     }
 
     // MARK: - Barnezoner (del ét barn med den anden forælder)
@@ -406,8 +447,9 @@ actor CloudKitStore: Store {
         let ref = childRef(childId, familyZone)
         var copiedIds: [String: [CKRecord.ID]] = [:]
         for type in Self.childRecordTypes {
-            let records = try await all(db: db, zoneID: familyZone, type: type,
-                                        predicate: NSPredicate(format: "childRef == %@", ref))
+            // Direkte fra iCloud med billeder/video — kopien har ingen filer.
+            let records = try await queryAll(db: db, zoneID: familyZone, type: type,
+                                             predicate: NSPredicate(format: "childRef == %@", ref))
             copiedIds[type] = records.map { CKRecord.ID(recordName: $0.recordID.recordName, zoneID: zoneID) }
             var batch: [CKRecord] = []
             for r in records {
@@ -458,16 +500,19 @@ actor CloudKitStore: Store {
     private func cleanupMovedChild(childId: String, familyZone: CKRecordZone.ID) async throws {
         let ref = childRef(childId, familyZone)
         for type in Self.childRecordTypes {
-            let ids = try await all(db: privateDB, zoneID: familyZone, type: type, keys: ["childRef"],
-                                    predicate: NSPredicate(format: "childRef == %@", ref)).map(\.recordID)
+            let ids = try await queryAll(db: privateDB, zoneID: familyZone, type: type, keys: ["childRef"],
+                                         predicate: NSPredicate(format: "childRef == %@", ref)).map(\.recordID)
             var i = 0
             while i < ids.count {
                 let chunk = Array(ids[i..<min(i + 50, ids.count)])
                 i += 50
                 _ = try await privateDB.modifyRecords(saving: [], deleting: chunk)
-                chunk.forEach(noteDeleted)
+                local.apply(changed: [], deleted: chunk, in: familyZone, createIfMissing: false)
             }
         }
+        // Barnet bor nu i sin egen zone: hent begge zoner forfra, så kopien passer.
+        local.purge(familyZone)
+        local.purge(CKRecordZone.ID(zoneName: Self.childZonePrefix + childId, ownerName: CKCurrentUserDefaultName))
     }
 
     /// Barnezonens deling: oprettes første gang, og familiens medlemmer lægges på med samme adgang,
@@ -861,7 +906,6 @@ actor CloudKitStore: Store {
         // Kun den ønskede serie hentes (kind er indekseret), og billederne kommer fra cachen.
         let records = try await childRecords(childId, type: "GalleryItem",
                                               keys: ["childRef", "kind", "caption", "note", "date"], assetKeys: ["photo"],
-                                              extraPredicate: NSPredicate(format: "kind == %@", kind.rawValue),
                                               extraMatch: { ($0["kind"] as? String) == kind.rawValue })
         return records
             .map { r in
@@ -1764,7 +1808,9 @@ actor CloudKitStore: Store {
         while i < missing.count {
             let chunk = Array(missing[i..<min(i + 20, missing.count)])
             i += 20
-            guard let fetched = try? await db.records(for: chunk.map(\.recordID), desiredKeys: keys) else { continue }
+            guard let fetched = try? await SyncLog.measure("billeder ×\(chunk.count)", {
+                try await db.records(for: chunk.map(\.recordID), desiredKeys: keys)
+            }, count: { $0.count }) else { continue }
             for r in chunk {
                 guard let full = try? fetched[r.recordID]?.get() else { continue }
                 for k in keys { r[k] = AssetCache.store(full, key: k) }
@@ -1772,26 +1818,9 @@ actor CloudKitStore: Store {
         }
         return records
     }
-    // MARK: - Nyligt gemt/slettet
-    // iCloud finder først nye poster i søgninger nogle sekunder efter, de er gemt (og viser
-    // slettede lidt endnu). Derfor husker appen selv det, den lige har gemt eller slettet,
-    // i to minutter og lægger det oven i søgeresultaterne — så lister er rigtige med det samme.
-    private let recentLock = NSLock()
-    private var recentSaves: [CKRecord.ID: (record: CKRecord, at: Date)] = [:]
-    private var recentDeletes: [CKRecord.ID: Date] = [:]
-    private static let recentWindow: TimeInterval = 120
-
-    private func noteSaved(_ record: CKRecord) {
-        recentLock.lock(); defer { recentLock.unlock() }
-        recentSaves[record.recordID] = (record, Date())
-        recentDeletes[record.recordID] = nil
-    }
-
-    private func noteDeleted(_ id: CKRecord.ID) {
-        recentLock.lock(); defer { recentLock.unlock() }
-        recentDeletes[id] = Date()
-        recentSaves[id] = nil
-    }
+    // MARK: - Gem og slet
+    // Et gem lægges i den lokale kopi med det samme, det er bekræftet af iCloud — så lister er
+    // rigtige med det samme, uden at vente på en ny sync.
 
     /// Gemmer én record. Store filer (video) kan tage minutter at uploade, så ventetiden er
     /// sat op (iCloud giver ellers op efter ca. et minut og melder "netværksfejl"), og
@@ -1859,35 +1888,10 @@ actor CloudKitStore: Store {
         return inner
     }
 
-    /// Sletter en record og husker det, så den ikke dukker op igen i næste søgning.
+    /// Sletter en record i iCloud og fjerner den fra kopien.
     private func remove(_ id: CKRecord.ID, in db: CKDatabase) async throws {
-        _ = try await db.deleteRecord(withID: id)
-        noteDeleted(id)
-    }
-
-    /// Lægger nyligt gemte records oven i et søgeresultat og fjerner nyligt slettede.
-    private func merged(_ results: [CKRecord], type: String, zoneID: CKRecordZone.ID,
-                        matching: (CKRecord) -> Bool = { _ in true }) -> [CKRecord] {
-        recentLock.lock(); defer { recentLock.unlock() }
-        let cutoff = Date().addingTimeInterval(-Self.recentWindow)
-        recentSaves = recentSaves.filter { $0.value.at > cutoff }
-        recentDeletes = recentDeletes.filter { $0.value > cutoff }
-        guard !recentSaves.isEmpty || !recentDeletes.isEmpty else { return results }
-        var out = results.filter { recentDeletes[$0.recordID] == nil }
-        var seen = Set(out.map(\.recordID))
-        for (id, entry) in recentSaves
-        where entry.record.recordType == type && id.zoneID == zoneID && matching(entry.record) {
-            if let i = out.firstIndex(where: { $0.recordID == id }) {
-                // Søgningen kan give en ældre version end den, vi lige gemte.
-                if (out[i].modificationDate ?? .distantPast) < (entry.record.modificationDate ?? .distantFuture) {
-                    out[i] = entry.record
-                }
-            } else if !seen.contains(id) {
-                out.append(entry.record)
-                seen.insert(id)
-            }
-        }
-        return out
+        try await SyncLog.measure("slet") { _ = try await db.deleteRecord(withID: id) }
+        local.apply(changed: [], deleted: [id], in: id.zoneID, createIfMissing: false)
     }
     // MARK: - Hjælpere
 
@@ -2042,49 +2046,52 @@ actor CloudKitStore: Store {
 
     private func fetchShare(db: CKDatabase, zoneID: CKRecordZone.ID) async throws -> CKShare {
         let shareID = CKRecord.ID(recordName: CKRecordNameZoneWideShare, zoneID: zoneID)
-        guard let share = try await db.record(for: shareID) as? CKShare else { throw StoreError.notFound }
+        guard let share = try await SyncLog.measure("deling", { try await db.record(for: shareID) }) as? CKShare else {
+            throw StoreError.notFound
+        }
         return share
     }
 
-    /// Alle records af en type i zonen. `keys` begrænser felterne (fx uden billeder), nil = alle.
-    /// `assetKeys`: billedfelter, der tages fra cachen (så `keys` skal være felterne UDEN billeder).
+    /// Alle records af en type i zonen — fra den lokale kopi (#62). `keys` er uden betydning nu (kopien
+    /// har alle tekstfelter) og står kun som dokumentation af, hvad skærmen bruger.
+    /// `assetKeys`: billedfelter, der tages fra cachen (og hentes fra iCloud, hvis de mangler).
     private func all(db: CKDatabase, zoneID: CKRecordZone.ID, type: String,
                      keys: [CKRecord.FieldKey]? = nil, assetKeys: [String] = [],
-                     predicate: NSPredicate = NSPredicate(value: true)) async throws -> [CKRecord] {
-        let query = CKQuery(recordType: type, predicate: predicate)
-        var results: [CKRecord] = []
-        var (matches, cursor) = try await db.records(matching: query, inZoneWith: zoneID,
-                                                     desiredKeys: keys, resultsLimit: 200)
-        results.append(contentsOf: matches.compactMap { try? $0.1.get() })
-        while let c = cursor {
-            (matches, cursor) = try await db.records(continuingMatchFrom: c, desiredKeys: keys, resultsLimit: 200)
-            results.append(contentsOf: matches.compactMap { try? $0.1.get() })
-        }
-        return await fillAssets(merged(results, type: type, zoneID: zoneID), keys: assetKeys, db: db)
+                     matching: (CKRecord) -> Bool = { _ in true }) async throws -> [CKRecord] {
+        try await ensureSynced(zoneID, db: db)
+        // Kopier, så billedfelterne ikke ender i kopien i hukommelsen.
+        let records = local.records(in: zoneID, type: type).filter(matching).map { $0.copy() as! CKRecord }
+        return await fillAssets(records, keys: assetKeys, db: db)
     }
 
-    /// Et barns records af en type. `keys` begrænser felterne (fx uden video), nil = alle.
+    /// Et barns records af en type — fra den lokale kopi.
     private func childRecords(_ childId: String, type: String,
                               keys: [CKRecord.FieldKey]? = nil, assetKeys: [String] = [],
-                              extraPredicate: NSPredicate? = nil,
                               extraMatch: ((CKRecord) -> Bool)? = nil) async throws -> [CKRecord] {
         let (db, zoneID) = try await locateChild(childId)
         let ref = childRef(childId, zoneID)
-        var predicate = NSPredicate(format: "childRef == %@", ref)
-        if let extra = extraPredicate { predicate = NSCompoundPredicate(andPredicateWithSubpredicates: [predicate, extra]) }
-        let query = CKQuery(recordType: type, predicate: predicate)
-        var results: [CKRecord] = []
-        var (matches, cursor) = try await db.records(matching: query, inZoneWith: zoneID,
-                                                     desiredKeys: keys, resultsLimit: 200)
-        results.append(contentsOf: matches.compactMap { try? $0.1.get() })
-        while let c = cursor {
-            (matches, cursor) = try await db.records(continuingMatchFrom: c, desiredKeys: keys, resultsLimit: 200)
-            results.append(contentsOf: matches.compactMap { try? $0.1.get() })
-        }
-        let matched = merged(results, type: type, zoneID: zoneID) { r in
+        return try await all(db: db, zoneID: zoneID, type: type, keys: keys, assetKeys: assetKeys) { r in
             (r["childRef"] as? CKRecord.Reference)?.recordID == ref.recordID && (extraMatch?(r) ?? true)
         }
-        return await fillAssets(matched, keys: assetKeys, db: db)
+    }
+
+    /// Søgning direkte i iCloud (med filer). Bruges kun, hvor kopien ikke rækker: flytning af et barn
+    /// til egen zone, hvor billeder og video skal kopieres med.
+    private func queryAll(db: CKDatabase, zoneID: CKRecordZone.ID, type: String,
+                          keys: [CKRecord.FieldKey]? = nil,
+                          predicate: NSPredicate = NSPredicate(value: true)) async throws -> [CKRecord] {
+        try await SyncLog.measure("søgning \(type)", {
+            let query = CKQuery(recordType: type, predicate: predicate)
+            var results: [CKRecord] = []
+            var (matches, cursor) = try await db.records(matching: query, inZoneWith: zoneID,
+                                                         desiredKeys: keys, resultsLimit: 200)
+            results.append(contentsOf: matches.compactMap { try? $0.1.get() })
+            while let c = cursor {
+                (matches, cursor) = try await db.records(continuingMatchFrom: c, desiredKeys: keys, resultsLimit: 200)
+                results.append(contentsOf: matches.compactMap { try? $0.1.get() })
+            }
+            return results
+        }, count: { $0.count })
     }
 
     private func familyRef(_ zoneID: CKRecordZone.ID) -> CKRecord.Reference {
@@ -2146,12 +2153,13 @@ actor CloudKitStore: Store {
     /// Gem en record og slet bagefter de midlertidige billedfiler, den blev uploadet fra.
     private func persist(_ record: CKRecord, in db: CKDatabase) async throws -> CKRecord {
         defer { Self.removeUploadFiles(of: record) }
-        let saved = try await saveWithRetry(record, in: db)
+        let saved = try await SyncLog.measure("gem \(record.recordType)") { try await saveWithRetry(record, in: db) }
         // Billeder lægges i cachen med det samme (upload-filerne slettes lige om lidt).
         for key in saved.allKeys() where saved[key] is CKAsset || saved[key] is [CKAsset] {
             saved[key] = AssetCache.store(saved, key: key)
         }
-        noteSaved(saved)
+        // … og recorden i den lokale kopi (uden filer), så den er med i næste liste.
+        local.apply(changed: [saved], deleted: [], in: saved.recordID.zoneID, createIfMissing: false)
         return saved
     }
 
