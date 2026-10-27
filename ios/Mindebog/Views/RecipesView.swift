@@ -116,12 +116,14 @@ struct RecipeDetailView: View {
     var onEdit: (Recipe) -> Void
     @State private var checked: Set<Int> = []
     @State private var lightbox: LightboxState?
+    /// Billederne i fuld størrelse, hentet når siden åbnes (listen havde kun thumbs) (#62).
+    @State private var photos: PhotoSet?
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
-                if !recipe.photos.isEmpty {
-                    CoverPhotoView(set: recipe.photos, zoomId: recipe.id, zoomNamespace: zoomNS) { lightbox = $0 }
+                if !(photos ?? recipe.photos).isEmpty {
+                    CoverPhotoView(set: photos ?? recipe.photos, zoomId: recipe.id, zoomNamespace: zoomNS) { lightbox = $0 }
                 }
                 VStack(alignment: .leading, spacing: 6) {
                     Text(recipe.title).font(.serifTitle(26)).foregroundStyle(Theme.text)
@@ -177,6 +179,12 @@ struct RecipeDetailView: View {
         }
         .background(Theme.bg.ignoresSafeArea())
         .navigationTitle(recipe.title)
+        .task {
+            // Listen havde kun thumbet: hent billederne i fuld størrelse til siden og fuld skærm (#62).
+            guard !recipe.photos.loaded, let familyId = state.familyId else { return }
+            let fresh = try? await CloudKitStore.withOriginals { try await state.store.recipes(familyId: familyId) }
+            if let set = fresh?.first(where: { $0.id == recipe.id })?.photos { photos = set }
+        }
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {

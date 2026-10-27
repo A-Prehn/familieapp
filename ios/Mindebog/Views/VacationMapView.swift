@@ -82,7 +82,7 @@ struct VacationMapView: View {
 
     private func tripCard(_ trip: Vacation) -> some View {
         HStack(spacing: 12) {
-            if let data = trip.photos.coverPhoto, let img = UIImage(data: data) {
+            if let data = trip.photos.listPhoto, let img = UIImage(data: data) {
                 Image(uiImage: img).resizable().scaledToFill()
                     .frame(width: 56, height: 56).clipShape(RoundedRectangle(cornerRadius: Radius.small))
             } else {

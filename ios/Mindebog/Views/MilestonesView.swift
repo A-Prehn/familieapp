@@ -42,7 +42,26 @@ struct MilestonesView: View {
         let key = String(id.dropFirst(prefix.count))
         withAnimation(.easeInOut(duration: 0.35)) { proxy.scrollTo(key, anchor: .center) }
         if let photos = entries[key]?.photos, !photos.isEmpty {
-            lightbox = LightboxState.coverFirst(photos, sourceId: key)
+            openLightbox(LightboxState.coverFirst(photos, sourceId: key))
+        }
+    }
+
+    /// Fuld skærm: thumb med det samme, og originalerne så snart de er hentet (#62).
+    private func openLightbox(_ shown: LightboxState) {
+        lightbox = shown
+        guard shown.needsOriginals, let key = shown.sourceId else { return }
+        Task {
+            await CloudKitStore.withOriginals { await load() }
+            if let set = entries[key]?.photos, !set.photos.isEmpty { lightbox = LightboxState.coverFirst(set, sourceId: key) }
+        }
+    }
+
+    /// Redigering kræver originalerne (ellers ville et gem ikke kunne ændre billederne).
+    private func edit(_ def: MilestoneDef) {
+        if entries[def.key]?.photos.loaded ?? true { editing = def; return }
+        Task {
+            await CloudKitStore.withOriginals { await load() }
+            editing = def
         }
     }
 
@@ -53,7 +72,7 @@ struct MilestonesView: View {
             Group {
                 if let photos = entry?.photos, !photos.isEmpty {
                     // Forsidebillede + billedtekst + "+N"; tryk viser alle billeder.
-                    CoverPhotoView(set: photos, aspect: 4.0 / 3.0, cornerRadius: 0, zoomId: def.key, zoomNamespace: zoomNS) { lightbox = $0 }
+                    CoverPhotoView(set: photos, aspect: 4.0 / 3.0, cornerRadius: 0, zoomId: def.key, zoomNamespace: zoomNS) { openLightbox($0) }
                 } else {
                     Color.clear
                         .aspectRatio(4.0 / 3.0, contentMode: .fit)
@@ -67,7 +86,7 @@ struct MilestonesView: View {
                         }
                         .clipped()
                         .contentShape(Rectangle())
-                        .onTapGesture { if state.canEdit { editing = def } }
+                        .onTapGesture { if state.canEdit { edit(def) } }
                 }
             }
 
@@ -84,7 +103,7 @@ struct MilestonesView: View {
             .padding(.horizontal, 8)
             .padding(.vertical, 10)
             .contentShape(Rectangle())
-            .onTapGesture { if state.canEdit { editing = def } }
+            .onTapGesture { if state.canEdit { edit(def) } }
         }
         .background(filled ? Theme.card : Theme.bg)
         .clipShape(RoundedRectangle(cornerRadius: Radius.small))

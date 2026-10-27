@@ -55,13 +55,13 @@ struct DiaryView: View {
                 Text(Fmt.long(date)).font(.caption).foregroundStyle(Theme.muted)
             }
             Text(entry.text).font(.body).foregroundStyle(Theme.text)
-            if let photo = entry.photo {
+            if let photo = entry.listPhoto {
                 Color.clear
                     .aspectRatio(ImageTools.displayAspect(photo), contentMode: .fit)   // billedets egen form
                     .overlay { DataImage(data: photo) }
                     .zoomSource(id: entry.id, in: zoomNS)
                     .clipShape(RoundedRectangle(cornerRadius: Radius.small))
-                    .onTapGesture { lightbox = LightboxState(photos: [photo], sourceId: entry.id) }
+                    .onTapGesture { openLightbox(entry) }
             }
             CommentsBar(targetId: entry.id, title: entry.text)
         }
@@ -71,9 +71,33 @@ struct DiaryView: View {
         .clipShape(RoundedRectangle(cornerRadius: Radius.card))
         .overlay(RoundedRectangle(cornerRadius: Radius.card).stroke(Theme.sep))
         .contentShape(RoundedRectangle(cornerRadius: Radius.card))
-        .onTapGesture { if state.canEdit { editing = entry } }
+        .onTapGesture { if state.canEdit { edit(entry) } }
         .contextMenu {
-            Button { if state.canEdit { editing = entry } } label: { Label("Redigér", systemImage: "pencil") }
+            Button { if state.canEdit { edit(entry) } } label: { Label("Redigér", systemImage: "pencil") }
+        }
+    }
+
+    /// Fuld skærm: originalen, hvis den er hentet — ellers thumb nu, og originalen så snart den er hentet (#62).
+    private func openLightbox(_ entry: DiaryEntry) {
+        if entry.photoLoaded, let photo = entry.photo {
+            lightbox = LightboxState(photos: [photo], sourceId: entry.id)
+            return
+        }
+        if let thumb = entry.thumb { lightbox = LightboxState(photos: [thumb], sourceId: entry.id) }
+        Task {
+            await CloudKitStore.withOriginals { await load() }
+            if let fresh = entries.first(where: { $0.id == entry.id }), let photo = fresh.photo {
+                lightbox = LightboxState(photos: [photo], sourceId: entry.id)
+            }
+        }
+    }
+
+    /// Redigering kræver originalen (ellers ville et gem ikke kunne ændre billedet).
+    private func edit(_ entry: DiaryEntry) {
+        if entry.photoLoaded { editing = entry; return }
+        Task {
+            await CloudKitStore.withOriginals { await load() }
+            editing = entries.first { $0.id == entry.id } ?? entry
         }
     }
 

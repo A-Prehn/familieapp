@@ -24,6 +24,21 @@ enum ImageTools {
         return withCaptureDate(jpeg, taken) ?? jpeg
     }
 
+    /// Lille udgave til lister (#62): 400 px på den lange led, ca. 20–40 KB. Gemmes i iCloud ved siden
+    /// af originalen og synkroniseres til kopien på telefonen, så lister aldrig venter på billeder.
+    static func thumbnail(_ data: Data) -> Data? {
+        guard let image = UIImage(data: data) else { return nil }
+        let longest = max(image.size.width, image.size.height)
+        let scale = longest > 0 ? min(1, 400 / longest) : 1
+        let size = CGSize(width: max(1, image.size.width * scale), height: max(1, image.size.height * scale))
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1
+        let output = UIGraphicsImageRenderer(size: size, format: format).image { _ in
+            image.draw(in: CGRect(origin: .zero, size: size))
+        }
+        return output.jpegData(compressionQuality: 0.7)
+    }
+
     /// Skriver optagelsesdatoen (EXIF DateTimeOriginal) ind i en JPEG uden at genkode billedet.
     private static func withCaptureDate(_ jpeg: Data, _ date: Date) -> Data? {
         guard let source = CGImageSourceCreateWithData(jpeg as CFData, nil),
@@ -478,7 +493,7 @@ struct CoverPhotoView: View {
     let onOpen: (LightboxState) -> Void
 
     var body: some View {
-        if let cover = set.coverPhoto {
+        if let cover = set.listPhoto {   // thumb fra kopien, ellers originalens forside (#62)
             Color.clear
                 .aspectRatio(aspect ?? ImageTools.displayAspect(cover), contentMode: .fit)
                 .overlay { DataImage(data: cover) }
@@ -534,11 +549,19 @@ struct LightboxState: Identifiable {
     var captions: [String] = []
     /// Id på det billede, der blev trykket på — så fuld skærm kan "løfte sig" fra det (iOS 18).
     var sourceId: String? = nil
+    /// Kun thumb vist (#62): skærmen bør hente originalerne (withOriginals) og åbne igen med dem.
+    var needsOriginals = false
 
     /// Forsiden først, så resten i rækkefølge — så det valgte billede altid er det første, man ser.
     static func coverFirst(_ set: PhotoSet, sourceId: String? = nil) -> LightboxState {
-        coverFirst(photos: set.photos, captions: set.photos.indices.map { set.caption(at: $0) },
-                   cover: set.coverIndex, sourceId: sourceId)
+        // Kun thumb hentet endnu (#62): vis det med det samme; skærmen henter originalerne og åbner igen.
+        if set.photos.isEmpty, let thumb = set.thumb {
+            var state = LightboxState(photos: [thumb], index: 0, captions: [set.coverCaption], sourceId: sourceId)
+            state.needsOriginals = true
+            return state
+        }
+        return coverFirst(photos: set.photos, captions: set.photos.indices.map { set.caption(at: $0) },
+                          cover: set.coverIndex, sourceId: sourceId)
     }
 
     static func coverFirst(photos: [Data], captions: [String] = [], cover: Int, sourceId: String? = nil) -> LightboxState {

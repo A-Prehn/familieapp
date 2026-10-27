@@ -25,6 +25,11 @@ final class FamilyExport: ObservableObject {
     private let fm = FileManager.default
 
     func run(store: Store, familyId: String, familyName: String) async {
+        // Eksporten skal have billederne i fuld størrelse, ikke listernes thumbs (#62).
+        await CloudKitStore.withOriginals { await runWithOriginals(store: store, familyId: familyId, familyName: familyName) }
+    }
+
+    private func runWithOriginals(store: Store, familyId: String, familyName: String) async {
         guard !running else { return }
         running = true
         resultURL = nil

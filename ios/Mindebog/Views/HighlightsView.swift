@@ -102,12 +102,13 @@ struct HighlightsView: View {
     // Tryk på kortet = redigér; tryk på et billede = fuld skærm.
     private func card(_ highlight: Highlight) -> some View {
         // Forsidebilledet bærer titel og dato; resten ses i fuld skærm med forsiden først.
-        PhotoCard(photos: PhotoSet(photos: highlight.photos, cover: highlight.coverIndex),
+        PhotoCard(photos: PhotoSet(photos: highlight.photos, cover: highlight.coverIndex,
+                                   thumb: highlight.thumb, loaded: highlight.photosLoaded),
                   title: highlight.text,
                   subtitle: highlight.date.map(Fmt.long),
                   zoomId: "\(highlight.id)_cover", zoomNamespace: zoomNS,
-                  onEdit: state.canEdit ? { editing = highlight } : nil,
-                  onOpen: { lightbox = $0 }) {
+                  onEdit: state.canEdit ? { edit(highlight) } : nil,
+                  onOpen: { openLightbox($0, for: highlight) }) {
             VStack(alignment: .leading, spacing: 8) {
                 if let place = highlight.place {
                     PlaceLabel(place: place)
@@ -118,7 +119,27 @@ struct HighlightsView: View {
             }
         }
         .contentShape(RoundedRectangle(cornerRadius: Radius.large, style: .continuous))
-        .pressableCard { if state.canEdit { editing = highlight } }
+        .pressableCard { if state.canEdit { edit(highlight) } }
+    }
+
+    /// Fuld skærm: thumb med det samme, og originalerne så snart de er hentet (#62).
+    private func openLightbox(_ shown: LightboxState, for highlight: Highlight) {
+        lightbox = shown
+        guard shown.needsOriginals else { return }
+        Task {
+            await CloudKitStore.withOriginals { await load() }
+            guard let fresh = items.first(where: { $0.id == highlight.id }), !fresh.photos.isEmpty else { return }
+            lightbox = LightboxState.coverFirst(photos: fresh.photos, cover: fresh.coverIndex, sourceId: shown.sourceId)
+        }
+    }
+
+    /// Redigering kræver originalerne (ellers ville et gem ikke kunne ændre billederne).
+    private func edit(_ highlight: Highlight) {
+        if highlight.photosLoaded { editing = highlight; return }
+        Task {
+            await CloudKitStore.withOriginals { await load() }
+            editing = items.first { $0.id == highlight.id } ?? highlight
+        }
     }
 
     private func load() async {

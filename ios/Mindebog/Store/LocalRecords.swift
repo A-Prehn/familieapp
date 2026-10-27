@@ -8,8 +8,12 @@ import Foundation
 // Regler (se #62): kopien er kun en cache — iCloud er sandheden, og alt her kan smides væk og
 // bygges igen. Kopien sletter aldrig noget i iCloud; den anvender kun sletninger, iCloud melder.
 final class LocalRecords: @unchecked Sendable {
-    /// Felter, der er filer (billeder, video, lyd). De gemmes ikke i kopien.
-    static let assetKeys: Set<String> = ["photo", "photos", "video", "audio"]
+    /// Felter, der er filer (billeder, video, lyd). De gemmes ikke i kopien — på nær `thumb`, det lille
+    /// forsidebillede, som synkroniseres med og lægges i billedcachen (se `keepAsset`).
+    static let assetKeys: Set<String> = ["photo", "photos", "video", "audio", "thumb"]
+    static let thumbKey = "thumb"
+    /// Sættes af CloudKitStore: lægger `thumb` fra en synkroniseret record i billedcachen, før filen forsvinder.
+    static var keepAsset: ((CKRecord, String) -> Void)?
 
     /// Alle øvrige felter i skemaet (CloudKit/schema.ckdb). Kun disse hentes ved sync.
     static let fieldKeys: [CKRecord.FieldKey] = [
@@ -20,6 +24,7 @@ final class LocalRecords: @unchecked Sendable {
         "parentIds", "partnerIds", "personIds", "placeAddress", "placeName", "premiumUntil", "question", "role",
         "servings", "shareURL", "startDate", "story", "targetId", "text", "title", "userId", "value",
         "videoDuration", "weightGrams", "when", "writtenAt",
+        thumbKey,   // det eneste filfelt, der hentes med: lille, og det gør lister øjeblikkelige
     ]
 
     private let lock = NSLock()
@@ -83,7 +88,10 @@ final class LocalRecords: @unchecked Sendable {
         if !createIfMissing, !loaded.contains(zone), !fileExists(zone) { return }
         var map = load(zone)
         for id in deleted { map[id] = nil }
-        for record in changed { map[record.recordID] = Self.stripped(record) }
+        for record in changed {
+            if record[Self.thumbKey] != nil { Self.keepAsset?(record, Self.thumbKey) }
+            map[record.recordID] = Self.stripped(record)
+        }
         zones[zone] = map
         loaded.insert(zone)
         save(zone)

@@ -32,8 +32,92 @@ actor CloudKitStore: Store {
     init(containerIdentifier: String = "iCloud.net.prehn.mindebog") {
         self.container = CKContainer(identifier: containerIdentifier)
         self.sync = SyncEngine(container: container, local: local)
+        // Thumbs fra sync lægges i billedcachen (CloudKits midlertidige fil forsvinder ellers).
+        LocalRecords.keepAsset = { record, key in _ = AssetCache.store(record, key: key) }
         Self.clearUploadDir()   // ingen uploads kører endnu ved oprettelse
         Task.detached(priority: .background) { AssetCache.prune() }
+    }
+
+    // MARK: - Originaler eller thumbs (#62)
+    // Lister får kun det lille forsidebillede (thumb) og originalerne fra cachen; det, der mangler,
+    // hentes i baggrunden. Redigering, fuld skærm, eksport og film beder om originalerne med
+    // `withOriginals { … }` — så ventes der på iCloud som før.
+
+    static let thumbKey = LocalRecords.thumbKey
+    @TaskLocal static var wantOriginals = false
+
+    /// Kør `body` med originalerne hentet (fx før redigering eller fuld skærm).
+    static func withOriginals<T>(_ body: () async throws -> T) async rethrows -> T {
+        try await $wantOriginals.withValue(true) { try await body() }
+    }
+
+    /// Er alle originaler i `keys` i cachen (eller kendt tomme)? Så må modellen gemme billederne igen.
+    private static func assetsLoaded(_ record: CKRecord, keys: [String]) -> Bool {
+        keys.allSatisfy { AssetCache.read(record, key: $0) != nil }
+    }
+
+    /// Forsidebilledets data på en record (photos[coverIndex], ellers photo).
+    private static func coverData(_ record: CKRecord) -> Data? {
+        if let list = record["photos"] as? [CKAsset], !list.isEmpty {
+            let i = (record["coverIndex"] as? Int64).map(Int.init) ?? 0
+            let asset = list.indices.contains(i) ? list[i] : list[0]
+            return asset.fileURL.flatMap { try? Data(contentsOf: $0) }
+        }
+        return assetData(record["photo"])
+    }
+
+    /// Lægger et thumb på recorden før gem: når der er nye billeder med (uploads), eller når den ikke
+    /// har et endnu (ældre gem). Uden billeder fjernes det.
+    private static func addThumb(to record: CKRecord) {
+        let prefix = uploadDir.standardizedFileURL.path
+        var assets: [CKAsset] = []
+        if let one = record["photo"] as? CKAsset { assets.append(one) }
+        if let many = record["photos"] as? [CKAsset] { assets += many }
+        let hasUpload = assets.contains { $0.fileURL?.standardizedFileURL.path.hasPrefix(prefix) == true }
+        guard hasUpload || record[thumbKey] == nil else { return }
+        guard let data = coverData(record) else {
+            if assets.isEmpty { record[thumbKey] = nil }
+            return
+        }
+        guard let small = ImageTools.thumbnail(data), let asset = asset(from: small) else { return }
+        record[thumbKey] = asset
+    }
+
+    /// Originaler, der mangler i cachen, hentes i baggrunden — så de er klar, når man åbner noget.
+    private var prefetching: Set<CKRecord.ID> = []
+    private func schedulePrefetch(_ records: [CKRecord], keys: [String], db: CKDatabase) {
+        let ids = records.map(\.recordID).filter { !prefetching.contains($0) }
+        guard !ids.isEmpty else { return }
+        prefetching.formUnion(ids)
+        Task(priority: .utility) { await self.prefetch(ids, keys: keys, db: db) }
+    }
+
+    private func prefetch(_ ids: [CKRecord.ID], keys: [String], db: CKDatabase) async {
+        defer { for id in ids { prefetching.remove(id) } }
+        var fetchedAny = false
+        var i = 0
+        while i < ids.count {
+            let chunk = Array(ids[i..<min(i + 10, ids.count)])
+            i += 10
+            guard let fetched = try? await SyncLog.measure("billeder i baggrunden ×\(chunk.count)", {
+                try await db.records(for: chunk, desiredKeys: keys)
+            }, count: { $0.count }) else { continue }
+            for id in chunk {
+                guard let full = try? fetched[id]?.get() else { continue }
+                for k in keys { _ = AssetCache.store(full, key: k) }
+                Self.cacheThumbIfMissing(full)
+                fetchedAny = true
+            }
+        }
+        // Listerne indlæser igen og får originalerne (fra cachen) — og kan nu redigere/vise i fuld skærm.
+        if fetchedAny { await MainActor.run { NotificationCenter.default.post(name: .storeDidChange, object: nil) } }
+    }
+
+    /// Ældre records uden thumb i iCloud: lav et af originalen, og gem det i cachen til næste gang.
+    private static func cacheThumbIfMissing(_ record: CKRecord) {
+        guard AssetCache.read(record, key: thumbKey) == nil, let data = coverData(record),
+              let small = ImageTools.thumbnail(data) else { return }
+        AssetCache.storeData(small, for: record, key: thumbKey)
     }
 
     // MARK: - Sync (den lokale kopi)
@@ -649,7 +733,7 @@ actor CloudKitStore: Store {
         record["gender"] = child.gender.rawValue as CKRecordValue
         record["birthDate"] = child.birthDate as CKRecordValue?
         record["dueDate"] = child.dueDate as CKRecordValue?
-        record["photo"] = child.photo.flatMap { Self.asset(from: $0) }
+        if child.photoLoaded { record["photo"] = child.photo.flatMap { Self.asset(from: $0) } }   // ellers urørt (#62)
         // Feltet er nyt (#48): rør det kun, når det bruges, så redigering virker, selv før skemaet er deployet.
         if child.linkedUserId != nil || record["linkedUserId"] != nil { record["linkedUserId"] = child.linkedUserId as CKRecordValue? }
         let saved = try await persist(record, in: db)
@@ -658,7 +742,7 @@ actor CloudKitStore: Store {
            let (fdb, fzone) = try? await locate(child.familyId),
            let marker = try? await fdb.record(for: CKRecord.ID(recordName: child.id, zoneID: fzone)) {
             for key in ["name", "gender", "birthDate", "dueDate", "linkedUserId"] { marker[key] = record[key] }
-            marker["photo"] = child.photo.flatMap { Self.asset(from: $0) }
+            if child.photoLoaded { marker["photo"] = child.photo.flatMap { Self.asset(from: $0) } }
             _ = try? await persist(marker, in: fdb)
         }
         // Fødsels-/terminsdato ligger også i milepælene (som på websitet).
@@ -701,7 +785,9 @@ actor CloudKitStore: Store {
                       videoDuration: r["videoDuration"] as? Double,
                       audioDuration: r["audioDuration"] as? Double,
                       cover: (r["coverIndex"] as? Int64).map(Int.init) ?? 0,
-                      place: Self.place(from: r))
+                      place: Self.place(from: r),
+                      thumb: Self.assetData(r[Self.thumbKey]),
+                      photosLoaded: Self.assetsLoaded(r, keys: ["photos"]))
         }.sorted { ($0.date ?? $0.createdAt) > ($1.date ?? $1.createdAt) }
     }
 
@@ -812,14 +898,18 @@ actor CloudKitStore: Store {
     // "photos" LIST<ASSET>, "captions" LIST<STRING>, "coverIndex" INT64.
     // Forsiden skrives også i det gamle "photo"-felt, så ældre builds stadig viser et billede.
     private static func photoSet(from record: CKRecord) -> PhotoSet {
+        let thumb = assetData(record[thumbKey])
+        let loaded = assetsLoaded(record, keys: ["photos", "photo"])
         let list = assetsData(record["photos"])
-        if list.isEmpty { return PhotoSet(single: assetData(record["photo"])) }
+        if list.isEmpty { return PhotoSet(single: assetData(record["photo"]), thumb: thumb, loaded: loaded) }
         let captions = record["captions"] as? [String] ?? []
         let cover = (record["coverIndex"] as? Int64).map(Int.init) ?? 0
-        return PhotoSet(photos: list, captions: captions, cover: cover)
+        return PhotoSet(photos: list, captions: captions, cover: cover, thumb: thumb, loaded: loaded)
     }
 
     private static func setPhotos(_ set: PhotoSet, on record: CKRecord) {
+        // Originalerne blev aldrig hentet (listen havde kun thumbs): rør ikke billederne i iCloud (#62).
+        guard set.loaded else { return }
         guard !set.isEmpty else {
             record["photos"] = nil
             record["captions"] = nil
@@ -892,7 +982,9 @@ actor CloudKitStore: Store {
                        date: r["date"] as? Date,
                        text: r["text"] as? String ?? "",
                        photo: Self.assetData(r["photo"]),
-                       createdAt: r.creationDate ?? Date())
+                       createdAt: r.creationDate ?? Date(),
+                       thumb: Self.assetData(r[Self.thumbKey]),
+                       photoLoaded: Self.assetsLoaded(r, keys: ["photo"]))
         }.sorted { ($0.date ?? $0.createdAt) > ($1.date ?? $1.createdAt) }
     }
 
@@ -912,7 +1004,7 @@ actor CloudKitStore: Store {
         let record = try await db.record(for: CKRecord.ID(recordName: entry.id, zoneID: zoneID))
         record["date"] = entry.date as CKRecordValue?
         record["text"] = entry.text.trimmingCharacters(in: .whitespaces) as CKRecordValue
-        record["photo"] = entry.photo.flatMap { Self.asset(from: $0) }
+        if entry.photoLoaded { record["photo"] = entry.photo.flatMap { Self.asset(from: $0) } }   // ellers urørt (#62)
         _ = try await persist(record, in: db)
     }
 
@@ -935,7 +1027,9 @@ actor CloudKitStore: Store {
                             note: r["note"] as? String ?? "",
                             date: r["date"] as? Date,
                             photo: Self.assetData(r["photo"]),
-                            createdAt: r.creationDate ?? Date())
+                            createdAt: r.creationDate ?? Date(),
+                            thumb: Self.assetData(r[Self.thumbKey]),
+                            photoLoaded: Self.assetsLoaded(r, keys: ["photo"]))
             }
             .sorted { $0.createdAt < $1.createdAt }
     }
@@ -957,7 +1051,7 @@ actor CloudKitStore: Store {
         record["caption"] = item.caption.trimmingCharacters(in: .whitespaces) as CKRecordValue
         record["note"] = item.note.trimmingCharacters(in: .whitespacesAndNewlines) as CKRecordValue
         record["date"] = item.date as CKRecordValue?
-        record["photo"] = item.photo.flatMap { Self.asset(from: $0) }
+        if item.photoLoaded { record["photo"] = item.photo.flatMap { Self.asset(from: $0) } }   // ellers urørt (#62)
         _ = try await persist(record, in: db)
     }
 
@@ -1015,6 +1109,8 @@ actor CloudKitStore: Store {
                    writtenAt: r["writtenAt"] as? Date ?? r.creationDate ?? Date(),
                    openDate: r["openDate"] as? Date,
                    photo: Self.assetData(r["photo"]),
+                   thumb: Self.assetData(r[Self.thumbKey]),
+                   photoLoaded: Self.assetsLoaded(r, keys: ["photo"]),
                    videoDuration: r["videoDuration"] as? Double)
         }
         .sorted { $0.writtenAt > $1.writtenAt }
@@ -1046,7 +1142,7 @@ actor CloudKitStore: Store {
         record["author"] = letter.author as CKRecordValue
         record["writtenAt"] = letter.writtenAt as CKRecordValue
         record["openDate"] = letter.openDate as CKRecordValue?
-        record["photo"] = letter.photo.flatMap { asset(from: $0) }
+        if letter.photoLoaded { record["photo"] = letter.photo.flatMap { asset(from: $0) } }   // ellers urørt (#62)
     }
 
     // MARK: - Familie-indhold
@@ -1326,6 +1422,12 @@ actor CloudKitStore: Store {
             case .interview: return nil
             }
         }
+        // Thumb (synkroniseret med kopien) er nok til kortene på Hjem — ingen original hentes (#62).
+        if memory.modifiedAt > .distantPast,
+           let thumb = AssetCache.read(id: id, modified: memory.modifiedAt, key: Self.thumbKey) as? CKAsset,
+           let data = thumb.fileURL.flatMap({ try? Data(contentsOf: $0) }) {
+            return data
+        }
         // Fra billedcachen, hvis mindet ikke er ændret, siden forsiden sidst blev hentet.
         if memory.modifiedAt > .distantPast {
             let cached = CKRecord(recordType: "cover", recordID: id)
@@ -1338,6 +1440,7 @@ actor CloudKitStore: Store {
         let results = try await db.records(for: [id], desiredKeys: keys)
         guard let record = try results[id]?.get() else { return nil }
         for k in keys { record[k] = AssetCache.store(record, key: k) }
+        Self.cacheThumbIfMissing(record)   // næste gang er thumbet nok
         return cover(record)
     }
 
@@ -1692,6 +1795,8 @@ actor CloudKitStore: Store {
                    deathDate: r["deathDate"] as? Date,
                    role: r["role"] as? String ?? "",
                    photo: Self.assetData(r["photo"]),
+                   thumb: Self.assetData(r[Self.thumbKey]),
+                   photoLoaded: Self.assetsLoaded(r, keys: ["photo"]),
                    parentIds: r["parentIds"] as? [String] ?? [],
                    partnerIds: r["partnerIds"] as? [String] ?? [],
                    childId: r["childId"] as? String)
@@ -1712,7 +1817,7 @@ actor CloudKitStore: Store {
         record["birthDate"] = person.birthDate as CKRecordValue?
         record["deathDate"] = person.deathDate as CKRecordValue?
         record["role"] = person.role as CKRecordValue
-        record["photo"] = person.photo.flatMap { Self.asset(from: $0) }
+        if person.photoLoaded { record["photo"] = person.photo.flatMap { Self.asset(from: $0) } }   // ellers urørt (#62)
         record["parentIds"] = person.parentIds.isEmpty ? nil : person.parentIds as CKRecordValue
         record["partnerIds"] = person.partnerIds.isEmpty ? nil : person.partnerIds as CKRecordValue
         record["childId"] = person.childId as CKRecordValue?
@@ -1771,6 +1876,11 @@ actor CloudKitStore: Store {
             return nil
         }
 
+        /// Lægger færdige data (fx et thumb lavet på telefonen) i cachen for recorden.
+        static func storeData(_ data: Data, for record: CKRecord, key: String) {
+            try? data.write(to: dir.appendingPathComponent(base(record, key) + ".bin"), options: .atomic)
+        }
+
         /// Lægger feltets asset(s) fra `record` i cachen og returnerer værdien, recorden skal pege på.
         @discardableResult
         static func store(_ record: CKRecord, key: String) -> CKRecordValue? {
@@ -1814,16 +1924,22 @@ actor CloudKitStore: Store {
         }
     }
 
-    /// Udfylder asset-felterne på records hentet uden assets: fra cachen, ellers fra iCloud i bundter.
+    /// Udfylder billedfelterne på records fra kopien: altid `thumb` (fra cachen), originalerne fra cachen —
+    /// og fra iCloud kun, når de skal bruges (`withOriginals`), eller når der ikke er et thumb at vise.
+    /// Originaler, der mangler, hentes bagefter i baggrunden.
     private func fillAssets(_ records: [CKRecord], keys: [String], db: CKDatabase) async -> [CKRecord] {
         guard !keys.isEmpty, !records.isEmpty else { return records }
+        let wantOriginals = Self.wantOriginals
         var missing: [CKRecord] = []
+        var pending: [CKRecord] = []
         for r in records {
+            if let thumb = AssetCache.read(r, key: Self.thumbKey) { r[Self.thumbKey] = thumb }
             var complete = true
             for k in keys {
                 if let cached = AssetCache.read(r, key: k) { r[k] = cached } else { complete = false }
             }
-            if !complete { missing.append(r) }
+            guard !complete else { continue }
+            if wantOriginals || (r[Self.thumbKey] as? CKAsset) == nil { missing.append(r) } else { pending.append(r) }
         }
         var i = 0
         while i < missing.count {
@@ -1835,8 +1951,11 @@ actor CloudKitStore: Store {
             for r in chunk {
                 guard let full = try? fetched[r.recordID]?.get() else { continue }
                 for k in keys { r[k] = AssetCache.store(full, key: k) }
+                Self.cacheThumbIfMissing(full)
+                if let thumb = AssetCache.read(r, key: Self.thumbKey) { r[Self.thumbKey] = thumb }
             }
         }
+        if !pending.isEmpty { schedulePrefetch(pending, keys: keys, db: db) }
         return records
     }
     // MARK: - Gem og slet
@@ -2138,6 +2257,8 @@ actor CloudKitStore: Store {
               dueDate: record["dueDate"] as? Date,
               gender: Gender(rawValue: record["gender"] as? String ?? "") ?? .unspecified,
               photo: assetData(record["photo"]),
+              thumb: assetData(record[thumbKey]),
+              photoLoaded: assetsLoaded(record, keys: ["photo"]),
               linkedUserId: (record["linkedUserId"] as? String).flatMap { $0.isEmpty ? nil : $0 })
     }
 
@@ -2174,6 +2295,7 @@ actor CloudKitStore: Store {
     /// Gem en record og slet bagefter de midlertidige billedfiler, den blev uploadet fra.
     private func persist(_ record: CKRecord, in db: CKDatabase) async throws -> CKRecord {
         defer { Self.removeUploadFiles(of: record) }
+        Self.addThumb(to: record)
         let saved = try await SyncLog.measure("gem \(record.recordType)") { try await saveWithRetry(record, in: db) }
         // Billeder lægges i cachen med det samme (upload-filerne slettes lige om lidt).
         for key in saved.allKeys() where saved[key] is CKAsset || saved[key] is [CKAsset] {
