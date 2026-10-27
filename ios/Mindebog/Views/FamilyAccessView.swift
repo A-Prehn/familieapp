@@ -42,7 +42,7 @@ struct FamilyAccessView: View {
                                     "person.badge.plus", Theme.tint)
                     }
                     Button { Task { await invite(.view) } } label: {
-                        inviteLabel("Invitér med kun visning", "Fx bedsteforældre (Premium). Kan se alt, men ikke ændre noget.",
+                        inviteLabel("Invitér med kun visning", "Fx bedsteforældre eller et barn med egen Apple-konto (Premium). Kan se alt, men ikke ændre noget.",
                                     "eye", Theme.green)
                     }
                 } header: {
