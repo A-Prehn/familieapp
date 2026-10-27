@@ -16,6 +16,7 @@ Nyt, roligere udseende:
 
 Og lidt praktisk:
 • Tag billeder direkte med kameraet – ved profilbilledet, højdepunkter, maven måned for måned og alle andre billeder
+• Barnet kan få sin egen adgang: inviter barnets Apple-konto, og kobl den til barnets profil. Så starter barnet i sin egen bog, ser "(dig)" ved sit navn – og først brevene, når de må åbnes
 • Besked med det samme, hvis der ikke er forbindelse til iCloud
 • Mindre rettelser og forbedringer af stabiliteten
 ```
@@ -25,7 +26,7 @@ Nye i den nye palet: `ios/AppStore/screenshots/6.9/` og `6.3/` (12 skærme). For
 01-hjem, 03-barn, 04-hoejdepunkter, 06-milepaele, 05-interview, 12-breve, 11-rejser-kort, 07-familie-minder, 08-opskrifter, 09-traditioner. Se #57.
 
 ### Build
-Build 108 eller nyere (107 mangler kameraet og #37).
+Build 109 eller nyere (108 mangler barneadgangen #48).
 
 ## Version 1.2.1 — hurtig rettelse
 
