@@ -51,7 +51,7 @@ enum ChildPalette {
               blue: Double(value & 0xff) / 255)
     }
 
-    static let boys: [Color] = [Theme.tint, Theme.green, hex(0x2a9d8f), hex(0x5b6bc0), hex(0x4f7a94)]
+    static let boys: [Color] = [hex(0x5b7fa6), Theme.green, hex(0x2a9d8f), hex(0x5b6bc0), hex(0x4f7a94)]
     static let girls: [Color] = [Theme.rose, hex(0xe07a5f), hex(0x9b6bb8), hex(0xa0446a), hex(0xd98c5f)]
     static let neutral: [Color] = [hex(0x7a8a5a), hex(0x8a6f5a), hex(0x5f7f8a), hex(0x8a5f7a)]
 

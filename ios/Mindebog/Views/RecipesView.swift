@@ -55,7 +55,7 @@ struct RecipesView: View {
                     .padding(.horizontal, 20)
                 if state.canEdit {
                     Button { onAdd() } label: { Label("Tilføj den første opskrift", systemImage: "plus") }
-                        .buttonStyle(.borderedProminent)
+                        .buttonStyle(.primaryPill)
                 }
             }
             .frame(maxWidth: .infinity)

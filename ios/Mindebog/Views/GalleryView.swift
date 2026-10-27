@@ -64,7 +64,7 @@ struct GalleryView: View {
                     } actions: {
                         if state.canEdit && DocumentScanner.isAvailable {
                             Button { scanning = true } label: { Label("Scan tegning", systemImage: "doc.viewfinder") }
-                                .buttonStyle(.borderedProminent)
+                                .buttonStyle(.primaryPill)
                         }
                     }
                     .padding(.top, 60)

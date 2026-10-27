@@ -91,7 +91,7 @@ struct BirthdayPhotosView: View {
                             Button { showPicker = true } label: {
                                 Label("Tilføj billeder", systemImage: "photo.badge.plus")
                             }
-                            .buttonStyle(.borderedProminent)
+                            .buttonStyle(.primaryPill)
                             .padding(.top, 4)
                         }
                     }

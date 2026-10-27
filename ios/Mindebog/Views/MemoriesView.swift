@@ -24,7 +24,7 @@ struct MemoriesView: View {
                     .padding(.horizontal, 20)
                 if state.canEdit {
                     Button { onAdd() } label: { Label("Tilføj det første minde", systemImage: "plus") }
-                        .buttonStyle(.borderedProminent)
+                        .buttonStyle(.primaryPill)
                 }
             }
             .frame(maxWidth: .infinity)

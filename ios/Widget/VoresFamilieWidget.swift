@@ -4,13 +4,21 @@ import SwiftUI
 // Widgets til hjemmeskærmen. Data kommer fra appen via App Group'en (WidgetSnapshot),
 // så widgetten skal ikke selv logge ind i iCloud. Opdateres ved midnat og når appen åbnes.
 
+// Samme palet som appen (Theme.swift, #47) — lys og mørk.
 private enum WTheme {
-    static let bg = Color(red: 0.980, green: 0.973, blue: 0.957)
-    static let card = Color(red: 0.941, green: 0.929, blue: 0.902)
-    static let text = Color(red: 0.173, green: 0.157, blue: 0.125)
-    static let muted = Color(red: 0.541, green: 0.510, blue: 0.470)
-    static let rose = Color(red: 0.831, green: 0.329, blue: 0.478)
-    static let accent = Color(red: 0.373, green: 0.322, blue: 0.220)
+    static let bg = dyn(0xf7efe7, 0x3e3239)
+    static let card = dyn(0xfdf8f3, 0x4a3c44)
+    static let text = dyn(0x3e3239, 0xf7efe7)
+    static let muted = dyn(0x7d6370, 0xc7a9a3)
+    static let rose = dyn(0xb8536f, 0xe3708f)
+    static let accent = dyn(0x6b5560, 0xe8d2c4)
+    private static func dyn(_ light: UInt32, _ dark: UInt32) -> Color {
+        Color(UIColor { trait in
+            let hex = trait.userInterfaceStyle == .dark ? dark : light
+            return UIColor(red: CGFloat((hex >> 16) & 0xff) / 255, green: CGFloat((hex >> 8) & 0xff) / 255,
+                           blue: CGFloat(hex & 0xff) / 255, alpha: 1)
+        })
+    }
     static func serif(_ size: CGFloat, _ weight: Font.Weight = .medium) -> Font {
         .custom(weight == .semibold ? "Lora-SemiBold" : weight == .regular ? "Lora-Regular" : "Lora-Medium", size: size)
     }

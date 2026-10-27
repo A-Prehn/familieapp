@@ -1,22 +1,36 @@
 import SwiftUI
 import UIKit
 
-// Farvetema overført fra familie.prehn.net (cream, jordfarvet tekst, accenter).
+// Farvetema: varm mauve (issue #47, design-lærred 25. okt. 2026).
 // Hver farve har en lys og en mørk udgave; iOS vælger selv ud fra udseendet
 // (Mere → Udseende: lyst, mørkt eller følg system). Det mørke tema er varmt,
-// ikke kulsort, så det stadig føles som papir.
+// ikke kulsort, så det stadig føles som papir. Rosa er den eneste accent
+// (hjerter, Premium, valgt fane); links følger teksten — ingen blå i paletten.
 enum Theme {
-    static let bg = dyn(light: 0xfaf8f4, dark: 0x1b1814)
-    static let bgDark = dyn(light: 0xf0ede6, dark: 0x262219)
-    static let card = dyn(light: 0xffffff, dark: 0x2a2620)
-    static let text = dyn(light: 0x2c2820, dark: 0xeee8dd)
-    static let muted = dyn(light: 0x8a8278, dark: 0xa59d90)
-    static let sep = dyn(light: 0xe8e3db, dark: 0x3b352d)
-    static let tint = dyn(light: 0x3b82c4, dark: 0x6aa6e6)
-    static let rose = dyn(light: 0xd4547a, dark: 0xe3708f)
-    static let green = dyn(light: 0x3a9b62, dark: 0x5fbf86)
-    static let neutral = dyn(light: 0xa89572, dark: 0xb9a784)
-    static let neutralDark = dyn(light: 0x5f5238, dark: 0xd9c9a7)
+    static let bg = dyn(light: 0xf7efe7, dark: 0x3e3239)
+    /// Chips, felter, sekundære piller og segment-baggrund.
+    static let bgDark = dyn(light: 0xe8d2c4, dark: 0x57474f)
+    static let card = dyn(light: 0xfdf8f3, dark: 0x4a3c44)
+    static let text = dyn(light: 0x3e3239, dark: 0xf7efe7)
+    static let muted = dyn(light: 0x7d6370, dark: 0xc7a9a3)
+    static let sep = dyn(light: 0xe8d2c4, dark: 0x6b5560)
+    static let tint = dyn(light: 0x6b5560, dark: 0xc7a9a3)
+    static let rose = dyn(light: 0xb8536f, dark: 0xe3708f)
+    static let green = dyn(light: 0x4f7a5b, dark: 0x8fbf9b)
+    static let neutral = dyn(light: 0xc7a9a3, dark: 0x9e8189)
+    static let neutralDark = dyn(light: 0x6b5560, dark: 0xe8d2c4)
+    /// Primære knapper i indholdet: fulde, mørke piller med lys tekst (omvendt i mørk tilstand).
+    static let buttonPrimary = dyn(light: 0x3e3239, dark: 0xf7efe7)
+    static let buttonPrimaryText = dyn(light: 0xf7efe7, dark: 0x3e3239)
+
+    /// UIKit-udseende, der ikke kan sættes fra SwiftUI: segmenter (Liste/Kort) i paletten.
+    static func applyAppearance() {
+        let seg = UISegmentedControl.appearance()
+        seg.backgroundColor = UIColor(bgDark)
+        seg.selectedSegmentTintColor = UIColor(card)
+        seg.setTitleTextAttributes([.foregroundColor: UIColor(text)], for: .selected)
+        seg.setTitleTextAttributes([.foregroundColor: UIColor(muted)], for: .normal)
+    }
 
     /// Apples "Fortsæt med Apple"-knap: sort i lyst tema, hvid i mørkt — og teksten modsat.
     static let appleButton = dyn(light: 0x000000, dark: 0xffffff)
@@ -80,6 +94,38 @@ enum Radius {
     static let card: CGFloat = 14
     /// Store flader: fuldskærmskort, ark, forsidebilleder.
     static let large: CGFloat = 20
+}
+
+/// Primær knap i indholdet: fuld, mørk pille (Theme.buttonPrimary) — ikke glas, det er kun til det, der svæver.
+struct PrimaryPillButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.headline)
+            .foregroundStyle(Theme.buttonPrimaryText)
+            .frame(maxWidth: .infinity)
+            .padding(.horizontal, 22).padding(.vertical, 13)
+            .background(Capsule().fill(Theme.buttonPrimary))
+            .opacity(configuration.isPressed ? 0.8 : 1)
+    }
+}
+
+/// Sekundær knap/chip i indholdet: lys pille (Theme.bgDark) med almindelig tekst.
+struct SecondaryPillButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.subheadline.weight(.semibold))
+            .foregroundStyle(Theme.text)
+            .padding(.horizontal, 18).padding(.vertical, 11)
+            .background(Capsule().fill(Theme.bgDark))
+            .opacity(configuration.isPressed ? 0.8 : 1)
+    }
+}
+
+extension ButtonStyle where Self == PrimaryPillButtonStyle {
+    static var primaryPill: PrimaryPillButtonStyle { PrimaryPillButtonStyle() }
+}
+extension ButtonStyle where Self == SecondaryPillButtonStyle {
+    static var secondaryPill: SecondaryPillButtonStyle { SecondaryPillButtonStyle() }
 }
 
 extension View {

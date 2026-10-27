@@ -27,7 +27,7 @@ struct FamilyTreeView: View {
                     Button { onAdd() } label: {
                         Label("Tilføj den første person", systemImage: "person.badge.plus")
                     }
-                    .buttonStyle(.borderedProminent)
+                    .buttonStyle(.primaryPill)
                 }
             }
             .frame(maxWidth: .infinity)

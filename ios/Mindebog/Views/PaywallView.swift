@@ -186,9 +186,10 @@ struct PaywallView: View {
             }
             .padding(subtle ? 12 : 16)
             .frame(maxWidth: .infinity)
-            .background(RoundedRectangle(cornerRadius: Radius.card).fill(primary ? Theme.rose : (subtle ? Theme.bg : Theme.card)))
-            .overlay(RoundedRectangle(cornerRadius: Radius.card).stroke(primary ? Theme.rose : Theme.sep))
-            .foregroundStyle(primary ? Color.white : (subtle ? Theme.muted : Theme.text))
+            // Fulde piller (#47): primær mørk, sekundær i bgDark, "for altid" gennemsigtig med kant.
+            .background(Capsule().fill(primary ? Theme.buttonPrimary : (subtle ? Color.clear : Theme.bgDark)))
+            .overlay(Capsule().stroke(subtle ? Theme.sep : Color.clear))
+            .foregroundStyle(primary ? Theme.buttonPrimaryText : (subtle ? Theme.muted : Theme.text))
         }
         .buttonStyle(.plain)
         .disabled(busy)

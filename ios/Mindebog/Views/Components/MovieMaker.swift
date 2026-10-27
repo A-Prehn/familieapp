@@ -92,9 +92,10 @@ enum MovieMaker {
 
     // MARK: Tegning af kort
 
-    private static let paper = UIColor(red: 0.980, green: 0.973, blue: 0.957, alpha: 1)
-    private static let ink = UIColor(red: 0.173, green: 0.157, blue: 0.125, alpha: 1)
-    private static let muted = UIColor(red: 0.541, green: 0.510, blue: 0.470, alpha: 1)
+    // Paletten fra Theme.swift (#47), lys udgave.
+    private static let paper = UIColor(red: 0.969, green: 0.937, blue: 0.906, alpha: 1)   // #f7efe7
+    private static let ink = UIColor(red: 0.243, green: 0.196, blue: 0.224, alpha: 1)     // #3e3239
+    private static let muted = UIColor(red: 0.490, green: 0.388, blue: 0.439, alpha: 1)   // #7d6370
 
     private static func renderTitle(_ title: String, subtitle: String) -> CGImage {
         render { ctx in

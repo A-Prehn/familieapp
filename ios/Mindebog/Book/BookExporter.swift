@@ -153,14 +153,15 @@ struct BookContent {
 @MainActor
 final class BookWriter {
     // Farver — altid lyse, så bogen ser ens ud uanset telefonens tema.
-    private let paper = UIColor(red: 0.984, green: 0.969, blue: 0.937, alpha: 1)      // #fbf7ef
-    private let chapterPaper = UIColor(red: 0.953, green: 0.922, blue: 0.878, alpha: 1) // #f3ebe0
+    // Paletten fra Theme.swift (#47) i den lyse udgave.
+    private let paper = UIColor(red: 0.992, green: 0.973, blue: 0.953, alpha: 1)      // #fdf8f3
+    private let chapterPaper = UIColor(red: 0.969, green: 0.937, blue: 0.906, alpha: 1) // #f7efe7
     private let letterPaper = UIColor(red: 1.0, green: 0.992, blue: 0.973, alpha: 1)    // #fffdf8
-    private let ink = UIColor(red: 0.173, green: 0.157, blue: 0.125, alpha: 1)        // #2c2820
-    private let muted = UIColor(red: 0.541, green: 0.510, blue: 0.470, alpha: 1)      // #8a8278
-    private let gold = UIColor(red: 0.627, green: 0.486, blue: 0.314, alpha: 1)       // #a07c50
-    private let rose = UIColor(red: 0.831, green: 0.329, blue: 0.478, alpha: 1)       // #d4547a
-    private let sep = UIColor(red: 0.886, green: 0.851, blue: 0.784, alpha: 1)        // #e2d9c8
+    private let ink = UIColor(red: 0.243, green: 0.196, blue: 0.224, alpha: 1)        // #3e3239
+    private let muted = UIColor(red: 0.490, green: 0.388, blue: 0.439, alpha: 1)      // #7d6370
+    private let gold = UIColor(red: 0.420, green: 0.333, blue: 0.376, alpha: 1)       // #6b5560 (små overskrifter)
+    private let rose = UIColor(red: 0.722, green: 0.325, blue: 0.435, alpha: 1)       // #b8536f
+    private let sep = UIColor(red: 0.910, green: 0.824, blue: 0.769, alpha: 1)        // #e8d2c4
 
     private let content: BookContent
     private let forPrint: Bool

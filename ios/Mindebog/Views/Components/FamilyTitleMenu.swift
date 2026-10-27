@@ -7,13 +7,17 @@ struct FamilyTitleMenu: View {
     @EnvironmentObject var state: AppState
     /// Fast titel ("Hjem", "Familie") — ellers vises den valgte families navn.
     var title: String? = nil
+    /// Vis kun, når der er flere familier at vælge imellem (Hjem har sin egen hilsen).
+    var onlyWhenSeveral = false
     @State private var families: [Family] = []
 
     private var current: Family? { families.first { $0.id == state.familyId } }
 
     var body: some View {
         Group {
-            if families.count > 1 {
+            if onlyWhenSeveral && families.count <= 1 {
+                EmptyView()
+            } else if families.count > 1 {
                 Menu {
                     ForEach(families) { f in
                         Button {

@@ -41,13 +41,14 @@ struct HomeView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
-                HeroView().padding(.vertical, 8)
-
-                // Hilsen og citat toner ind med et lille "åndedrag" efter hinanden.
-                Text(greeting)
-                    .font(.serifTitle(22))
-                    .foregroundStyle(Theme.text)
-                    .softAppear(index: 1)
+                // Hilsen øverst i stedet for en "Hjem"-titel (#47): dato over "Godmorgen, Andreas".
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(todayText).font(.system(size: 13)).foregroundStyle(Theme.muted)
+                    Text(greeting).font(.serifTitle(32)).foregroundStyle(Theme.text)
+                        .lineLimit(2).minimumScaleFactor(0.8)
+                }
+                .padding(.top, 4)
+                .softAppear(index: 1)
 
                 quoteCard.softAppear(index: 2)
 
@@ -82,7 +83,8 @@ struct HomeView: View {
         .navigationTitle("Hjem")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            ToolbarItem(placement: .principal) { FamilyTitleMenu(title: "Hjem") }
+            // Titlen vises kun som familievælger, når der er flere familier — ellers står hilsenen alene.
+            ToolbarItem(placement: .principal) { FamilyTitleMenu(title: "Hjem", onlyWhenSeveral: true) }
             ToolbarItem(placement: .topBarTrailing) {
                 HStack(spacing: 4) {
                     Button { showSearch = true } label: { Image(systemName: "magnifyingglass").foregroundStyle(Theme.text) }
@@ -429,11 +431,20 @@ struct HomeView: View {
         let word: String
         switch hour {
         case 5..<10: word = "Godmorgen"
-        case 10..<18: word = "Hej"
+        case 10..<18: word = "Goddag"
         default: word = "Godaften"
         }
         let name = state.user?.name.trimmingCharacters(in: .whitespaces) ?? ""
         return name.isEmpty || name == "Forælder" ? word : "\(word), \(name)"
+    }
+
+    /// "Søndag 25. oktober" — på dansk, med stort forbogstav.
+    private var todayText: String {
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "da_DK")
+        f.dateFormat = "EEEE d. MMMM"
+        let s = f.string(from: Date())
+        return s.prefix(1).uppercased() + s.dropFirst()
     }
 
     private struct Cached: Codable {

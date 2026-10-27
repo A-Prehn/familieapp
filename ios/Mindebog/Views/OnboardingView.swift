@@ -34,7 +34,7 @@ struct OnboardingView: View {
                     Button("Opret familie") {
                         Task { await state.createFamily(name: name) }
                     }
-                    .buttonStyle(.borderedProminent)
+                    .buttonStyle(.primaryPill)
                     .frame(maxWidth: .infinity)
                 }
                 .padding(.horizontal, 24)
@@ -52,7 +52,7 @@ struct OnboardingView: View {
                     Button("Deltag i familie") {
                         Task { await state.acceptInvite(code: code) }
                     }
-                    .buttonStyle(.borderedProminent)
+                    .buttonStyle(.primaryPill)
                     .frame(maxWidth: .infinity)
                     .disabled(code.trimmingCharacters(in: .whitespaces).isEmpty)
                 }

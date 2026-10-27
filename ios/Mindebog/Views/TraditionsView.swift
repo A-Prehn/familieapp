@@ -21,7 +21,7 @@ struct TraditionsView: View {
                     .padding(.horizontal, 20)
                 if state.canEdit {
                     Button { onAdd() } label: { Label("Tilføj den første tradition", systemImage: "plus") }
-                        .buttonStyle(.borderedProminent)
+                        .buttonStyle(.primaryPill)
                 }
             }
             .frame(maxWidth: .infinity)

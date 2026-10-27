@@ -220,7 +220,7 @@ struct MainTabView: View {
     // (.renderingMode(.original)) — ellers laves de om til skabeloner igen.
     private func tabLabel(_ title: String, _ symbol: String, _ tab: MainTab) -> some View {
         let selected = selection == tab
-        let color = selected ? Theme.tint : Theme.muted
+        let color = selected ? Theme.rose : Theme.muted
         _ = tabRedraw   // fanen tegnes igen, når tælleren ændrer sig
         _ = colorScheme // … og når der skiftes mellem lyst og mørkt (ikonerne er færdigfarvede billeder)
         let config = UIImage.SymbolConfiguration(pointSize: 22, weight: selected ? .semibold : .regular)
