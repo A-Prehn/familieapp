@@ -4,6 +4,28 @@ Udkast til App Store Connect. Tegngrænser står i parentes; tallene efter er de
 
 ---
 
+## Version 1.3 — nyt udseende
+
+### Nyheder i denne version (What's New, 4000)
+```
+Nyt, roligere udseende:
+• Varme, dæmpede farver i hele appen – også i mørk tilstand, på widgets og i PDF-mindebogen
+• Hjem siger godmorgen med dagens dato øverst
+• Tydeligere knapper og valg, fx under Rejser og Premium
+• Fanebjælken kan nu altid ses, også over lyse billeder
+
+Og lidt praktisk:
+• Besked med det samme, hvis der ikke er forbindelse til iCloud
+• Mindre rettelser og forbedringer af stabiliteten
+```
+
+### Skærmbilleder
+Nye i den nye palet: `ios/AppStore/screenshots/6.9/` og `6.3/` (12 skærme). Forslag til rækkefølge (max 10):
+01-hjem, 03-barn, 04-hoejdepunkter, 06-milepaele, 05-interview, 12-breve, 11-rejser-kort, 07-familie-minder, 08-opskrifter, 09-traditioner. Se #57.
+
+### Build
+Build 107 eller nyere (106 mangler fanebjælke-skyggen og netværksbeskeden).
+
 ## Version 1.2.1 — hurtig rettelse
 
 ### Nyheder i denne version (What's New, 4000)
