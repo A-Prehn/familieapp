@@ -226,10 +226,13 @@ struct MainTabView: View {
         let config = UIImage.SymbolConfiguration(pointSize: 22, weight: selected ? .semibold : .regular)
         let image = (UIImage(systemName: symbol, withConfiguration: config) ?? UIImage())
             .withTintColor(UIColor(color), renderingMode: .alwaysOriginal)
+        // Glasset tager farve fra indholdet bagved: over et lyst billede forsvinder de lyse ikoner i mørk
+        // tilstand. En blød skygge i baggrundsfarven lægger sig mellem ikon og billede, så de altid kan ses.
+        let halo = Theme.bg.opacity(colorScheme == .dark ? 0.9 : 0.6)
         return Label {
-            Text(title).foregroundStyle(color)
+            Text(title).foregroundStyle(color).shadow(color: halo, radius: 3)
         } icon: {
-            Image(uiImage: image).renderingMode(.original)
+            Image(uiImage: image).renderingMode(.original).shadow(color: halo, radius: 4)
         }
         // Fanebjælken bruger ellers de udfyldte (sorte) ikoner ved opstart.
         .environment(\.symbolVariants, .none)
