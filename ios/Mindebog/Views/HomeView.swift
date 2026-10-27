@@ -551,7 +551,7 @@ struct HomeView: View {
                                     date: nil, sortDate: s.createdAt, text: s.text, photo: nil)
             case .letter:
                 guard let id = s.childId, let child = names[id] else { return nil }
-                return RecentMemory(id: "le_" + s.id, summary: s, childName: child.name, kind: "Brev", symbol: "envelope",
+                return RecentMemory(id: "le_" + s.id, summary: s, childName: child.displayName, kind: "Brev", symbol: "envelope",
                                     date: s.date, sortDate: s.createdAt, text: s.text, photo: nil)
             case .memory:
                 return RecentMemory(id: "me_" + s.id, summary: s, childName: "Familie", kind: "Minde", symbol: "heart.text.square",

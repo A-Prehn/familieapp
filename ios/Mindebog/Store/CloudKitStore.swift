@@ -1193,6 +1193,7 @@ actor CloudKitStore: Store {
         for r in lettersR {
             let title = r["title"] as? String ?? ""
             let sealed = (r["openDate"] as? Date).map { $0 > Date() } ?? false
+            if sealed, MeChild.id != nil, childId(r) == MeChild.id { continue }   // barnet selv (#48) ser ikke forseglede breve
             out.append(MemorySummary(id: r.recordID.recordName, kind: .letter, childId: childId(r),
                                      date: r["writtenAt"] as? Date, createdAt: r.creationDate ?? Date(),
                                      text: (title.isEmpty ? "Et brev" : title) + (sealed ? " (forseglet)" : ""),
