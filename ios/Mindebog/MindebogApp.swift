@@ -213,7 +213,11 @@ final class AppState: ObservableObject {
             guard let again = try? await store.families(for: userId) else { return }
             fams = again
             rememberFamilies(fams)
-            if !fams.contains(where: { $0.id == savedFamily }) { setFamily(fams.first?.id) }
+            if !fams.contains(where: { $0.id == savedFamily }) {
+                // Glem kun familien, når iCloud siger, den er væk — ikke når opslaget bare ikke kunne svare.
+                let gone = await (store as? CloudKitStore)?.familyStatus(familyId: savedFamily) == false
+                if gone { setFamily(fams.first?.id) }
+            }
         }
         await publishDisplayName()   // også for navne sat før denne version
         await refreshPermissions()
@@ -297,7 +301,12 @@ final class AppState: ObservableObject {
             UserDefaults.standard.set(u.id, forKey: userIdKey)
         }
         guard let user else { return }
+        let ownerName = PendingShare.ownerName
         PendingShare.zoneName = nil
+        PendingShare.ownerName = nil
+        let cloud = store as? CloudKitStore
+        // Zonen huskes med det samme, så familien kan slås op direkte — også før den delte database lister den.
+        if let ownerName { await cloud?.rememberSharedZone(zoneName: zoneName, ownerName: ownerName) }
         // Et enkelt barn delt med én (den anden forælder): vis det under Børn.
         if zoneName.hasPrefix(CloudKitStore.childZonePrefix) {
             NotificationCenter.default.post(name: .storeDidChange, object: nil)
@@ -313,6 +322,13 @@ final class AppState: ObservableObject {
                 return
             }
             if attempt < 3 { try? await Task.sleep(for: .seconds(1.5)) }
+        }
+        // Ikke på listen endnu, men kan familien hentes direkte, er man med: gå ind i den (#60).
+        if ownerName != nil, await cloud?.familyStatus(familyId: zoneName) == true {
+            setFamily(zoneName)
+            errorMessage = nil
+            Task { await refreshFamilies() }
+            return
         }
         errorMessage = "Invitationen blev accepteret, men familien er ikke dukket op endnu. Prøv at åbne appen igen om lidt."
     }

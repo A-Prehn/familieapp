@@ -269,13 +269,34 @@ actor CloudKitStore: Store {
         return (saved, container)
     }
 
+    /// Findes familien stadig for denne bruger? true = ja, false = væk (zonen/posten findes ikke, eller
+    /// adgangen er fjernet), nil = kunne ikke afgøres lige nu (netværk, iCloud) — så beholdes den (#60).
+    func familyStatus(familyId: String) async -> Bool? {
+        guard let (db, zoneID) = try? await locate(familyId) else { return nil }
+        do {
+            _ = try await familyRecord(db: db, zoneID: zoneID)
+            return true
+        } catch let error as CKError where [.zoneNotFound, .unknownItem, .permissionFailure, .participantMayNeedVerification].contains(error.code) {
+            return false
+        } catch {
+            return nil
+        }
+    }
+
+    /// Husk en delt zone, iOS lige har accepteret, så familien kan slås op, før den delte database lister den.
+    func rememberSharedZone(zoneName: String, ownerName: String) {
+        remember(CKRecordZone.ID(zoneName: zoneName, ownerName: ownerName), in: sharedDB)
+    }
+
     /// Tager en share-URL og tilslutter brugeren til familien.
     func acceptInvite(userId: String, code: String) async throws -> Family {
         guard let url = URL(string: code.trimmingCharacters(in: .whitespacesAndNewlines)) else {
             throw StoreError.invalidInvite
         }
         let metadata = try await container.shareMetadata(for: url)
-        _ = try await container.accept(metadata)
+        // Er delingen allerede accepteret (fx bedsteforældre, der indsætter linket igen), kan accept fejle —
+        // familien hentes alligevel; har man ikke adgang, fejler opslaget nedenfor.
+        _ = try? await container.accept(metadata)
         let zoneID = metadata.share.recordID.zoneID
         remember(zoneID, in: sharedDB)
         let record = try await familyRecord(db: sharedDB, zoneID: zoneID)

@@ -15,6 +15,8 @@ let isRunningTests = ProcessInfo.processInfo.environment["XCTestConfigurationFil
 @MainActor
 enum PendingShare {
     static var zoneName: String?
+    /// Ejeren af zonen (fra invitationen), så familien kan slås op direkte i den delte database.
+    static var ownerName: String?
 }
 
 // Nødvendig for at modtage CloudKit-delelinks (iOS kalder scene-delegaten).
@@ -55,11 +57,13 @@ final class SceneDelegate: NSObject, UIWindowSceneDelegate {
     private func accept(_ metadata: CKShare.Metadata) {
         let container = CKContainer(identifier: metadata.containerIdentifier)
         let zoneName = metadata.share.recordID.zoneID.zoneName
+        let ownerName = metadata.share.recordID.zoneID.ownerName
         Task {
             // Er delingen allerede accepteret (fx partneren trykker igen), fejler accept — det er fint.
             _ = try? await container.accept(metadata)
             await MainActor.run {
                 PendingShare.zoneName = zoneName
+                PendingShare.ownerName = ownerName
                 NotificationCenter.default.post(name: .cloudKitShareAccepted, object: zoneName)
             }
         }
