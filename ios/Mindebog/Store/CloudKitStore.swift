@@ -501,7 +501,7 @@ actor CloudKitStore: Store {
     func setChildParticipant(childId: String, id: String, readOnly: Bool) async throws {
         let (db, zoneID) = try await locateChild(childId)
         let share = try await fetchShare(db: db, zoneID: zoneID)
-        guard let p = share.participants.first(where: { Self.participantKey($0) == id }), p.role != .owner else { return }
+        guard let p = share.participants.first(where: { Self.participantKey($0, in: share) == id }), p.role != .owner else { return }
         p.permission = readOnly ? .readOnly : .readWrite
         let (saved, _) = try await db.modifyRecords(saving: [share], deleting: [], savePolicy: .changedKeys)
         _ = try saved[share.recordID]?.get()
@@ -510,7 +510,7 @@ actor CloudKitStore: Store {
     func removeChildParticipant(childId: String, id: String) async throws {
         let (db, zoneID) = try await locateChild(childId)
         let share = try await fetchShare(db: db, zoneID: zoneID)
-        guard let p = share.participants.first(where: { Self.participantKey($0) == id }), p.role != .owner else { return }
+        guard let p = share.participants.first(where: { Self.participantKey($0, in: share) == id }), p.role != .owner else { return }
         share.removeParticipant(p)
         let (saved, _) = try await db.modifyRecords(saving: [share], deleting: [], savePolicy: .changedKeys)
         _ = try saved[share.recordID]?.get()
@@ -1951,7 +1951,7 @@ actor CloudKitStore: Store {
             let contact = identity.lookupInfo?.emailAddress ?? identity.lookupInfo?.phoneNumber ?? ""
             if name.isEmpty { name = contact.isEmpty ? (p.role == .owner ? "Ejer" : "Inviteret") : contact }
             let access: FamilyParticipant.Access = p.role == .owner ? .owner : (p.permission == .readOnly ? .viewer : .editor)
-            return FamilyParticipant(id: Self.participantKey(p), name: name, contact: contact == name ? "" : contact,
+            return FamilyParticipant(id: Self.participantKey(p, in: share), name: name, contact: contact == name ? "" : contact,
                                      access: access, pending: p.acceptanceStatus == .pending, isMe: p == me)
         }
         .sorted { ($0.access.rank, $0.name) < ($1.access.rank, $1.name) }
@@ -1965,14 +1965,14 @@ actor CloudKitStore: Store {
 
     func setParticipant(familyId: String, id: String, readOnly: Bool) async throws {
         try await changeShare(familyId: familyId) { share in
-            guard let p = share.participants.first(where: { Self.participantKey($0) == id }), p.role != .owner else { return }
+            guard let p = share.participants.first(where: { Self.participantKey($0, in: share) == id }), p.role != .owner else { return }
             p.permission = readOnly ? .readOnly : .readWrite
         }
     }
 
     func removeParticipant(familyId: String, id: String) async throws {
         try await changeShare(familyId: familyId) { share in
-            guard let p = share.participants.first(where: { Self.participantKey($0) == id }), p.role != .owner else { return }
+            guard let p = share.participants.first(where: { Self.participantKey($0, in: share) == id }), p.role != .owner else { return }
             share.removeParticipant(p)
         }
     }
@@ -1985,12 +1985,16 @@ actor CloudKitStore: Store {
         _ = try saved[share.recordID]?.get()
     }
 
-    private static func participantKey(_ p: CKShare.Participant) -> String {
+    /// Et id for deltageren, der er det samme fra gang til gang (#37). Uden bruger-id, mail eller telefon
+    /// (typisk en afventende invitation) bruges rolle, rettighed, status og pladsen i listen — ikke hashValue,
+    /// som skifter mellem app-starter.
+    private static func participantKey(_ p: CKShare.Participant, in share: CKShare) -> String {
         let identity = p.userIdentity
-        return identity.userRecordID?.recordName
+        if let key = identity.userRecordID?.recordName
             ?? identity.lookupInfo?.emailAddress
-            ?? identity.lookupInfo?.phoneNumber
-            ?? "\(p.hashValue)"
+            ?? identity.lookupInfo?.phoneNumber { return key }
+        let index = share.participants.firstIndex(of: p) ?? 0
+        return "p-\(p.role.rawValue)-\(p.permission.rawValue)-\(p.acceptanceStatus.rawValue)-\(index)"
     }
 
     private func fetchShare(db: CKDatabase, zoneID: CKRecordZone.ID) async throws -> CKShare {
