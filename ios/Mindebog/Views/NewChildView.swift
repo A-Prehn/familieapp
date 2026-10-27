@@ -59,7 +59,7 @@ struct NewChildView: View {
                 if let errorMessage {
                     Text(errorMessage).font(.footnote).foregroundStyle(Theme.rose)
                 }
-                if editing != nil {
+                if let editing, !editing.isSharedOnly {
                     Section {
                         Button("Slet barn", role: .destructive) { confirmDelete = true }
                             .disabled(saving)

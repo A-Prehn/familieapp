@@ -118,12 +118,15 @@ actor CloudKitStore: Store {
     func deleteChild(_ child: Child) async throws {
         let (db, familyZone) = try await locate(child.familyId)
         guard db === privateDB else { throw StoreError.notOwner }
-        if await childHasOwnZone(childId: child.id),
-           let (_, ownZone) = try? await locateChild(child.id), ownZone != familyZone {
-            _ = try await privateDB.deleteRecordZone(withID: ownZone)
-            forgetZone(ownZone.zoneName)
-        }
         let id = CKRecord.ID(recordName: child.id, zoneID: familyZone)
+        // Barnets egen zone står på skiltet i familiezonen — også hvis den blev lavet fra en anden telefon.
+        let marker = try? await db.record(for: id)
+        if let zoneName = marker?["ownZone"] as? String, !zoneName.isEmpty {
+            let ownZone = CKRecordZone.ID(zoneName: zoneName, ownerName: CKCurrentUserDefaultName)
+            do { _ = try await privateDB.deleteRecordZone(withID: ownZone) }
+            catch let error as CKError where error.code == .zoneNotFound {}
+            forgetZone(zoneName)
+        }
         do { try await remove(id, in: db) }
         catch let error as CKError where error.code == .unknownItem {}
         var map = UserDefaults.standard.dictionary(forKey: Self.childZoneKey) as? [String: String] ?? [:]

@@ -6,12 +6,12 @@ extension Notification.Name {
     static let cloudKitShareAccepted = Notification.Name("mindebog.cloudKitShareAccepted")
 }
 
-/// En invitation, der blev accepteret, før appen var klar (koldstart fra et delelink).
-/// AppState samler den op, når brugeren og familierne er hentet.
 /// Kører appen som vært for de automatiske tests? Så rører den hverken iCloud, notifikationer eller widgets —
 /// testappen er ikke signeret, og iCloud stopper den med det samme.
 let isRunningTests = ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
 
+/// En invitation, der blev accepteret, før appen var klar (koldstart fra et delelink).
+/// AppState samler den op, når brugeren og familierne er hentet.
 @MainActor
 enum PendingShare {
     static var zoneName: String?
