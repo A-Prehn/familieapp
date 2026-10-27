@@ -3,6 +3,7 @@ import PhotosUI
 import Photos
 import UIKit
 import ImageIO
+import UniformTypeIdentifiers
 
 // Skalerer et valgt billede ned (≈ CKAsset-venligt) og gemmer som JPEG.
 enum ImageTools {
@@ -39,6 +40,14 @@ enum ImageTools {
         ]
         CGImageDestinationAddImageFromSource(dest, source, 0, meta as CFDictionary)
         return CGImageDestinationFinalize(dest) ? out as Data : nil
+    }
+
+    /// Et billede taget med kameraet i appen: nedskaleret JPEG med "taget nu" som optagelsesdato,
+    /// så det sorteres og foreslås ligesom billeder fra Fotos.
+    static func fromCamera(_ image: UIImage) -> Data? {
+        guard let jpeg = image.jpegData(compressionQuality: 0.95),
+              let resized = resized(jpeg) else { return nil }
+        return withCaptureDate(resized, Date()) ?? resized
     }
 
     /// Billedets egen form til visning på kort — så intet beskæres væk.
@@ -138,6 +147,7 @@ struct PhotoField: View {
     @State private var pickerItem: PhotosPickerItem?
     @State private var cropping: CropTarget?
     @State private var showSuggestions = false
+    @State private var showCamera = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -151,6 +161,7 @@ struct PhotoField: View {
                     Label(data == nil ? title : "Vælg et andet", systemImage: "photo")
                 }
                 .buttonStyle(.borderless)
+                if data == nil { TakePhotoButton(showCamera: $showCamera).buttonStyle(.borderless) }
                 if suggestions && data == nil {
                     Button { showSuggestions = true } label: {
                         Label("Forslag", systemImage: "sparkles")
@@ -173,6 +184,15 @@ struct PhotoField: View {
         }
         .sheet(isPresented: $showSuggestions) {
             PhotoSuggestionsView(range: suggestRange, allowMultiple: false) { picked in data = picked.first }
+        }
+        .fullScreenCover(isPresented: $showCamera) {
+            PhotoCamera { taken in
+                showCamera = false
+                guard let taken else { return }
+                onCaptureDate?(Date())
+                data = taken
+            }
+            .ignoresSafeArea()
         }
         .onChange(of: pickerItem) { _, newItem in
             guard let newItem else { return }
@@ -198,6 +218,7 @@ struct MultiPhotoField: View {
     @State private var pickerItem: PhotosPickerItem?
     @State private var cropping: CropTarget?
     @State private var showSuggestions = false
+    @State private var showCamera = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -263,11 +284,19 @@ struct MultiPhotoField: View {
                 PhotosPicker(selection: $pickerItem, matching: .images) {
                     Label("Tilføj billede", systemImage: "photo.badge.plus")
                 }
+                TakePhotoButton(showCamera: $showCamera)
                 Button { showSuggestions = true } label: {
                     Label("Forslag", systemImage: "sparkles")
                 }
             }
             .buttonStyle(.borderless)
+        }
+        .fullScreenCover(isPresented: $showCamera) {
+            PhotoCamera { taken in
+                showCamera = false
+                if let taken { photos.append(taken) }
+            }
+            .ignoresSafeArea()
         }
         .fullScreenCover(item: $cropping) { target in
             CropView(image: target.image) { cropped in
@@ -290,6 +319,51 @@ struct MultiPhotoField: View {
     }
 }
 
+// MARK: - Tag billede med kameraet (#41)
+
+/// Kameraet i fototilstand. `nil` betyder annulleret. Billedet kommer nedskaleret med dags dato som optagelsesdato.
+struct PhotoCamera: UIViewControllerRepresentable {
+    var onFinish: (Data?) -> Void
+
+    static var isAvailable: Bool { UIImagePickerController.isSourceTypeAvailable(.camera) }
+
+    func makeUIViewController(context: Context) -> UIImagePickerController {
+        let picker = UIImagePickerController()
+        picker.sourceType = .camera
+        picker.mediaTypes = [UTType.image.identifier]
+        picker.cameraCaptureMode = .photo
+        picker.delegate = context.coordinator
+        return picker
+    }
+
+    func updateUIViewController(_ picker: UIImagePickerController, context: Context) {}
+
+    func makeCoordinator() -> Coordinator { Coordinator(onFinish: onFinish) }
+
+    final class Coordinator: NSObject, UIImagePickerControllerDelegate, UINavigationControllerDelegate {
+        let onFinish: (Data?) -> Void
+        init(onFinish: @escaping (Data?) -> Void) { self.onFinish = onFinish }
+
+        func imagePickerController(_ picker: UIImagePickerController,
+                                   didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey: Any]) {
+            let image = info[.originalImage] as? UIImage
+            onFinish(image.flatMap(ImageTools.fromCamera))
+        }
+
+        func imagePickerControllerDidCancel(_ picker: UIImagePickerController) { onFinish(nil) }
+    }
+}
+
+/// Knappen "Tag billede" — vises kun på enheder med kamera (ikke i simulatoren).
+struct TakePhotoButton: View {
+    @Binding var showCamera: Bool
+    var body: some View {
+        if PhotoCamera.isAvailable {
+            Button { showCamera = true } label: { Label("Tag billede", systemImage: "camera") }
+        }
+    }
+}
+
 // MARK: - Billedsæt (flere billeder, forside, billedtekst)
 
 /// Formular-felt: tilføj flere billeder, vælg forside (★), skriv billedtekst, fjern.
@@ -297,6 +371,7 @@ struct PhotoSetEditor: View {
     @Binding var set: PhotoSet
     @State private var pickerItems: [PhotosPickerItem] = []
     @State private var cropping: CropTarget?
+    @State private var showCamera = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -354,8 +429,11 @@ struct PhotoSetEditor: View {
                 }
             }
             // Op til 100 ad gangen (#24) — og "Tilføj flere billeder" kan bruges igen, så der er reelt ingen grænse.
-            PhotosPicker(selection: $pickerItems, maxSelectionCount: 100, matching: .images) {
-                Label(set.isEmpty ? "Vælg billeder" : "Tilføj flere billeder", systemImage: "photo.badge.plus")
+            HStack(spacing: 16) {
+                PhotosPicker(selection: $pickerItems, maxSelectionCount: 100, matching: .images) {
+                    Label(set.isEmpty ? "Vælg billeder" : "Tilføj flere billeder", systemImage: "photo.badge.plus")
+                }
+                TakePhotoButton(showCamera: $showCamera)
             }
             .buttonStyle(.borderless)
         }
@@ -363,6 +441,13 @@ struct PhotoSetEditor: View {
             CropView(image: target.image) { cropped in
                 if set.photos.indices.contains(target.index) { set.photos[target.index] = cropped }
             }
+        }
+        .fullScreenCover(isPresented: $showCamera) {
+            PhotoCamera { taken in
+                showCamera = false
+                if let taken { set.append(taken) }
+            }
+            .ignoresSafeArea()
         }
         .onChange(of: pickerItems) { _, items in
             guard !items.isEmpty else { return }

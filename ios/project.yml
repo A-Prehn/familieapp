@@ -62,7 +62,7 @@ targets:
         # "Forslag fra Fotos": de nyeste billeder i dit bibliotek, så du slipper for at lede.
         INFOPLIST_KEY_NSPhotoLibraryUsageDescription: "Så appen kan foreslå dine nyeste billeder, når du lægger noget i mindebogen."
         # Scanning af børnetegninger.
-        INFOPLIST_KEY_NSCameraUsageDescription: "Så du kan scanne børnetegninger direkte ind i mindebogen."
+        INFOPLIST_KEY_NSCameraUsageDescription: "Så du kan tage billeder og scanne børnetegninger direkte ind i mindebogen."
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         # iCloud/CloudKit-entitlements. Ignoreres i usigneret simulator-build (CI),
         # anvendes når appen signeres med Apple Developer-kontoen.
