@@ -15,6 +15,7 @@ Nyt, roligere udseende:
 • Fanebjælken kan nu altid ses, også over lyse billeder
 
 Og lidt praktisk:
+• Tag billeder direkte med kameraet – ved profilbilledet, højdepunkter, maven måned for måned og alle andre billeder
 • Besked med det samme, hvis der ikke er forbindelse til iCloud
 • Mindre rettelser og forbedringer af stabiliteten
 ```
@@ -24,7 +25,7 @@ Nye i den nye palet: `ios/AppStore/screenshots/6.9/` og `6.3/` (12 skærme). For
 01-hjem, 03-barn, 04-hoejdepunkter, 06-milepaele, 05-interview, 12-breve, 11-rejser-kort, 07-familie-minder, 08-opskrifter, 09-traditioner. Se #57.
 
 ### Build
-Build 107 eller nyere (106 mangler fanebjælke-skyggen og netværksbeskeden).
+Build 108 eller nyere (107 mangler kameraet og #37).
 
 ## Version 1.2.1 — hurtig rettelse
 
