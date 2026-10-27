@@ -83,7 +83,7 @@ struct ChildDetailView: View {
             .padding(16)
         }
         .background(Theme.bg.ignoresSafeArea())
-        .navigationTitle(child.name)
+        .navigationTitle(child.displayName)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
@@ -141,7 +141,7 @@ struct ChildDetailView: View {
             HStack(spacing: 16) {
                 ChildAvatar(child: child, size: 64)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(child.name).font(.serifTitle(22))
+                    Text(child.displayName).font(.serifTitle(22))
                     Text(subtitle).font(.subheadline).foregroundStyle(Theme.muted)
                 }
                 Spacer()

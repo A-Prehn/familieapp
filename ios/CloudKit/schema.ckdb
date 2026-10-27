@@ -44,6 +44,7 @@ DEFINE SCHEMA
         photo           ASSET,
         ownZone         STRING,
         shareURL        STRING,
+        linkedUserId    STRING,
         GRANT WRITE TO "_creator",
         GRANT CREATE TO "_icloud",
         GRANT READ TO "_world"

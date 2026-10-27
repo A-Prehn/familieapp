@@ -343,7 +343,12 @@ actor MemoryStore: Store {
     // MARK: Breve
     private var lettersByChild: [String: [Letter]] = [:]
 
+    /// Barnet selv (#48) ser kun breve, der er åbnet — forseglede breve filtreres fra her.
     func letters(childId: String) async throws -> [Letter] {
+        MeChild.visibleLetters(try await allLetters(childId: childId), childId: childId)
+    }
+
+    private func allLetters(childId: String) async throws -> [Letter] {
         (lettersByChild[childId] ?? []).sorted { $0.writtenAt > $1.writtenAt }
     }
 

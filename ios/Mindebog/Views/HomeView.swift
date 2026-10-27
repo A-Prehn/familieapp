@@ -520,7 +520,7 @@ struct HomeView: View {
             case .highlight, .diary:
                 guard let id = s.childId, let child = names[id] else { return nil }   // barn slettet
                 let isHighlight = s.kind == .highlight
-                return RecentMemory(id: (isHighlight ? "hl_" : "dy_") + s.id, summary: s, childName: child.name,
+                return RecentMemory(id: (isHighlight ? "hl_" : "dy_") + s.id, summary: s, childName: child.displayName,
                                     kind: isHighlight ? "Højdepunkt" : (child.onTheWay ? "Svangerskabsdagbog" : "Dagbog"),
                                     symbol: isHighlight ? "star" : "book",
                                     date: s.date, sortDate: s.date ?? s.createdAt, text: s.text, photo: nil)

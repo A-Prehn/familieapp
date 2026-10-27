@@ -48,7 +48,7 @@ struct FamilyAccessView: View {
                 } header: {
                     Text("Invitér")
                 } footer: {
-                    Text("Invitationen sendes via Beskeder eller mail. Personen skal have en iPhone og trykke på linket for at komme med.")
+                    Text("Invitationen sendes via Beskeder eller mail. Personen skal have en iPhone og trykke på linket for at komme med. Et barn med egen Apple-konto inviteres med kun visning — tryk bagefter på barnet i listen og vælg \"Det er et af børnene\". Så ser barnet sin egen bog først, \"(dig)\" ved sit navn, og først brevene, når de åbnes.")
                 }
                 Section {
                     ForEach(children) { child in
@@ -113,6 +113,7 @@ struct FamilyAccessView: View {
                 HStack(spacing: 6) {
                     Label(p.access.label, systemImage: icon(p.access))
                     if p.pending { Text("· Inviteret") }
+                    if let child = linkedChild(p) { Text("· \(child.name)s egen konto") }
                 }
                 .font(.caption).foregroundStyle(Theme.muted)
             }
@@ -129,6 +130,24 @@ struct FamilyAccessView: View {
                 }
                 Button { Task { await setAccess(p, readOnly: true) } } label: {
                     Label("Kun visning", systemImage: p.access == .viewer ? "checkmark" : "eye")
+                }
+                // Barnets egen konto (#48): koblet til barnets profil ser det "(dig)" og kun åbnede breve.
+                if !p.pending, !children.isEmpty {
+                    Divider()
+                    Menu {
+                        ForEach(children.filter { !$0.onTheWay }) { child in
+                            Button { Task { await link(p, to: child) } } label: {
+                                Label(child.name, systemImage: child.linkedUserId == p.id ? "checkmark" : "person")
+                            }
+                        }
+                        if linkedChild(p) != nil {
+                            Divider()
+                            Button { Task { await link(p, to: nil) } } label: { Label("Er ikke et barn", systemImage: "xmark") }
+                        }
+                    } label: {
+                        Label(linkedChild(p) == nil ? "Det er et af børnene …" : "Barn: \(linkedChild(p)!.name)",
+                              systemImage: "figure.child")
+                    }
                 }
                 Divider()
                 Button(role: .destructive) { removing = p } label: {
@@ -213,6 +232,29 @@ struct FamilyAccessView: View {
             await load()
         } catch {
             self.error = "Kunne ikke ændre adgangen: \(error.localizedDescription)"
+        }
+    }
+
+    private func linkedChild(_ p: FamilyParticipant) -> Child? {
+        children.first { $0.linkedUserId == p.id }
+    }
+
+    /// Kobler deltageren til et barn (eller fjerner koblingen med nil). Kun ét barn pr. konto.
+    private func link(_ p: FamilyParticipant, to child: Child?) async {
+        busy = true
+        defer { busy = false }
+        do {
+            for var other in children where other.linkedUserId == p.id && other.id != child?.id {
+                other.linkedUserId = nil
+                _ = try await state.store.updateChild(other)
+            }
+            if var child, child.linkedUserId != p.id {
+                child.linkedUserId = p.id
+                _ = try await state.store.updateChild(child)
+            }
+            await load()
+        } catch {
+            self.error = "Kunne ikke gemme: \(error.userMessage)"
         }
     }
 

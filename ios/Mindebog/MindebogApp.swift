@@ -71,7 +71,18 @@ final class AppState: ObservableObject {
         let value = await store.canEdit(familyId: familyId)
         canEdit = value
         UserDefaults.standard.set(value, forKey: "mindebog.canEdit")
+        await refreshMeChild()
         await refreshPremium()
+    }
+
+    /// Er den, der er logget ind, et af børnene (#48)? Ejeren har koblet barnets konto til dets profil.
+    @Published private(set) var meChildId: String? = MeChild.id
+    func refreshMeChild() async {
+        guard let familyId, let user else { return }
+        let kids = (try? await store.children(familyId: familyId)) ?? []
+        let mine = kids.first { $0.linkedUserId == user.id }?.id
+        MeChild.set(mine)
+        meChildId = mine
     }
 
     // MARK: Premium

@@ -38,8 +38,13 @@ struct Child: Identifiable, Hashable, Codable {
     var photo: Data? = nil
     /// Sat, når barnet bor i sin egen iCloud-zone (delt med fx den anden forælder).
     var ownZone: String? = nil
+    /// Barnets egen iCloud-konto i familien (#48): bruger-id på den deltager, der ER dette barn.
+    /// Sættes af ejeren under Familie og adgang. Barnet ser så "(dig)" ved sit navn og kun åbnede breve.
+    var linkedUserId: String? = nil
 
     var onTheWay: Bool { birthDate == nil && dueDate != nil }
+    /// Navnet med "(dig)", når den, der kigger, er dette barn.
+    var displayName: String { MeChild.id == id ? "\(name) (dig)" : name }
     /// "familyId" for et barn, der kun er delt med én (man er ikke med i barnets familie).
     static let sharedFamilyId = "shared"
     var isSharedOnly: Bool { familyId == Child.sharedFamilyId }
@@ -340,6 +345,21 @@ struct FamilyParticipant: Identifiable, Hashable, Codable {
     let access: Access
     let pending: Bool       // inviteret, men har ikke åbnet invitationen endnu
     let isMe: Bool
+}
+
+/// Hvem der kigger, hvis det er et barn med egen konto (#48). Sættes af AppState ud fra Child.linkedUserId.
+/// Bruges til "(dig)" og til at skjule forseglede breve for barnet selv.
+enum MeChild {
+    static var id: String? = UserDefaults.standard.string(forKey: "mindebog.meChild")
+    static func set(_ childId: String?) {
+        id = childId
+        if let childId { UserDefaults.standard.set(childId, forKey: "mindebog.meChild") }
+        else { UserDefaults.standard.removeObject(forKey: "mindebog.meChild") }
+    }
+    /// Breve, barnet selv må se: forseglede breve skjules, indtil åbningsdatoen er nået.
+    static func visibleLetters(_ letters: [Letter], childId: String) -> [Letter] {
+        id == childId ? letters.filter { !$0.isSealed } : letters
+    }
 }
 
 /// Et frit minde under Fælles: ikke en begivenhed eller rejse, bare noget, man vil gemme

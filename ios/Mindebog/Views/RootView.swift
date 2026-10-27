@@ -61,6 +61,16 @@ struct MainTabView: View {
         }
     }
 
+    @State private var openedOwnBook = false
+    private func openOwnBook() async {
+        guard !openedOwnBook, let childId = state.meChildId, let familyId = state.familyId else { return }
+        let kids = (try? await state.store.children(familyId: familyId)) ?? []
+        guard let child = kids.first(where: { $0.id == childId }) else { return }
+        openedOwnBook = true
+        selection = .family
+        content = ContentTarget(child: child, kind: "Child", galleryKind: "")
+    }
+
     /// Navigér til det, notifikationen handler om.
     private func open(_ e: NotificationLogEntry) async {
         // Påmindelser: interview og ugens spørgsmål har deres egne skærme.
@@ -139,6 +149,8 @@ struct MainTabView: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: .openInterview)) { _ in Task { await openPendingInterview() } }
         .task { await openPendingInterview() }
+        // Et barn med egen konto (#48) starter i sin egen bog.
+        .task(id: state.meChildId) { await openOwnBook() }
         // Tryk på ugens spørgsmål: åbn dagbogen for barnet med spørgsmålet som overskrift.
         .sheet(item: $prompt) { target in
             AddDiaryView(childId: target.child.id, initialText: target.text + "\n\n")

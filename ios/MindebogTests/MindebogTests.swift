@@ -70,6 +70,27 @@ final class StoreTests: XCTestCase {
         XCTAssertTrue(left.isEmpty, "Barnets indhold skal slettes med")
     }
 
+    func testChildOwnAccountSeesOnlyOpenedLetters() async throws {
+        let (store, _, nohr) = try await familyWithChild()
+        let sealed = Letter(id: "s", title: "Til dig som 18-årig", text: "", author: "Mor", writtenAt: Date(),
+                            openDate: Date(timeIntervalSinceNow: 86_400))
+        let open = Letter(id: "o", title: "Hej", text: "", author: "Far", writtenAt: Date(), openDate: nil)
+        try await store.addLetter(childId: nohr.id, sealed)
+        try await store.addLetter(childId: nohr.id, open)
+        defer { MeChild.set(nil) }
+        MeChild.set(nil)
+        let asParent = try await store.letters(childId: nohr.id)
+        XCTAssertEqual(asParent.count, 2, "Forældre ser alle breve")
+        MeChild.set(nohr.id)
+        let asChild = try await store.letters(childId: nohr.id)
+        XCTAssertEqual(asChild.map(\.id), ["o"], "Barnet ser kun åbnede breve")
+        XCTAssertEqual(nohr.displayName, "Nohr (dig)")
+        var linked = nohr
+        linked.linkedUserId = "user_abc"
+        let saved = try await store.updateChild(linked)
+        XCTAssertEqual(saved.linkedUserId, "user_abc", "Koblingen til barnets konto gemmes")
+    }
+
     func testDeleteFamilyRemovesItsChildren() async throws {
         let (store, family, _) = try await familyWithChild()
         try await store.deleteFamily(familyId: family.id)

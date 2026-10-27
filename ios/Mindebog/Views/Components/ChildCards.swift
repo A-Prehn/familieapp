@@ -142,7 +142,7 @@ struct ChildCard: View {
     var body: some View {
         VStack(spacing: 10) {
             ChildAvatar(child: child, size: 56)
-            Text(child.name).font(.serifTitle(16)).foregroundStyle(Theme.text)
+            Text(child.displayName).font(.serifTitle(16)).foregroundStyle(Theme.text)
             Text(ChildAge.short(child)).font(.caption).foregroundStyle(Theme.muted)
             // Tydeligt, at kortet kan åbnes: højdepunkter, milepæle, billeder m.m. ligger herinde.
             HStack(spacing: 4) {

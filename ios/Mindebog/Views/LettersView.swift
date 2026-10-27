@@ -16,7 +16,8 @@ struct LettersView: View {
                 ContentUnavailableView {
                     Label("Ingen breve endnu", systemImage: "envelope")
                 } description: {
-                    Text("Skriv et brev til \(child.name), der først kan åbnes på 18-års fødselsdagen — eller når I vælger.")
+                    Text(MeChild.id == child.id ? "Her kommer de breve, din familie har skrevet til dig, når de må åbnes."
+                         : "Skriv et brev til \(child.name), der først kan åbnes på 18-års fødselsdagen — eller når I vælger.")
                 }
                 .padding(.top, 60)
             } else {

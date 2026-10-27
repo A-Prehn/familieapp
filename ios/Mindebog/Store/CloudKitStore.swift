@@ -273,7 +273,7 @@ actor CloudKitStore: Store {
     func children(familyId: String) async throws -> [Child] {
         let (db, zoneID) = try await locate(familyId)
         let records = try await all(db: db, zoneID: zoneID, type: "Child",
-                                    keys: ["familyRef", "name", "gender", "birthDate", "dueDate", "ownZone", "shareURL"],
+                                    keys: ["familyRef", "name", "gender", "birthDate", "dueDate", "ownZone", "shareURL", "linkedUserId"],
                                     assetKeys: ["photo"])
         var kids: [Child] = []
         for r in records {
@@ -364,7 +364,7 @@ actor CloudKitStore: Store {
             return
         }
         let childCopy = CKRecord(recordType: "Child", recordID: CKRecord.ID(recordName: childId, zoneID: zoneID))
-        for key in ["name", "gender", "birthDate", "dueDate", "photo"] { childCopy[key] = source[key] }
+        for key in ["name", "gender", "birthDate", "dueDate", "photo", "linkedUserId"] { childCopy[key] = source[key] }
         _ = try await privateDB.modifyRecords(saving: [childCopy], deleting: [], savePolicy: .allKeys)
 
         // 2) Alle barnets records, i bidder af 20 (billeder/video følger med som CKAsset).
@@ -549,12 +549,14 @@ actor CloudKitStore: Store {
         record["birthDate"] = child.birthDate as CKRecordValue?
         record["dueDate"] = child.dueDate as CKRecordValue?
         record["photo"] = child.photo.flatMap { Self.asset(from: $0) }
+        // Feltet er nyt (#48): rør det kun, når det bruges, så redigering virker, selv før skemaet er deployet.
+        if child.linkedUserId != nil || record["linkedUserId"] != nil { record["linkedUserId"] = child.linkedUserId as CKRecordValue? }
         let saved = try await persist(record, in: db)
         // Barn i egen zone: familiens "skilt" får også de nye oplysninger (navnet vises derfra, hvis zonen er utilgængelig).
         if child.ownZone != nil, child.familyId != Child.sharedFamilyId,
            let (fdb, fzone) = try? await locate(child.familyId),
            let marker = try? await fdb.record(for: CKRecord.ID(recordName: child.id, zoneID: fzone)) {
-            for key in ["name", "gender", "birthDate", "dueDate"] { marker[key] = record[key] }
+            for key in ["name", "gender", "birthDate", "dueDate", "linkedUserId"] { marker[key] = record[key] }
             marker["photo"] = child.photo.flatMap { Self.asset(from: $0) }
             _ = try? await persist(marker, in: fdb)
         }
@@ -896,7 +898,12 @@ actor CloudKitStore: Store {
 
     // MARK: - Breve til barnet
 
+    /// Barnet selv (#48) ser kun breve, der er åbnet — forseglede breve filtreres fra her.
     func letters(childId: String) async throws -> [Letter] {
+        MeChild.visibleLetters(try await allLetters(childId: childId), childId: childId)
+    }
+
+    private func allLetters(childId: String) async throws -> [Letter] {
         // Bevidst uden "video" — den hentes først ved afspilning (letterVideo).
         try await childRecords(childId, type: "Letter",
                                keys: ["childRef", "title", "text", "author", "writtenAt", "openDate", "videoDuration"],
@@ -2066,7 +2073,8 @@ actor CloudKitStore: Store {
               birthDate: record["birthDate"] as? Date,
               dueDate: record["dueDate"] as? Date,
               gender: Gender(rawValue: record["gender"] as? String ?? "") ?? .unspecified,
-              photo: assetData(record["photo"]))
+              photo: assetData(record["photo"]),
+              linkedUserId: (record["linkedUserId"] as? String).flatMap { $0.isEmpty ? nil : $0 })
     }
 
     // CKAsset <-> Data
