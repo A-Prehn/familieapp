@@ -73,6 +73,7 @@ struct MoreView: View {
     @State private var members: [AppUser] = []
     @State private var invite: String?
     @State private var busy = false
+    @State private var loading = false   // henter fra iCloud: vises øverst, så man kan se, at den arbejder (#58)
     @State private var showQR = false
     @State private var shareIsPublic = false
     @State private var displayName = ""
@@ -179,7 +180,8 @@ struct MoreView: View {
                             Image(systemName: "person.2.fill").foregroundStyle(Theme.tint).frame(width: 28)
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(family?.name ?? "Familie og adgang").font(.headline)
-                                Text(membersSummary).font(.caption).foregroundStyle(Theme.muted)
+                                Text(loading && members.isEmpty ? "Henter fra iCloud…" : membersSummary)
+                                    .font(.caption).foregroundStyle(Theme.muted)
                             }
                         }
                         .padding(.vertical, 2)
@@ -422,6 +424,11 @@ struct MoreView: View {
         .themedList()
         .navigationTitle("Mere")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                if loading { ProgressView().tint(Theme.muted) }
+            }
+        }
         .sheet(isPresented: $showQR) {
             if let invite {
                 NavigationStack {
@@ -468,13 +475,13 @@ struct MoreView: View {
         let store = state.store
         let userId = state.user?.id ?? ""
         let birthdayId = UserDefaults.standard.string(forKey: myBirthdayKey(familyId))
+        loading = true
+        defer { loading = false }
         async let familiesTask = store.families(for: userId)
         async let membersTask = store.members(familyId: familyId)
         async let birthdaysTask: [CustomBirthday]? = birthdayId == nil ? nil : (try? await store.birthdays(familyId: familyId))
-        async let shareTask: (Bool, String?)? = {
-            guard let cloud = store as? CloudKitStore, let (share, _) = try? await cloud.shareForSharing(familyId: familyId) else { return nil }
-            return (share.publicPermission != .none, share.url?.absoluteString)
-        }()
+        // Kun læsning: delingen rettes først, når man åbner delingsindstillingerne (#58).
+        async let shareTask: (isPublic: Bool, url: String?)? = (store as? CloudKitStore)?.shareInfo(familyId: familyId)
         if let fetched = try? await familiesTask {
             family = fetched.first { $0.id == familyId }
             // Alle familier vises — også tomme egne (fx en testfamilie), så de kan vælges og slettes.
@@ -488,7 +495,7 @@ struct MoreView: View {
             myBirthday = found
             birthdayDraft = found.date
         }
-        if let (isPublic, url) = await shareTask { shareIsPublic = isPublic; invite = url }
+        if let info = await shareTask { shareIsPublic = info.isPublic; invite = info.url }
         ScreenCache.save(MoreCache(family: family, families: allFamilies, members: members, myBirthday: myBirthday,
                                    invite: invite, shareIsPublic: shareIsPublic), key: cacheKey)
     }

@@ -31,11 +31,20 @@ struct OnboardingView: View {
                 VStack(spacing: 12) {
                     TextField("Familiens navn", text: $name)
                         .textFieldStyle(.roundedBorder)
-                    Button("Opret familie") {
+                        .submitLabel(.go)
+                        .onSubmit { Task { await state.createFamily(name: name) } }
+                    // Viser, at iCloud arbejder, og tager ikke imod flere tryk imens (#59).
+                    Button {
                         Task { await state.createFamily(name: name) }
+                    } label: {
+                        HStack(spacing: 8) {
+                            if state.joiningFamily { ProgressView().tint(Theme.buttonPrimaryText) }
+                            Text(state.joiningFamily ? "Opretter familien…" : "Opret familie")
+                        }
                     }
                     .buttonStyle(.primaryPill)
                     .frame(maxWidth: .infinity)
+                    .disabled(state.joiningFamily)
                 }
                 .padding(.horizontal, 24)
             } else {
@@ -49,12 +58,17 @@ struct OnboardingView: View {
                             .font(.footnote).foregroundStyle(Theme.muted)
                             .multilineTextAlignment(.center)
                     }
-                    Button("Deltag i familie") {
+                    Button {
                         Task { await state.acceptInvite(code: code) }
+                    } label: {
+                        HStack(spacing: 8) {
+                            if state.joiningFamily { ProgressView().tint(Theme.buttonPrimaryText) }
+                            Text(state.joiningFamily ? "Åbner invitationen…" : "Deltag i familie")
+                        }
                     }
                     .buttonStyle(.primaryPill)
                     .frame(maxWidth: .infinity)
-                    .disabled(code.trimmingCharacters(in: .whitespaces).isEmpty)
+                    .disabled(code.trimmingCharacters(in: .whitespaces).isEmpty || state.joiningFamily)
                 }
                 .padding(.horizontal, 24)
             }

@@ -141,9 +141,12 @@ final class AppState: ObservableObject {
         if let savedId = defaults.string(forKey: userIdKey),
            let restored = try? await store.user(id: savedId) {
             user = restored
-            let fams = (try? await store.families(for: restored.id)) ?? []
             let saved = defaults.string(forKey: familyKey)
-            familyId = fams.first { $0.id == saved }?.id ?? fams.first?.id
+            if let fams = try? await store.families(for: restored.id) {
+                familyId = fams.first { $0.id == saved }?.id ?? fams.first?.id
+            } else {
+                familyId = saved   // kunne ikke spørge iCloud lige nu: behold familien fra sidst (#60)
+            }
         }
         ready = true
         Task { await publishDisplayName(); await refreshPermissions() }
@@ -180,9 +183,14 @@ final class AppState: ObservableObject {
             signOut()
             return
         }
-        guard status == .available, let fams = try? await store.families(for: userId) else { return }
+        guard status == .available, var fams = try? await store.families(for: userId) else { return }
         if !fams.contains(where: { $0.id == savedFamily }) {
-            setFamily(fams.first?.id)
+            // Familien fra sidst mangler. En delt familie kan være et øjeblik om at dukke op i den delte
+            // database — spørg igen, før den glemmes, så bedsteforældre ikke skal indsætte linket igen (#60).
+            try? await Task.sleep(for: .seconds(3))
+            guard let again = try? await store.families(for: userId) else { return }
+            fams = again
+            if !fams.contains(where: { $0.id == savedFamily }) { setFamily(fams.first?.id) }
         }
         await publishDisplayName()   // også for navne sat før denne version
         await refreshPermissions()
@@ -200,12 +208,17 @@ final class AppState: ObservableObject {
         } catch { errorMessage = error.localizedDescription }
     }
 
+    /// Kører et opret/deltag lige nu? Et ekstra tryk, mens iCloud arbejder, må ikke give to familier (#59).
+    @Published private(set) var joiningFamily = false
+
     func createFamily(name: String) async {
-        guard let user else { return }
+        guard let user, !joiningFamily else { return }
+        joiningFamily = true
+        defer { joiningFamily = false }
         do {
             let family = try await store.createFamily(userId: user.id, name: name)
             setFamily(family.id)
-        } catch { errorMessage = error.localizedDescription }
+        } catch { errorMessage = error.userMessage }
     }
 
     /// Sletter familien (kun ejeren) og skifter til en anden familie — eller til opstart, hvis der ikke er flere.
@@ -219,10 +232,12 @@ final class AppState: ObservableObject {
     }
 
     func acceptInvite(code: String) async {
-        guard let user else { return }
+        guard let user, !joiningFamily else { return }
         let text = code.trimmingCharacters(in: .whitespacesAndNewlines)
         if usingCloud, let problem = Self.inviteProblem(text) { errorMessage = problem; return }
         errorMessage = nil
+        joiningFamily = true
+        defer { joiningFamily = false }
         do {
             let family = try await store.acceptInvite(userId: user.id, code: text)
             setFamily(family.id)

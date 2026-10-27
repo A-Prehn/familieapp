@@ -51,24 +51,31 @@ actor CloudKitStore: Store {
     func families(for userId: String) async throws -> [Family] {
         // Begge databaser og alle zoner på én gang; familie-posten hentes direkte på sit id ("family"),
         // ikke med en søgning — det er hurtigere og uafhængigt af søgeindekset.
+        // Fejler opslaget i den delte database (dårligt net), kastes fejlen videre — ellers ville en
+        // bedsteforælders familie "forsvinde", og appen glemme den (#60).
         async let privateZones = privateDB.allRecordZones()
         async let sharedZones = sharedDB.allRecordZones()
-        let zoneSets: [(CKDatabase, [CKRecordZone])] = [(privateDB, try await privateZones), (sharedDB, (try? await sharedZones) ?? [])]
+        let zoneSets: [(CKDatabase, [CKRecordZone])] = [(privateDB, try await privateZones), (sharedDB, try await sharedZones)]
         var familyZones: [(CKDatabase, CKRecordZone.ID)] = []
         for (db, zones) in zoneSets {
             // Barnezoner (børn delt med fx den anden forælder) huskes også, så locate() finder dem.
             for zone in zones where zone.zoneID.zoneName.hasPrefix(Self.childZonePrefix) { remember(zone.zoneID, in: db) }
             for zone in zones where zone.zoneID.zoneName.hasPrefix("family_") { familyZones.append((db, zone.zoneID)) }
         }
-        let records: [(CKRecordZone.ID, CKRecord)?] = await withTaskGroup(of: (CKRecordZone.ID, CKRecord)?.self) { group in
+        // Mangler familie-posten (zonen er tom eller slettet), springes zonen over. Alle andre fejl
+        // (netværk, iCloud utilgængelig) kastes videre, så en kendt familie ikke tabes på gulvet.
+        let records: [(CKRecordZone.ID, CKRecord)?] = try await withThrowingTaskGroup(of: (CKRecordZone.ID, CKRecord)?.self) { group in
             for (db, zoneID) in familyZones {
                 group.addTask {
-                    guard let r = try? await db.record(for: CKRecord.ID(recordName: "family", zoneID: zoneID)) else { return nil }
-                    return (zoneID, r)
+                    do {
+                        return (zoneID, try await db.record(for: CKRecord.ID(recordName: "family", zoneID: zoneID)))
+                    } catch let error as CKError where error.code == .unknownItem || error.code == .zoneNotFound {
+                        return nil
+                    }
                 }
             }
             var out: [(CKRecordZone.ID, CKRecord)?] = []
-            for await r in group { out.append(r) }
+            for try await r in group { out.append(r) }
             return out
         }
         var result: [Family] = []
@@ -233,6 +240,13 @@ actor CloudKitStore: Store {
 
     /// Familiens zone-deling til Apples delingsark (UICloudSharingController), hvor ejeren
     /// inviterer personer og vælger "kun inviterede" eller "alle med linket".
+    /// Delingens tilstand til Mere-skærmen: ét opslag, ingen skrivning (#58). nil = ikke delt endnu.
+    func shareInfo(familyId: String) async -> (isPublic: Bool, url: String?)? {
+        guard let (db, zoneID) = try? await locate(familyId),
+              let share = try? await fetchShare(db: db, zoneID: zoneID) else { return nil }
+        return (share.publicPermission != .none, share.url?.absoluteString)
+    }
+
     func shareForSharing(familyId: String) async throws -> (CKShare, CKContainer) {
         let (db, zoneID) = try await locate(familyId)
         // Navnet folk ser i invitationen: familiens navn (ældre delinger hed "Mindebog").
