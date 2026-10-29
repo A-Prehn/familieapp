@@ -111,6 +111,12 @@ jobs:
             -only-testing:MindebogUITests/MapTourTests 2>&1 | grep -E "Test Case|error|\*\* TEST" \
             || echo "::warning::Kortvideoen mislykkedes"
           kill -INT $rec; wait $rec || true
+          # Video af, at appen åbner med det samme (til opslaget om 1.3): optagelsen starter før appen.
+          xcrun simctl io "$udid" recordVideo --codec=h264 --force "$GITHUB_WORKSPACE/out/video/aabning.mp4" &
+          rec=$!
+          sleep 3
+          TEST_RUNNER_DEMO_PHOTOS_DIR="$DEMO_PHOTOS_DIR" gtimeout 600 xcodebuild test-without-building             -project Mindebog.xcodeproj -scheme Mindebog             -destination "platform=iOS Simulator,id=$udid" -derivedDataPath build/dd             -only-testing:MindebogUITests/OpenTourTests 2>&1 | grep -E "Test Case|error|\*\* TEST"             || echo "::warning::Åbningsvideoen mislykkedes"
+          kill -INT $rec; wait $rec || true
           ls -la "$GITHUB_WORKSPACE/out/video" || true
           xcrun simctl shutdown "$udid" || true
           ls "$GITHUB_WORKSPACE"/out/screenshots/*/*.png >/dev/null 2>&1 || { echo "::error::Ingen skærmbilleder blev taget"; exit 1; }
