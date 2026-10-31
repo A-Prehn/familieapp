@@ -4,6 +4,19 @@ Udkast til App Store Connect. Tegngrænser står i parentes; tallene efter er de
 
 ---
 
+## Version 1.3.1 — hurtig rettelse
+
+### Nyheder i denne version (What's New, 4000)
+```
+Skarpere billeder:
+• Billederne på Hjem vises nu i fuld skarphed – også dem, I lagde op i 1.3
+• Fuld skærm fra Hjem viser originalen i fuld opløsning
+• Mindre rettelser og forbedringer af stabiliteten
+```
+
+### Build
+Første build efter commit "Skarpe billeder på Hjem og i fuld skærm derfra" (develop).
+
 ## Version 1.3 — nyt udseende
 
 ### Nyheder i denne version (What's New, 4000)
