@@ -42,11 +42,15 @@ final class ThumbnailTests: XCTestCase {
     }
 
     func testFingerprintTellsSimilarImagesApart() {
-        // Samme længde og samme JPEG-header, men andet indhold — `Data.hashValue` ville kunne forveksle dem.
+        // Samme længde og samme header, men andet indhold midt i og til sidst — `Data.hashValue` (kun
+        // længde og de første bytes) ville forveksle dem. Kendemærket sampler start, midte og slutning.
         var a = Data(repeating: 0xFF, count: 4096)
         var b = a
-        a[3000] = 1
-        b[3000] = 2
+        a[2048] = 1
+        b[2048] = 2
+        var c = a
+        c[4095] = 3
+        XCTAssertNotEqual(ImageTools.fingerprint(a), ImageTools.fingerprint(c))
         XCTAssertNotEqual(ImageTools.fingerprint(a), ImageTools.fingerprint(b))
         XCTAssertEqual(ImageTools.fingerprint(a), ImageTools.fingerprint(a))
     }
