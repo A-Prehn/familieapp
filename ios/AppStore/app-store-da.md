@@ -17,7 +17,7 @@ Skarpere billeder og en roligere app:
 ```
 
 ### Build
-Første build efter commit "Skarpe billeder på Hjem og i fuld skærm derfra" (develop).
+Build 117 (develop, commit 4309427 — efter code review: thumbs i baggrunden, fuld skærm uden blink i galleri/dagbog).
 
 ## Version 1.3 — nyt udseende
 
