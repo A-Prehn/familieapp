@@ -114,7 +114,7 @@ struct ShimmerPlaceholder: View {
             .overlay {
                 if !reduceMotion {
                     GeometryReader { geo in
-                        LinearGradient(colors: [.clear, Theme.card.opacity(0.7), .clear],
+                        LinearGradient(colors: [.clear, Theme.card.opacity(0.55), .clear],
                                        startPoint: .leading, endPoint: .trailing)
                             .frame(width: geo.size.width * 0.6)
                             .offset(x: phase * geo.size.width)
@@ -125,9 +125,32 @@ struct ShimmerPlaceholder: View {
             .frame(height: height)
             .onAppear {
                 guard !reduceMotion else { return }
-                withAnimation(.linear(duration: 1.4).repeatForever(autoreverses: false)) { phase = 1.2 }
+                // Langsomt og jævnt: et roligt skær føles kortere end et hurtigt eller pulserende.
+                withAnimation(.linear(duration: 2.2).repeatForever(autoreverses: false)) { phase = 1.2 }
             }
             .accessibilityHidden(true)
+    }
+}
+
+/// Et hjul, der først viser sig efter et øjeblik (Apples tommelfingerregel: under ca. 0,4 s skal
+/// der ikke vises noget — ellers blinker hjulet ved alt det, der alligevel er hurtigt).
+struct DelayedProgress: View {
+    var delay: TimeInterval = 0.4
+    var size: ControlSize = .regular
+    @State private var shown = false
+
+    var body: some View {
+        Group {
+            if shown {
+                ProgressView().controlSize(size).transition(.opacity)
+            } else {
+                Color.clear.frame(width: 1, height: 1)
+            }
+        }
+        .task {
+            try? await Task.sleep(for: .seconds(delay))
+            withAnimation(.easeIn(duration: 0.2)) { shown = true }
+        }
     }
 }
 

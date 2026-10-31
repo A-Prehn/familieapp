@@ -225,7 +225,7 @@ struct MediaField: View {
                     Button { Task { await playVideo() } } label: {
                         HStack(spacing: 8) {
                             Label("Se video \(MediaFiles.format(d))", systemImage: "play.rectangle.fill")
-                            if loadingMedia { ProgressView().controlSize(.small) }
+                            if loadingMedia { DelayedProgress(size: .small) }
                         }
                     }
                     .disabled(loadingMedia || !canPlayVideo)
@@ -277,7 +277,7 @@ struct MediaField: View {
                             HStack(spacing: 8) {
                                 Label(playback.isPlaying ? "Stop" : "Lydnote \(MediaFiles.format(d))",
                                       systemImage: playback.isPlaying ? "stop.fill" : "play.fill")
-                                if loadingMedia { ProgressView().controlSize(.small) }
+                                if loadingMedia { DelayedProgress(size: .small) }
                             }
                         }
                         .disabled(loadingMedia)

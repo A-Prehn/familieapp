@@ -22,7 +22,8 @@ struct FamilyAccessView: View {
             Group {
             Section {
                 if !loaded {
-                    HStack { Spacer(); ProgressView(); Spacer() }
+                    // Rækker i deres egen form, mens delingen hentes fra iCloud.
+                    ForEach(0..<2, id: \.self) { _ in ShimmerPlaceholder(height: 22, cornerRadius: 6) }
                 } else if people.isEmpty {
                     Text("Familien er ikke delt med nogen endnu.").font(.footnote).foregroundStyle(Theme.muted)
                 }
@@ -86,7 +87,7 @@ struct FamilyAccessView: View {
         .themedList()
         .navigationTitle("Familie og adgang")
         .navigationBarTitleDisplayMode(.inline)
-        .overlay { if busy { ProgressView().controlSize(.large) } }
+        .overlay { if busy { DelayedProgress(size: .large) } }
         .sheet(item: $paywall) { PaywallView(reason: $0) }
         .confirmationDialog(removing.map { "Fjern \($0.name) fra familien?" } ?? "",
                             isPresented: Binding(get: { removing != nil }, set: { if !$0 { removing = nil } }),

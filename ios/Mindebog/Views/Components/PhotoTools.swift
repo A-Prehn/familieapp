@@ -142,16 +142,22 @@ struct DataImage: View {
     @State private var shown = false
 
     var body: some View {
-        if let ui = ImageTools.thumbnail(data, maxPixel: maxPixel) {
-            Image(uiImage: ui)
-                .resizable()
-                .aspectRatio(contentMode: contentMode)
-                // Billedet "fremkaldes" blidt i stedet for at hoppe på plads.
-                .opacity(shown || reduceMotion ? 1 : 0)
-                .onAppear { withAnimation(.easeOut(duration: 0.3)) { shown = true } }
-        } else {
-            Theme.bgDark
+        ZStack {
+            if let ui = ImageTools.thumbnail(data, maxPixel: maxPixel) {
+                Image(uiImage: ui)
+                    .resizable()
+                    .aspectRatio(contentMode: contentMode)
+                    // Nyt billede = nyt view, så miniaturen krydsfader til originalen (som Fotos).
+                    .id(data.hashValue)
+                    .transition(.opacity)
+            } else {
+                Theme.bgDark
+            }
         }
+        .animation(reduceMotion ? nil : .easeInOut(duration: 0.3), value: data.hashValue)
+        // Billedet "fremkaldes" blidt i stedet for at hoppe på plads.
+        .opacity(shown || reduceMotion ? 1 : 0)
+        .onAppear { withAnimation(.easeOut(duration: 0.3)) { shown = true } }
     }
 }
 
@@ -556,7 +562,8 @@ struct OptionalZoomSource: ViewModifier {
 
 // Fuldskærms-visning med swipe mellem billeder.
 struct LightboxState: Identifiable {
-    let id = UUID()
+    /// Beholdes, når miniaturen byttes til originalerne (`replacing`), så fuld skærm bliver åben.
+    var id = UUID()
     let photos: [Data]
     var index: Int = 0
     var captions: [String] = []
@@ -564,6 +571,13 @@ struct LightboxState: Identifiable {
     var sourceId: String? = nil
     /// Kun thumb vist (#62): skærmen bør hente originalerne (withOriginals) og åbne igen med dem.
     var needsOriginals = false
+
+    /// Samme visning med originalerne: beholder id, så `fullScreenCover` krydsfader i stedet for at blinke.
+    func replacing(_ shown: LightboxState) -> LightboxState {
+        var next = self
+        next.id = shown.id
+        return next
+    }
 
     /// Forsiden først, så resten i rækkefølge — så det valgte billede altid er det første, man ser.
     static func coverFirst(_ set: PhotoSet, sourceId: String? = nil) -> LightboxState {

@@ -234,7 +234,7 @@ private struct AnswerRow: View {
                             Label("Video \(MediaFiles.format(d))", systemImage: "video")
                         }
                     }
-                    if loading { ProgressView().controlSize(.small) }
+                    if loading { DelayedProgress(size: .small) }
                 }
                 .font(.caption.weight(.medium))
                 .buttonStyle(.borderless)

@@ -160,7 +160,7 @@ struct PlaceSearchView: View {
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Annullér") { dismiss() } }
             }
-            .overlay { if resolving { ProgressView() } }
+            .overlay { if resolving { DelayedProgress() } }
         }
     }
 }

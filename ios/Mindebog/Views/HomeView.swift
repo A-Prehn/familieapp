@@ -71,10 +71,13 @@ struct HomeView: View {
                         memorySection("Seneste i familien", recent, refreshing: refreshing) { m in "\(whenText(m)) · \(m.childName) · \(m.kind)" }
                             .softAppear(index: 7)
                     } else if loading {
-                        // Skimmer, mens iCloud henter første gang.
+                        // Pladsholdere i kortenes egen form, mens iCloud henter første gang — så siden
+                        // ser færdig ud med det samme, og billederne glider ind, hvor de skal være.
                         VStack(spacing: 10) {
                             SectionLabel("Seneste i familien")
-                            ForEach(0..<3, id: \.self) { _ in ShimmerPlaceholder(height: 88) }
+                            ForEach(0..<3, id: \.self) { i in
+                                ShimmerPlaceholder(height: 260, cornerRadius: Radius.large).softAppear(index: i)
+                            }
                         }
                     }
                 }
@@ -385,7 +388,7 @@ struct HomeView: View {
                     // Viser, at listen fra sidst er ved at blive opdateret fra iCloud.
                     if refreshing {
                         HStack(spacing: 6) {
-                            ProgressView().controlSize(.mini).id(spinnerToken)
+                            DelayedProgress(size: .mini).id(spinnerToken)
                             Text("Henter nyeste").font(.caption2).foregroundStyle(Theme.muted)
                         }
                         .transition(.opacity)
@@ -417,7 +420,7 @@ struct HomeView: View {
             guard let original else { return }
             originals[memory.id] = original
             guard original != memory.photo, lightbox?.id == shown.id else { return }
-            lightbox = LightboxState(photos: [original], index: 0, captions: shown.captions, sourceId: shown.sourceId)
+            lightbox = LightboxState(photos: [original], index: 0, captions: shown.captions, sourceId: shown.sourceId).replacing(shown)
         }
     }
 

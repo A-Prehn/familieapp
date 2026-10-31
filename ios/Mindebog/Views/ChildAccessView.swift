@@ -83,7 +83,7 @@ struct ChildAccessView: View {
                 .clipShape(RoundedRectangle(cornerRadius: Radius.card))
                 .overlay(RoundedRectangle(cornerRadius: Radius.card).stroke(Theme.sep))
             } else if busy {
-                ProgressView().controlSize(.large)
+                DelayedProgress(size: .large)
             }
         }
         .sheet(item: $paywall) { PaywallView(reason: $0) }

@@ -129,7 +129,7 @@ struct HighlightsView: View {
         Task {
             await CloudKitStore.withOriginals { await load() }
             guard let fresh = items.first(where: { $0.id == highlight.id }), !fresh.photos.isEmpty else { return }
-            lightbox = LightboxState.coverFirst(photos: fresh.photos, cover: fresh.coverIndex, sourceId: shown.sourceId)
+            lightbox = LightboxState.coverFirst(photos: fresh.photos, cover: fresh.coverIndex, sourceId: shown.sourceId).replacing(shown)
         }
     }
 

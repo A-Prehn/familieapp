@@ -148,7 +148,7 @@ struct LetterReadView: View {
                             HStack(spacing: 12) {
                                 Circle().fill(Theme.rose.opacity(0.15)).frame(width: 44, height: 44)
                                     .overlay(Group {
-                                        if loadingVideo { ProgressView() }
+                                        if loadingVideo { DelayedProgress() }
                                         else { Image(systemName: "play.fill").foregroundStyle(Theme.rose) }
                                     })
                                 VStack(alignment: .leading, spacing: 2) {

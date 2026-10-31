@@ -378,7 +378,7 @@ struct FamilyView: View {
         guard shown.needsOriginals, let id = shown.sourceId else { return }
         Task {
             await CloudKitStore.withOriginals { await load() }
-            if let set = photoSet(for: id), !set.photos.isEmpty { lightbox = LightboxState.coverFirst(set, sourceId: id) }
+            if let set = photoSet(for: id), !set.photos.isEmpty { lightbox = LightboxState.coverFirst(set, sourceId: id).replacing(shown) }
         }
     }
 

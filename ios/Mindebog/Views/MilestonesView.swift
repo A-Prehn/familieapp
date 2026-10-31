@@ -52,7 +52,7 @@ struct MilestonesView: View {
         guard shown.needsOriginals, let key = shown.sourceId else { return }
         Task {
             await CloudKitStore.withOriginals { await load() }
-            if let set = entries[key]?.photos, !set.photos.isEmpty { lightbox = LightboxState.coverFirst(set, sourceId: key) }
+            if let set = entries[key]?.photos, !set.photos.isEmpty { lightbox = LightboxState.coverFirst(set, sourceId: key).replacing(shown) }
         }
     }
 
