@@ -5,9 +5,13 @@ import UIKit
 import ImageIO
 import UniformTypeIdentifiers
 
-// Skalerer et valgt billede ned (≈ CKAsset-venligt) og gemmer som JPEG.
+// Skalerer et valgt billede ned og gemmer som JPEG.
 enum ImageTools {
-    static func resized(_ data: Data, maxDimension: CGFloat = 1200) -> Data? {
+    /// Største billede, der gemmes i iCloud: 2560 px på den lange led fylder en iPhone-skærm i fuld
+    /// skarphed (ca. 1–1,5 MB). 1200 px (til og med 1.3) blev skaleret op i fuld skærm og så blødt ud.
+    static let uploadPixels: CGFloat = 2560
+
+    static func resized(_ data: Data, maxDimension: CGFloat = uploadPixels) -> Data? {
         guard let image = UIImage(data: data) else { return nil }
         let longest = max(image.size.width, image.size.height)
         let scale = longest > 0 ? min(1, maxDimension / longest) : 1
@@ -18,7 +22,7 @@ enum ImageTools {
         let output = renderer.image { _ in
             image.draw(in: CGRect(origin: .zero, size: size))
         }
-        guard let jpeg = output.jpegData(compressionQuality: 0.8) else { return nil }
+        guard let jpeg = output.jpegData(compressionQuality: 0.82) else { return nil }
         // Behold hvornår billedet er taget, så "Året der gik" og datoforslag også virker på gemte billeder.
         guard let taken = captureDate(data) else { return jpeg }
         return withCaptureDate(jpeg, taken) ?? jpeg
@@ -649,7 +653,7 @@ struct LightboxView: View {
                     // Teksten står under billedet på sort baggrund — oven på et lyst billede
                     // (fx en tegning på hvidt papir) kunne hvid tekst ikke læses.
                     VStack(spacing: 14) {
-                        DataImage(data: state.photos[i], contentMode: .fit, maxPixel: 2400)
+                        DataImage(data: state.photos[i], contentMode: .fit, maxPixel: ImageTools.uploadPixels)
                             // Hold fingeren på billedet: Del, Gem i Fotos, Kopiér — som i Safari.
                             .contextMenu { photoActions(for: state.photos[i]) }
                         if state.captions.indices.contains(i), !state.captions[i].isEmpty {

@@ -279,7 +279,7 @@ struct RecipeEditView: View {
             .saveErrorAlert($saveError)
             .fullScreenCover(isPresented: $scanning) {
                 DocumentScanner { pages in
-                    for page in pages { draft.photos.append(ImageTools.resized(page, maxDimension: 1800) ?? page) }
+                    for page in pages { draft.photos.append(ImageTools.resized(page) ?? page) }
                 }
                 .ignoresSafeArea()
             }

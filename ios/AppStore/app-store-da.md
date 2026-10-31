@@ -9,7 +9,8 @@ Udkast til App Store Connect. Tegngrænser står i parentes; tallene efter er de
 ### Nyheder i denne version (What's New, 4000)
 ```
 Skarpere billeder og en roligere app:
-• Billederne på Hjem vises nu i fuld opløsning – også dem, I lagde op i 1.3
+• Billeder gemmes nu i højere opløsning (2560 px), så de er skarpe i fuld skærm – gælder nye billeder, I lægger op
+• Billederne på Hjem vises i den fulde størrelse – også dem, I lagde op i 1.3
 • Fuld skærm fra Hjem viser originalen
 • Billeder glider blidt fra lille til skarp, og listerne viser deres form med det samme, mens iCloud henter – ingen ventehjul
 • Mindre rettelser og forbedringer af stabiliteten
