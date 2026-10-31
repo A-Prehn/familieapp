@@ -396,7 +396,7 @@ struct HomeView: View {
                           subtitle: meta(memory),
                           aspect: 4.0 / 3.0,   // lavere kort på oversigten, så der er flere på skærmen
                           zoomId: memory.id, zoomNamespace: zoomNS,
-                          onOpen: { lightbox = $0 })
+                          onOpen: { openLightbox($0, for: memory) })
                 .contentShape(RoundedRectangle(cornerRadius: Radius.large, style: .continuous))
                 .pressableCard { open(memory) }
                 .softAppear(index: i)
@@ -404,6 +404,17 @@ struct HomeView: View {
             }
         }
         .animation(.easeInOut(duration: 0.25), value: refreshing)
+    }
+
+    /// Fuld skærm: kortets thumb med det samme, og originalen så snart den er hentet (#62).
+    private func openLightbox(_ shown: LightboxState, for memory: RecentMemory) {
+        lightbox = shown
+        guard let s = memory.summary, let familyId = state.familyId else { return }
+        Task {
+            let original = try? await CloudKitStore.withOriginals { try await state.store.coverPhoto(familyId: familyId, memory: s) }
+            guard let original, original != memory.photo, lightbox?.id == shown.id else { return }
+            lightbox = LightboxState(photos: [original], index: 0, captions: shown.captions, sourceId: shown.sourceId)
+        }
     }
 
     /// Åbner det, et opslag handler om — via samme vej som et tryk på en notifikation (RootView.open).
@@ -582,8 +593,9 @@ struct HomeView: View {
         .sorted { $0.sortDate > $1.sortDate }
 
         // 2) Billeder kun til de viste minder; genbrug dem vi allerede har fra sidst.
+        // Et lille thumb fra 1.3 (også fra skærm-cachen) hentes igen, så kortet bliver skarpt.
         var known: [String: Data] = [:]
-        for m in recent + onThisDay { if let p = m.photo { known[m.id] = p } }
+        for m in recent + onThisDay { if let p = m.photo, !ImageTools.isSmallThumb(p) { known[m.id] = p } }
         // Vis den friske liste med det samme (med de billeder vi allerede har), så gamle opslag
         // fra hukommelsen ikke bliver stående, mens nye billeder hentes.
         func withKnownPhotos(_ list: [RecentMemory]) -> [RecentMemory] {

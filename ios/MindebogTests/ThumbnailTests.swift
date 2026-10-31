@@ -16,11 +16,18 @@ final class ThumbnailTests: XCTestCase {
     }
 
     func testThumbnailIsSmall() throws {
-        let original = jpeg(width: 1600, height: 1200)
+        let original = jpeg(width: 2400, height: 1800)
         let thumb = try XCTUnwrap(ImageTools.thumbnail(original))
         let image = try XCTUnwrap(UIImage(data: thumb))
-        XCTAssertEqual(Int(max(image.size.width, image.size.height)), 400)
+        XCTAssertEqual(Int(max(image.size.width, image.size.height)), Int(ImageTools.thumbPixels))
         XCTAssertLessThan(thumb.count, original.count)
+        XCTAssertFalse(ImageTools.isSmallThumb(thumb))
+    }
+
+    func testOldSmallThumbIsRecognised() throws {
+        // Thumbs fra 1.3 var 400 px — de skal laves om af originalen, så Hjem ikke ser sløret ud.
+        XCTAssertTrue(ImageTools.isSmallThumb(jpeg(width: 400, height: 300)))
+        XCTAssertFalse(ImageTools.isSmallThumb(jpeg(width: 1200, height: 900)))
     }
 
     func testThumbnailKeepsSmallImages() throws {

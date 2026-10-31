@@ -24,19 +24,32 @@ enum ImageTools {
         return withCaptureDate(jpeg, taken) ?? jpeg
     }
 
-    /// Lille udgave til lister (#62): 400 px på den lange led, ca. 20–40 KB. Gemmes i iCloud ved siden
-    /// af originalen og synkroniseres til kopien på telefonen, så lister aldrig venter på billeder.
+    /// Miniaturens størrelse: 1200 px på den lange led fylder et kort på Hjem i fuld skarphed (3×-skærm)
+    /// og dur også som første billede i fuld skærm. 400 px (1.3) så sløret ud på de store kort.
+    static let thumbPixels: CGFloat = 1200
+
+    /// Lille udgave til lister (#62): `thumbPixels` på den lange led, ca. 100–250 KB. Gemmes i iCloud ved
+    /// siden af originalen og synkroniseres til kopien på telefonen, så lister aldrig venter på billeder.
     static func thumbnail(_ data: Data) -> Data? {
         guard let image = UIImage(data: data) else { return nil }
         let longest = max(image.size.width, image.size.height)
-        let scale = longest > 0 ? min(1, 400 / longest) : 1
+        let scale = longest > 0 ? min(1, thumbPixels / longest) : 1
         let size = CGSize(width: max(1, image.size.width * scale), height: max(1, image.size.height * scale))
         let format = UIGraphicsImageRendererFormat()
         format.scale = 1
         let output = UIGraphicsImageRenderer(size: size, format: format).image { _ in
             image.draw(in: CGRect(origin: .zero, size: size))
         }
-        return output.jpegData(compressionQuality: 0.7)
+        return output.jpegData(compressionQuality: 0.75)
+    }
+
+    /// Et thumb fra 1.3 (400 px), der bør laves om af originalen — uden at afkode billedet.
+    static func isSmallThumb(_ data: Data) -> Bool {
+        guard let source = CGImageSourceCreateWithData(data as CFData, nil),
+              let props = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any],
+              let w = props[kCGImagePropertyPixelWidth] as? CGFloat,
+              let h = props[kCGImagePropertyPixelHeight] as? CGFloat else { return false }
+        return max(w, h) < thumbPixels - 1
     }
 
     /// Skriver optagelsesdatoen (EXIF DateTimeOriginal) ind i en JPEG uden at genkode billedet.

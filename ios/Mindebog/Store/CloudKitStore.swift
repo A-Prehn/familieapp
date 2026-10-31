@@ -66,15 +66,15 @@ actor CloudKitStore: Store {
         return assetData(record["photo"])
     }
 
-    /// Lægger et thumb på recorden før gem: når der er nye billeder med (uploads), eller når den ikke
-    /// har et endnu (ældre gem). Uden billeder fjernes det.
+    /// Lægger et thumb på recorden før gem: når der er nye billeder med (uploads), når den ikke
+    /// har et endnu (ældre gem), eller når det er et lille fra 1.3. Uden billeder fjernes det.
     private static func addThumb(to record: CKRecord) {
         let prefix = uploadDir.standardizedFileURL.path
         var assets: [CKAsset] = []
         if let one = record["photo"] as? CKAsset { assets.append(one) }
         if let many = record["photos"] as? [CKAsset] { assets += many }
         let hasUpload = assets.contains { $0.fileURL?.standardizedFileURL.path.hasPrefix(prefix) == true }
-        guard hasUpload || record[thumbKey] == nil else { return }
+        guard hasUpload || record[thumbKey] == nil || isSmallThumb(record[thumbKey]) else { return }
         guard let data = coverData(record) else {
             if assets.isEmpty { record[thumbKey] = nil }
             return
@@ -113,11 +113,18 @@ actor CloudKitStore: Store {
         if fetchedAny { await MainActor.run { NotificationCenter.default.post(name: .storeDidChange, object: nil) } }
     }
 
-    /// Ældre records uden thumb i iCloud: lav et af originalen, og gem det i cachen til næste gang.
+    /// Ældre records uden thumb i iCloud, eller med et lille fra 1.3: lav et af originalen, og gem det
+    /// i cachen til næste gang. Originalerne hentes alligevel i baggrunden, så kopien opgraderes af sig selv.
     private static func cacheThumbIfMissing(_ record: CKRecord) {
-        guard AssetCache.read(record, key: thumbKey) == nil, let data = coverData(record),
+        let cached = AssetCache.read(record, key: thumbKey)
+        guard cached == nil || isSmallThumb(cached ?? nil), let data = coverData(record),
               let small = ImageTools.thumbnail(data) else { return }
         AssetCache.storeData(small, for: record, key: thumbKey)
+    }
+
+    private static func isSmallThumb(_ value: CKRecordValue?) -> Bool {
+        guard let url = (value as? CKAsset)?.fileURL, let data = try? Data(contentsOf: url) else { return false }
+        return ImageTools.isSmallThumb(data)
     }
 
     // MARK: - Sync (den lokale kopi)
@@ -1423,9 +1430,10 @@ actor CloudKitStore: Store {
             }
         }
         // Thumb (synkroniseret med kopien) er nok til kortene på Hjem — ingen original hentes (#62).
-        if memory.modifiedAt > .distantPast,
+        // Fuld skærm fra Hjem beder om originalen (`withOriginals`), og et lille thumb fra 1.3 dur ikke.
+        if !Self.wantOriginals, memory.modifiedAt > .distantPast,
            let thumb = AssetCache.read(id: id, modified: memory.modifiedAt, key: Self.thumbKey) as? CKAsset,
-           let data = thumb.fileURL.flatMap({ try? Data(contentsOf: $0) }) {
+           let data = thumb.fileURL.flatMap({ try? Data(contentsOf: $0) }), !ImageTools.isSmallThumb(data) {
             return data
         }
         // Fra billedcachen, hvis mindet ikke er ændret, siden forsiden sidst blev hentet.
