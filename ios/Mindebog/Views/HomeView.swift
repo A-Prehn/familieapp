@@ -8,6 +8,8 @@ struct HomeView: View {
     @State private var children: [Child] = []
     @State private var onThisDay: [RecentMemory] = []
     @State private var recent: [RecentMemory] = []
+    /// Originalerne til kortene (ikke i skærm-cachen): miniaturen vises, til originalen er hentet.
+    @State private var originals: [String: Data] = [:]
     @State private var quickAdd: QuickAdd?
     @State private var chooseChildFor: HomeAction?
     @State private var pendingAdd: QuickAdd?
@@ -391,7 +393,7 @@ struct HomeView: View {
                 }
             ForEach(Array(items.enumerated()), id: \.element.id) { i, memory in
                 // Billedkort (#46): tryk på billedet = fuld skærm, tryk på kortet = åbn opslaget.
-                PhotoCard(photos: PhotoSet(single: memory.photo),
+                PhotoCard(photos: PhotoSet(single: originals[memory.id] ?? memory.photo),
                           title: memory.text.isEmpty ? "Uden tekst" : memory.text,
                           subtitle: meta(memory),
                           aspect: 4.0 / 3.0,   // lavere kort på oversigten, så der er flere på skærmen
@@ -406,14 +408,29 @@ struct HomeView: View {
         .animation(.easeInOut(duration: 0.25), value: refreshing)
     }
 
-    /// Fuld skærm: kortets thumb med det samme, og originalen så snart den er hentet (#62).
+    /// Fuld skærm: det kortet viser med det samme, og originalen så snart den er hentet (#62).
     private func openLightbox(_ shown: LightboxState, for memory: RecentMemory) {
         lightbox = shown
-        guard let s = memory.summary, let familyId = state.familyId else { return }
+        guard originals[memory.id] == nil, let s = memory.summary, let familyId = state.familyId else { return }
         Task {
             let original = try? await CloudKitStore.withOriginals { try await state.store.coverPhoto(familyId: familyId, memory: s) }
-            guard let original, original != memory.photo, lightbox?.id == shown.id else { return }
+            guard let original else { return }
+            originals[memory.id] = original
+            guard original != memory.photo, lightbox?.id == shown.id else { return }
             lightbox = LightboxState(photos: [original], index: 0, captions: shown.captions, sourceId: shown.sourceId)
+        }
+    }
+
+    /// Kortene på Hjem viser originalerne i fuld opløsning: først fra billedcachen, ellers fra iCloud —
+    /// efter at listen er vist med miniaturerne, så Hjem stadig åbner med det samme.
+    private func loadOriginals(for list: [RecentMemory], familyId: String, isCurrent: @escaping () -> Bool) async {
+        let store = state.store
+        for m in list where originals[m.id] == nil {
+            guard let s = m.summary, isCurrent() else { return }
+            if let data = try? await CloudKitStore.withOriginals({ try await store.coverPhoto(familyId: familyId, memory: s) }),
+               isCurrent() {
+                originals[m.id] = data
+            }
         }
     }
 
@@ -623,6 +640,9 @@ struct HomeView: View {
         guard isCurrent() else { return }
         recent = newRecent
         onThisDay = newOnThisDay
+        let shown = Set((newRecent + newOnThisDay).map(\.id))
+        originals = originals.filter { shown.contains($0.key) }
+        Task { await loadOriginals(for: newRecent + newOnThisDay, familyId: familyId, isCurrent: isCurrent) }
 
         // Widget og notifikationer: skriv det nyeste til App Group'en (i baggrunden).
         let familyName = (try? await store.families(for: state.user?.id ?? ""))?

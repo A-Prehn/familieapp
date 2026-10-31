@@ -70,7 +70,8 @@ struct PhotoCard<Extra: View>: View {
     private func picture(_ cover: Data) -> some View {
         Color.clear
             .aspectRatio(aspect ?? ImageTools.displayAspect(cover).clamped(min: 0.8, max: 1.6), contentMode: .fit)
-            .overlay { DataImage(data: cover) }
+            // Kortet fylder skærmbredden: afkod nok til en 3×-skærm (800 px var synligt blødt).
+            .overlay { DataImage(data: cover, maxPixel: 1800) }
             .modifier(OptionalZoomSource(id: zoomId, namespace: zoomNamespace))
             .overlay(alignment: .bottom) {
                 header(onPhoto: true)
