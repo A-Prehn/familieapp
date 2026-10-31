@@ -22,6 +22,8 @@ struct HomeView: View {
     @State private var refreshing = false   // viser "Henter nyeste", mens listen fra sidst opdateres
     @State private var loadGeneration = 0
     @State private var lastLoad: Date?
+    /// Det, skærm-cachen sidst blev skrevet med — så den ikke skrives igen med det samme indhold.
+    @State private var savedSignature: String?
     @State private var showSearch = false
     @Environment(\.scenePhase) private var scenePhase
     /// Skifter, når appen kommer frem igen — så "Henter nyeste"-hjulet tegnes på ny og drejer (iOS fryser det i baggrunden).
@@ -426,13 +428,25 @@ struct HomeView: View {
 
     /// Kortene på Hjem viser originalerne i fuld opløsning: først fra billedcachen, ellers fra iCloud —
     /// efter at listen er vist med miniaturerne, så Hjem stadig åbner med det samme.
+    /// Hentes nogle ad gangen (ikke én efter én), så alle kort bliver skarpe hurtigt også på dårligt net.
     private func loadOriginals(for list: [RecentMemory], familyId: String, isCurrent: @escaping () -> Bool) async {
         let store = state.store
-        for m in list where originals[m.id] == nil {
-            guard let s = m.summary, isCurrent() else { return }
-            if let data = try? await CloudKitStore.withOriginals({ try await store.coverPhoto(familyId: familyId, memory: s) }),
-               isCurrent() {
-                originals[m.id] = data
+        let missing = list.filter { originals[$0.id] == nil && $0.summary != nil }
+        guard !missing.isEmpty else { return }
+        await withTaskGroup(of: (String, Data?).self) { group in
+            var next = missing.makeIterator()
+            func enqueue() {
+                guard let m = next.next(), let s = m.summary else { return }
+                group.addTask {
+                    let data = try? await CloudKitStore.withOriginals { try await store.coverPhoto(familyId: familyId, memory: s) }
+                    return (m.id, data)
+                }
+            }
+            for _ in 0..<4 { enqueue() }
+            for await (id, data) in group {
+                guard isCurrent() else { group.cancelAll(); return }
+                if let data { originals[id] = data }
+                enqueue()
             }
         }
     }
@@ -484,6 +498,13 @@ struct HomeView: View {
         var recent: [RecentMemory]
         var onThisDay: [RecentMemory]
         var day: String   // "På denne dag" gælder kun samme dato
+
+        /// Kendemærke for indholdet: hvilke opslag, og hvilke billeder (uden at læse hele billedet).
+        var signature: String {
+            let kids = children.map { "\($0.id):\($0.name):\($0.birthDate?.timeIntervalSince1970 ?? 0)" }
+            let posts = (recent + onThisDay).map { "\($0.id):\($0.text.count):\($0.photo.map(ImageTools.fingerprint) ?? 0)" }
+            return day + "|" + kids.joined(separator: ",") + "|" + posts.joined(separator: ",")
+        }
     }
 
     /// Træk ned for at opdatere (#42): iOS' hjul bliver stående, til denne funktion er færdig. Vent derfor kun,
@@ -538,7 +559,15 @@ struct HomeView: View {
         ChildPalette.update(children)
         Task { await Reminders.schedule(children: loadedKids) }
         defer {
-            if isCurrent() { ScreenCache.save(Cached(children: children, recent: recent, onThisDay: onThisDay, day: todayKey), key: cacheKey) }
+            // Skærm-cachen rummer kortenes billeder (flere MB) — skriv den kun, når indholdet er et andet end sidst.
+            if isCurrent() {
+                let cached = Cached(children: children, recent: recent, onThisDay: onThisDay, day: todayKey)
+                let signature = cached.signature
+                if signature != savedSignature {
+                    savedSignature = signature
+                    ScreenCache.save(cached, key: cacheKey)
+                }
+            }
         }
 
         // 1) Let oversigt over alle minder — kun tekst og datoer, ingen billeder.
@@ -613,9 +642,12 @@ struct HomeView: View {
         .sorted { $0.sortDate > $1.sortDate }
 
         // 2) Billeder kun til de viste minder; genbrug dem vi allerede har fra sidst.
-        // Et lille thumb fra 1.3 (også fra skærm-cachen) hentes igen, så kortet bliver skarpt.
+        // Et lille thumb fra 1.3 (også fra skærm-cachen) hentes igen, så kortet bliver skarpt —
+        // medmindre det er originalen selv, der er så lille.
         var known: [String: Data] = [:]
-        for m in recent + onThisDay { if let p = m.photo, !ImageTools.isSmallThumb(p) { known[m.id] = p } }
+        for m in recent + onThisDay {
+            if let p = m.photo, !ImageTools.isSmallThumb(p, original: originals[m.id]) { known[m.id] = p }
+        }
         // Vis den friske liste med det samme (med de billeder vi allerede har), så gamle opslag
         // fra hukommelsen ikke bliver stående, mens nye billeder hentes.
         func withKnownPhotos(_ list: [RecentMemory]) -> [RecentMemory] {

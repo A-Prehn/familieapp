@@ -149,6 +149,7 @@ struct DelayedProgress: View {
         }
         .task {
             try? await Task.sleep(for: .seconds(delay))
+            guard !Task.isCancelled else { return }   // view'et forsvandt, før hjulet nåede frem
             withAnimation(.easeIn(duration: 0.2)) { shown = true }
         }
     }

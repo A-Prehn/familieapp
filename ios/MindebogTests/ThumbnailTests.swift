@@ -28,6 +28,27 @@ final class ThumbnailTests: XCTestCase {
         // Thumbs fra 1.3 var 400 px — de skal laves om af originalen, så Hjem ikke ser sløret ud.
         XCTAssertTrue(ImageTools.isSmallThumb(jpeg(width: 400, height: 300)))
         XCTAssertFalse(ImageTools.isSmallThumb(jpeg(width: 1200, height: 900)))
+        XCTAssertTrue(ImageTools.isSmallThumb(jpeg(width: 400, height: 300), original: jpeg(width: 2400, height: 1800)))
+    }
+
+    func testThumbOfSmallOriginalIsNotRemade() throws {
+        // En original under 1200 px (fx et gammelt skærmbillede) får et thumb i sin egen størrelse —
+        // det er så stort, det kan blive, og må ikke laves om igen og igen.
+        let original = jpeg(width: 800, height: 600)
+        let thumb = try XCTUnwrap(ImageTools.thumbnail(original))
+        XCTAssertEqual(ImageTools.longestSide(thumb), 800)
+        XCTAssertFalse(ImageTools.isSmallThumb(thumb, original: original))
+        XCTAssertTrue(ImageTools.isSmallThumb(thumb), "Uden originalen at sammenligne med ser det lille ud")
+    }
+
+    func testFingerprintTellsSimilarImagesApart() {
+        // Samme længde og samme JPEG-header, men andet indhold — `Data.hashValue` ville kunne forveksle dem.
+        var a = Data(repeating: 0xFF, count: 4096)
+        var b = a
+        a[3000] = 1
+        b[3000] = 2
+        XCTAssertNotEqual(ImageTools.fingerprint(a), ImageTools.fingerprint(b))
+        XCTAssertEqual(ImageTools.fingerprint(a), ImageTools.fingerprint(a))
     }
 
     func testThumbnailKeepsSmallImages() throws {

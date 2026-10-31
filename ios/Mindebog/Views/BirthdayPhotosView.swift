@@ -178,10 +178,13 @@ struct BirthdayPhotosView: View {
             lightbox = lightboxState(at: item.id, photos: forAge.map(\.photo))
             return
         }
-        lightbox = lightboxState(at: item.id, photos: forAge.map(\.listPhoto))
+        let shown = lightboxState(at: item.id, photos: forAge.map(\.listPhoto))
+        lightbox = shown
         Task {
             await CloudKitStore.withOriginals { await load() }
-            if let state = lightboxState(at: item.id, photos: forAge.map(\.photo)) { lightbox = state }
+            guard let shown, lightbox?.id == shown.id,
+                  let state = lightboxState(at: item.id, photos: forAge.map(\.photo)) else { return }
+            lightbox = state.replacing(shown)
         }
     }
 

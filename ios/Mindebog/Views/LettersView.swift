@@ -147,9 +147,11 @@ struct LetterReadView: View {
                         } label: {
                             HStack(spacing: 12) {
                                 Circle().fill(Theme.rose.opacity(0.15)).frame(width: 44, height: 44)
-                                    .overlay(Group {
+                                    .overlay(ZStack {
+                                        // Afspil-ikonet bliver stående (dæmpet), så knappen ikke ser tom ud, før hjulet kommer.
+                                        Image(systemName: "play.fill").foregroundStyle(Theme.rose)
+                                            .opacity(loadingVideo ? 0.3 : 1)
                                         if loadingVideo { DelayedProgress() }
-                                        else { Image(systemName: "play.fill").foregroundStyle(Theme.rose) }
                                     })
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text("Afspil videobrev").font(.subheadline.weight(.semibold)).foregroundStyle(Theme.text)

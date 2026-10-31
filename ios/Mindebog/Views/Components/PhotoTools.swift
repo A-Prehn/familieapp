@@ -48,12 +48,40 @@ enum ImageTools {
     }
 
     /// Et thumb fra 1.3 (400 px), der bør laves om af originalen — uden at afkode billedet.
-    static func isSmallThumb(_ data: Data) -> Bool {
+    /// Med `original` sammenlignes der med originalens størrelse: et thumb af et billede, der selv er
+    /// mindre end `thumbPixels`, er så stort som det kan blive og skal ikke laves om igen og igen.
+    static func isSmallThumb(_ data: Data, original: Data? = nil) -> Bool {
+        guard let longest = longestSide(data) else { return false }
+        let limit = original.flatMap(longestSide).map { min($0, thumbPixels) } ?? thumbPixels
+        return longest < limit - 1
+    }
+
+    /// Den lange led i pixels — læser kun billedets mål, afkoder det ikke.
+    static func longestSide(_ data: Data) -> CGFloat? {
         guard let source = CGImageSourceCreateWithData(data as CFData, nil),
               let props = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any],
               let w = props[kCGImagePropertyPixelWidth] as? CGFloat,
-              let h = props[kCGImagePropertyPixelHeight] as? CGFloat else { return false }
-        return max(w, h) < thumbPixels - 1
+              let h = props[kCGImagePropertyPixelHeight] as? CGFloat else { return nil }
+        return max(w, h)
+    }
+
+    /// Så mange pixels et kort i fuld skærmbredde har brug for: skærmens bredde i pixels, højst et
+    /// thumb (1200 px). 1800 px overalt kostede ~10 MB pr. afkodet billede og skyllede cachen ved rul.
+    @MainActor static let cardPixels: CGFloat = min(thumbPixels, UIScreen.main.nativeBounds.width)
+
+    /// Billigt kendemærke for billeddata til cache-nøgler og view-id'er. `Data.hashValue` ser kun på
+    /// længden og de første ~80 bytes (JPEG-headere er ens), så to billeder af samme størrelse kunne
+    /// forveksles. Her indgår også midten og slutningen. Gælder kun i denne kørsel (Hasher sås tilfældigt).
+    static func fingerprint(_ data: Data) -> Int {
+        var h = Hasher()
+        h.combine(data.count)
+        let n = data.count
+        let span = 64
+        for start in [0, n / 2 - span / 2, n - span] where start >= 0 {
+            let end = min(n, start + span)
+            h.combine(data.subdata(in: start..<end))
+        }
+        return h.finalize()
     }
 
     /// Skriver optagelsesdatoen (EXIF DateTimeOriginal) ind i en JPEG uden at genkode billedet.
@@ -112,7 +140,7 @@ enum ImageTools {
     /// Miniature i visningsstørrelse. Afkoder kun det, der skal vises (ImageIO nedskalerer under
     /// afkodningen), og husker resultatet — så gitre og tidslinjer ruller glat.
     static func thumbnail(_ data: Data, maxPixel: CGFloat) -> UIImage? {
-        let key = "\(data.hashValue)_\(Int(maxPixel))" as NSString
+        let key = "\(fingerprint(data))_\(Int(maxPixel))" as NSString
         if let hit = thumbCache.object(forKey: key) { return hit }
         let options: [CFString: Any] = [
             kCGImageSourceCreateThumbnailFromImageAlways: true,
@@ -146,19 +174,20 @@ struct DataImage: View {
     @State private var shown = false
 
     var body: some View {
+        let key = ImageTools.fingerprint(data)
         ZStack {
             if let ui = ImageTools.thumbnail(data, maxPixel: maxPixel) {
                 Image(uiImage: ui)
                     .resizable()
                     .aspectRatio(contentMode: contentMode)
                     // Nyt billede = nyt view, så miniaturen krydsfader til originalen (som Fotos).
-                    .id(data.hashValue)
+                    .id(key)
                     .transition(.opacity)
             } else {
                 Theme.bgDark
             }
         }
-        .animation(reduceMotion ? nil : .easeInOut(duration: 0.3), value: data.hashValue)
+        .animation(reduceMotion ? nil : .easeInOut(duration: 0.3), value: key)
         // Billedet "fremkaldes" blidt i stedet for at hoppe på plads.
         .opacity(shown || reduceMotion ? 1 : 0)
         .onAppear { withAnimation(.easeOut(duration: 0.3)) { shown = true } }

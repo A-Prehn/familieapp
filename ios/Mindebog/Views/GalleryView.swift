@@ -253,10 +253,13 @@ struct GalleryView: View {
             lightbox = lightboxState(at: item.id, photos: sorted.map(\.photo))
             return
         }
-        lightbox = lightboxState(at: item.id, photos: sorted.map(\.listPhoto))
+        let shown = lightboxState(at: item.id, photos: sorted.map(\.listPhoto))
+        lightbox = shown
         Task {
             await CloudKitStore.withOriginals { await load() }
-            if let state = lightboxState(at: item.id, photos: sorted.map(\.photo)) { lightbox = state }
+            guard let shown, lightbox?.id == shown.id,
+                  let state = lightboxState(at: item.id, photos: sorted.map(\.photo)) else { return }
+            lightbox = state.replacing(shown)
         }
     }
 

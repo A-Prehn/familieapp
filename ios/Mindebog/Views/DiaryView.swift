@@ -83,10 +83,14 @@ struct DiaryView: View {
             lightbox = LightboxState(photos: [photo], sourceId: entry.id)
             return
         }
-        if let thumb = entry.thumb { lightbox = LightboxState(photos: [thumb], sourceId: entry.id) }
+        let shown = entry.thumb.map { LightboxState(photos: [$0], sourceId: entry.id) }
+        lightbox = shown
         Task {
             await CloudKitStore.withOriginals { await load() }
-            if let fresh = entries.first(where: { $0.id == entry.id }), let photo = fresh.photo {
+            guard let fresh = entries.first(where: { $0.id == entry.id }), let photo = fresh.photo else { return }
+            if let shown, lightbox?.id == shown.id {
+                lightbox = LightboxState(photos: [photo], sourceId: entry.id).replacing(shown)
+            } else if lightbox == nil, shown == nil {
                 lightbox = LightboxState(photos: [photo], sourceId: entry.id)
             }
         }
