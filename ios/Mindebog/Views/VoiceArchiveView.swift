@@ -96,7 +96,7 @@ private struct ClipCard: View {
             Button { Task { await toggle() } } label: {
                 Circle().fill(Theme.rose.opacity(0.15)).frame(width: 46, height: 46)
                     .overlay(Group {
-                        if loading { ProgressView() }
+                        if loading { DelayedProgress() }
                         else { Image(systemName: playback.isPlaying ? "stop.fill" : "play.fill").foregroundStyle(Theme.rose) }
                     })
             }

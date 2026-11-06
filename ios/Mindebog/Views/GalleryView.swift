@@ -30,6 +30,45 @@ struct GalleryView: View {
     @State private var movieShare: ShareSheet?
     @State private var movieError: String?
     @State private var paywall: PaywallReason?
+    /// "Hent skarpe udgaver" (#69): hvor langt vi er, og hvad det blev til.
+    @State private var sharpenDone = 0
+    @State private var sharpenTotal = 0
+    @State private var sharpenMessage: String?
+
+    /// Går serien igennem og erstatter bløde billeder (1200 px fra før 1.3.1) med originalen fra Fotos.
+    private func sharpenAll() async {
+        await CloudKitStore.withOriginals { await load() }
+        let soft = items.filter { $0.photo.map(SharpOriginals.isSoft) ?? false }
+        guard !soft.isEmpty else { sharpenMessage = "Alle billeder i serien er allerede skarpe."; return }
+        sharpenTotal = soft.count
+        defer { sharpenTotal = 0; sharpenDone = 0 }
+        var replaced = 0
+        var failed: String?
+        for (i, item) in soft.enumerated() {
+            sharpenDone = i
+            guard let photo = item.photo, let sharp = await SharpOriginals.find(for: photo) else { continue }
+            var updated = item
+            updated.photo = sharp
+            do {
+                try await state.store.updateGalleryItem(childId: child.id, updated)
+                replaced += 1
+            } catch {
+                failed = SaveError.message(for: error)
+                break
+            }
+        }
+        await load()
+        if replaced > 0 { Haptics.success() }
+        if let failed {
+            sharpenMessage = failed
+        } else if replaced == 0 {
+            sharpenMessage = "Originalerne ligger ikke i Fotos på denne telefon. Prøv på den telefon, billederne blev lagt op fra."
+        } else {
+            sharpenMessage = replaced == soft.count
+                ? "Alle \(replaced) billeder er nu skarpe — for hele familien."
+                : "\(replaced) af \(soft.count) billeder er nu skarpe. Resten ligger ikke i Fotos på denne telefon."
+        }
+    }
 
     /// "Måned for måned som film": ældste først, billedteksten (fx "3 måneder") som overskrift og datoen under.
     private func makeMovie() async {
@@ -105,6 +144,13 @@ struct GalleryView: View {
                         }
                         .disabled(makingMovie)
                     }
+                    // Skannede tegninger ligger ikke i Fotos; bedsteforældre og børn (kun visning) må ikke ændre.
+                    if state.canEdit && kind != .drawings && !items.isEmpty {
+                        Button { Task { await sharpenAll() } } label: {
+                            Label("Hent skarpe udgaver fra Fotos", systemImage: "wand.and.stars")
+                        }
+                        .disabled(sharpenTotal > 0)
+                    }
                 } label: {
                     Image(systemName: "ellipsis.circle")
                 }
@@ -141,6 +187,26 @@ struct GalleryView: View {
         .fullScreenCover(item: $lightbox) { LightboxView(state: $0).zoomTarget(id: $0.sourceId, in: zoomNS) }
         .sheet(item: $movieShare) { $0 }
         .sheet(item: $paywall) { PaywallView(reason: $0) }
+        .overlay(alignment: .bottom) {
+            if sharpenTotal > 0 {
+                VStack(spacing: 8) {
+                    Text("Henter skarpe udgaver … \(sharpenDone + 1) af \(sharpenTotal)")
+                        .font(.footnote.weight(.medium)).foregroundStyle(Theme.text)
+                    ProgressView(value: Double(sharpenDone), total: Double(max(sharpenTotal, 1)))
+                        .tint(Theme.rose)
+                }
+                .padding(14)
+                .background(Theme.card)
+                .clipShape(RoundedRectangle(cornerRadius: Radius.card))
+                .overlay(RoundedRectangle(cornerRadius: Radius.card).stroke(Theme.sep))
+                .padding(16)
+                .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
+        }
+        .animation(.easeInOut(duration: 0.25), value: sharpenTotal)
+        .alert("Skarpe udgaver", isPresented: Binding(get: { sharpenMessage != nil }, set: { if !$0 { sharpenMessage = nil } })) {
+            Button("OK") {}
+        } message: { Text(sharpenMessage ?? "") }
         .overlay {
             if makingMovie {
                 VStack(spacing: 10) {

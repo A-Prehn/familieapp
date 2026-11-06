@@ -22,7 +22,7 @@ struct SearchView: View {
                         start
                     } else if results.isEmpty {
                         if loading {
-                            HStack { ProgressView(); Text("Søger…").foregroundStyle(Theme.muted) }
+                            HStack { DelayedProgress(); Text("Søger…").foregroundStyle(Theme.muted) }
                         } else {
                             ContentUnavailableView.search(text: query)
                         }

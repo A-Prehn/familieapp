@@ -2410,7 +2410,10 @@ actor CloudKitStore: Store {
         }
         Outbox.publishCount()
         if sentAny {
-            Task { @MainActor in NotificationCenter.default.post(name: .storeDidChange, object: nil) }
+            Task { @MainActor in
+                Haptics.success()   // #68: mærkes, at det ventende nu er i iCloud
+                NotificationCenter.default.post(name: .storeDidChange, object: nil)
+            }
         }
     }
 

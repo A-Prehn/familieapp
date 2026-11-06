@@ -55,7 +55,7 @@ private struct TraditionCard: View {
                     if let d = tradition.audioDuration {
                         Button { Task { await toggle() } } label: {
                             HStack(spacing: 6) {
-                                if loading { ProgressView().controlSize(.small) }
+                                if loading { DelayedProgress(size: .small) }
                                 else { Image(systemName: playback.isPlaying ? "stop.fill" : "play.fill") }
                                 Text(MediaFiles.format(d))
                             }

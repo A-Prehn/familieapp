@@ -463,7 +463,7 @@ struct MoreView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
-                if loading { ProgressView().tint(Theme.muted) }
+                if loading { DelayedProgress(size: .small) }
             }
         }
         .sheet(isPresented: $showQR) {
