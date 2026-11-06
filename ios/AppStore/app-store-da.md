@@ -19,7 +19,7 @@ Til hele familien – også jer uden børn:
 ```
 
 ### Build
-Første build efter commit "Version 1.4" (develop). CloudKit-skemaet (hideChildren på Family) er deployet til Production 6. nov. 2026.
+Build 119 (develop, commit "Version 1.4"). Build 118 startede aldrig (ingen ledig macOS-maskine hos GitHub). CloudKit-skemaet (hideChildren på Family) er deployet til Production 6. nov. 2026.
 
 ## Version 1.3.1 — hurtig rettelse
 
