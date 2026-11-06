@@ -47,6 +47,10 @@ struct MindebogApp: App {
                 .onReceive(NotificationCenter.default.publisher(for: .cloudKitChanged)) { _ in
                     Task { await state.syncFromCloud(force: true) }
                 }
+                // Net igen: send det, der venter i udbakken (#63).
+                .onReceive(NotificationCenter.default.publisher(for: .networkBack)) { _ in
+                    Task { await state.syncFromCloud() }
+                }
                 .onReceive(NotificationCenter.default.publisher(for: .cloudKitShareAccepted)) { note in
                     if let zoneName = note.object as? String {
                         Task { await state.didAcceptShare(zoneName: zoneName) }
@@ -196,6 +200,7 @@ final class AppState: ObservableObject {
     /// `force`: også selvom det lige er gjort (træk-for-at-opdatere).
     func syncFromCloud(force: Bool = false) async {
         guard let cloud = store as? CloudKitStore else { return }
+        await cloud.flushOutbox()   // gem, der ikke nåede iCloud før (#63)
         let changed = force ? ((try? await cloud.refresh()) ?? false) : await cloud.syncIfStale()
         if changed { NotificationCenter.default.post(name: .storeDidChange, object: nil) }
         if !force { await cloud.registerSyncPush() }

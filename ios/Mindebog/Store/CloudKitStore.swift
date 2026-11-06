@@ -2343,17 +2343,190 @@ actor CloudKitStore: Store {
     }
 
     /// Gem en record og slet bagefter de midlertidige billedfiler, den blev uploadet fra.
+    /// Gemmet lægges i udbakken først (#63): mangler der net, bliver det liggende og sendes, når
+    /// nettet er tilbage — også selvom appen lukkes imens.
     private func persist(_ record: CKRecord, in db: CKDatabase) async throws -> CKRecord {
         defer { Self.removeUploadFiles(of: record) }
         Self.addThumb(to: record)
-        let saved = try await SyncLog.measure("gem \(record.recordType)") { try await saveWithRetry(record, in: db) }
-        // Billeder lægges i cachen med det samme (upload-filerne slettes lige om lidt).
+        Outbox.write(record, shared: db === sharedDB)
+        let saved: CKRecord
+        do {
+            saved = try await SyncLog.measure("gem \(record.recordType)") { try await saveWithRetry(record, in: db) }
+        } catch {
+            if Self.isOffline(error), Outbox.contains(record.recordID) { throw StoreError.queuedOffline }
+            Outbox.remove(record.recordID)
+            throw error
+        }
+        Outbox.remove(record.recordID)
+        keepSaved(saved)
+        return saved
+    }
+
+    /// Et bekræftet gem: billeder i cachen med det samme, og recorden i den lokale kopi (uden filer).
+    private func keepSaved(_ saved: CKRecord) {
         for key in saved.allKeys() where saved[key] is CKAsset || saved[key] is [CKAsset] {
             saved[key] = AssetCache.store(saved, key: key)
         }
-        // … og recorden i den lokale kopi (uden filer), så den er med i næste liste.
         local.apply(changed: [saved], deleted: [], in: saved.recordID.zoneID, createIfMissing: false)
-        return saved
+    }
+
+    private static func isOffline(_ error: Error) -> Bool {
+        guard let ck = error as? CKError else { return false }
+        return ck.code == .networkUnavailable || ck.code == .networkFailure
+    }
+
+    // MARK: - Udbakke (#63)
+
+    private var flushingOutbox = false
+
+    /// Sender gem fra udbakken, der ikke nåede iCloud. Kaldes ved opstart, aktivering og når nettet
+    /// er tilbage. Altid oven på iCloud's nyeste udgave af recorden, så genafsendelsen ikke giver konflikt
+    /// (serverRecordChanged): kun de felter, brugeren ændrede, lægges oven på.
+    func flushOutbox() async {
+        Outbox.publishCount()   // banneret viser, hvad der venter — også uden net
+        guard !flushingOutbox, NetworkWatch.shared.isOnline else { return }
+        flushingOutbox = true
+        defer { flushingOutbox = false }
+        var sentAny = false
+        for entry in Outbox.all() {
+            let db = entry.shared ? sharedDB : privateDB
+            let id = entry.record.recordID
+            do {
+                let target: CKRecord
+                do {
+                    target = try await db.record(for: id)
+                } catch let error as CKError where error.code == .unknownItem {
+                    target = CKRecord(recordType: entry.record.recordType, recordID: id)   // ny record
+                }
+                for key in entry.keys { target[key] = entry.record[key] }
+                let saved = try await SyncLog.measure("gem fra udbakken") { try await saveWithRetry(target, in: db) }
+                Outbox.remove(id)
+                keepSaved(saved)
+                sentAny = true
+            } catch {
+                if Self.isOffline(error) { break }   // stadig uden net: prøv igen senere
+                // Andre fejl (fx adgang fjernet): bliver liggende, og banneret tilbyder at kassere.
+            }
+        }
+        Outbox.publishCount()
+        if sentAny {
+            Task { @MainActor in NotificationCenter.default.post(name: .storeDidChange, object: nil) }
+        }
+    }
+
+    /// "Kassér" i banneret: glem gem, der venter i udbakken.
+    nonisolated func discardOutbox() { Outbox.removeAll() }
+
+    /// Gem, der venter på iCloud, gemt på disken (Application Support/Outbox/<record>/): selve recorden
+    /// uden filer, hvilke felter der var ændret, og kopier af de billeder/filer, der skal uploades.
+    enum Outbox {   // ikke private: testes i MindebogTests
+        struct Meta: Codable {
+            var keys: [String]
+            var shared: Bool
+            /// Filfelter: feltnavn → filnavne i mappen. `single` = feltet er ét CKAsset (ikke en liste).
+            var assets: [String: [String]]
+            var single: [String]
+        }
+        struct Entry {
+            let record: CKRecord
+            let keys: [String]
+            let shared: Bool
+        }
+
+        static let dir: URL = {
+            let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+            let dir = base.appendingPathComponent("Outbox", isDirectory: true)
+            try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+            return dir
+        }()
+
+        static func folder(for id: CKRecord.ID) -> URL {
+            let safe = "\(id.zoneID.zoneName)__\(id.zoneID.ownerName)__\(id.recordName)"
+                .replacingOccurrences(of: "/", with: "_")
+            return dir.appendingPathComponent(safe, isDirectory: true)
+        }
+
+        static func contains(_ id: CKRecord.ID) -> Bool {
+            FileManager.default.fileExists(atPath: folder(for: id).appendingPathComponent("meta.json").path)
+        }
+
+        /// Lægger gemmet i udbakken. Kan en fil ikke kopieres, lægges intet (hellere ingen genafsendelse
+        /// end en, der sletter et billede).
+        static func write(_ record: CKRecord, shared: Bool) {
+            let fm = FileManager.default
+            let folder = folder(for: record.recordID)
+            try? fm.removeItem(at: folder)
+            guard (try? fm.createDirectory(at: folder, withIntermediateDirectories: true)) != nil else { return }
+            let keys = record.changedKeys()
+            let copy = record.copy() as! CKRecord
+            var meta = Meta(keys: keys, shared: shared, assets: [:], single: [])
+            func keep(_ asset: CKAsset) -> String? {
+                guard let src = asset.fileURL else { return nil }
+                let name = UUID().uuidString + (src.pathExtension.isEmpty ? "" : "." + src.pathExtension)
+                return (try? fm.copyItem(at: src, to: folder.appendingPathComponent(name))) != nil ? name : nil
+            }
+            for key in copy.allKeys() {
+                switch copy[key] {
+                case let one as CKAsset:
+                    if keys.contains(key) {
+                        guard let name = keep(one) else { try? fm.removeItem(at: folder); return }
+                        meta.assets[key] = [name]
+                        meta.single.append(key)
+                    }
+                    copy[key] = nil
+                case let many as [CKAsset]:
+                    if keys.contains(key) {
+                        var names: [String] = []
+                        for a in many {
+                            guard let name = keep(a) else { try? fm.removeItem(at: folder); return }
+                            names.append(name)
+                        }
+                        meta.assets[key] = names
+                    }
+                    copy[key] = nil
+                default: break
+                }
+            }
+            guard let data = try? NSKeyedArchiver.archivedData(withRootObject: copy, requiringSecureCoding: true),
+                  let json = try? JSONEncoder().encode(meta),
+                  (try? data.write(to: folder.appendingPathComponent("record.data"), options: .atomic)) != nil,
+                  (try? json.write(to: folder.appendingPathComponent("meta.json"), options: .atomic)) != nil
+            else { try? fm.removeItem(at: folder); return }
+            publishCount()
+        }
+
+        static func all() -> [Entry] {
+            let fm = FileManager.default
+            let folders = (try? fm.contentsOfDirectory(at: dir, includingPropertiesForKeys: nil)) ?? []
+            return folders.compactMap { folder in
+                guard let data = try? Data(contentsOf: folder.appendingPathComponent("record.data")),
+                      let json = try? Data(contentsOf: folder.appendingPathComponent("meta.json")),
+                      let meta = try? JSONDecoder().decode(Meta.self, from: json),
+                      let record = try? NSKeyedUnarchiver.unarchivedObject(ofClass: CKRecord.self, from: data)
+                else { return nil }
+                for (key, names) in meta.assets {
+                    let assets = names.map { CKAsset(fileURL: folder.appendingPathComponent($0)) }
+                    if meta.single.contains(key) { record[key] = assets.first } else { record[key] = assets as CKRecordValue }
+                }
+                return Entry(record: record, keys: meta.keys, shared: meta.shared)
+            }
+        }
+
+        static func remove(_ id: CKRecord.ID) {
+            try? FileManager.default.removeItem(at: folder(for: id))
+            publishCount()
+        }
+
+        static func removeAll() {
+            let fm = FileManager.default
+            for f in (try? fm.contentsOfDirectory(at: dir, includingPropertiesForKeys: nil)) ?? [] { try? fm.removeItem(at: f) }
+            publishCount()
+        }
+
+        static func publishCount() {
+            let n = ((try? FileManager.default.contentsOfDirectory(at: dir, includingPropertiesForKeys: nil)) ?? []).count
+            Task { @MainActor in OutboxStatus.shared.pending = n }
+        }
     }
 
     private static func removeUploadFiles(of record: CKRecord) {
@@ -2401,7 +2574,15 @@ final class NetworkWatch: @unchecked Sendable {
     private init() {
         monitor.pathUpdateHandler = { [weak self] path in
             guard let self else { return }
-            self.lock.lock(); self.online = path.status == .satisfied; self.lock.unlock()
+            self.lock.lock()
+            let wasOnline = self.online
+            self.online = path.status == .satisfied
+            let cameBack = !wasOnline && self.online
+            self.lock.unlock()
+            // Nettet er tilbage: send det, der venter i udbakken (#63).
+            if cameBack {
+                Task { @MainActor in NotificationCenter.default.post(name: .networkBack, object: nil) }
+            }
         }
         monitor.start(queue: DispatchQueue(label: "net.prehn.mindebog.network"))
     }

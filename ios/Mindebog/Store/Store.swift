@@ -137,9 +137,12 @@ enum StoreError: LocalizedError {
     case notFound
     case notOwner
     case moveIncomplete(String)
+    /// Ingen net: gemmet ligger i udbakken og sendes af sig selv (#63).
+    case queuedOffline
 
     var errorDescription: String? {
         switch self {
+        case .queuedOffline: return "Gemt på telefonen — det sendes til iCloud, så snart der er net igen."
         case .notImplemented: return "Ikke implementeret endnu."
         case .invalidInvite: return "Ugyldig invitationskode."
         case .notFound: return "Findes ikke."

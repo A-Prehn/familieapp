@@ -74,3 +74,35 @@ final class LocalRecordsTests: XCTestCase {
         XCTAssertTrue(local.snapshotZones().isEmpty)
     }
 }
+
+// MARK: - Udbakke (#63)
+
+/// Et gem uden net skal kunne ligge på disken og læses igen efter en "genstart" — med billedet.
+final class OutboxTests: XCTestCase {
+    func testOutboxKeepsRecordAndPhotoAcrossRestart() throws {
+        let zone = CKRecordZone.ID(zoneName: "family_test_outbox", ownerName: CKCurrentUserDefaultName)
+        let id = CKRecord.ID(recordName: "hl_outbox_\(UUID().uuidString)", zoneID: zone)
+        let record = CKRecord(recordType: "Highlight", recordID: id)
+        record["text"] = "Første skridt" as CKRecordValue
+        let photo = Data([0xFF, 0xD8, 0xFF, 0x01, 0x02, 0x03])
+        let file = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".jpg")
+        try photo.write(to: file)
+        record["photos"] = [CKAsset(fileURL: file)] as CKRecordValue
+        defer { CloudKitStore.Outbox.remove(id) }
+
+        CloudKitStore.Outbox.write(record, shared: false)
+        try? FileManager.default.removeItem(at: file)   // upload-filen ryddes op, som efter et gem
+
+        XCTAssertTrue(CloudKitStore.Outbox.contains(id))
+        let entry = try XCTUnwrap(CloudKitStore.Outbox.all().first { $0.record.recordID == id })
+        XCTAssertEqual(entry.record["text"] as? String, "Første skridt")
+        XCTAssertEqual(Set(entry.keys), ["text", "photos"])
+        XCTAssertFalse(entry.shared)
+        let assets = try XCTUnwrap(entry.record["photos"] as? [CKAsset])
+        XCTAssertEqual(assets.count, 1)
+        XCTAssertEqual(try Data(contentsOf: XCTUnwrap(assets[0].fileURL)), photo, "Billedet overlever i udbakken")
+
+        CloudKitStore.Outbox.remove(id)
+        XCTAssertFalse(CloudKitStore.Outbox.contains(id))
+    }
+}

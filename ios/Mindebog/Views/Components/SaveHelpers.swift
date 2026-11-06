@@ -7,6 +7,7 @@ import CloudKit
 enum SaveError {
     /// Dansk besked til brugeren ud fra fejlen.
     static func message(for error: Error) -> String {
+        if case StoreError.queuedOffline = error { return error.localizedDescription }
         if let ck = error as? CKError {
             switch ck.code {
             case .networkUnavailable, .networkFailure:
