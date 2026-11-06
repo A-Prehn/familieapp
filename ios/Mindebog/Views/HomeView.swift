@@ -323,7 +323,7 @@ struct HomeView: View {
                 }
             }
             if (memberCount ?? 2) < 2, state.usingCloud {
-                stepCard("person.2", Theme.rose, "Inviter den anden forælder",
+                stepCard("person.2", Theme.rose, state.showChildren ? "Inviter den anden forælder" : "Inviter din familie",
                          "Så skriver I minderne sammen — det er gratis.") { showInvite = true }
             }
         }
@@ -587,7 +587,8 @@ struct HomeView: View {
         let names = Dictionary(uniqueKeysWithValues: loadedKids.map { ($0.id, $0) })
         // "På denne dag"-notifikationer for de næste uger.
         let childNames = loadedKids.reduce(into: [String: String]()) { $0[$1.id] = $1.name }
-        Task { await OnThisDay.schedule(summaries: summaries, childNames: childNames) }
+        let dayMemories = state.showChildren ? summaries : summaries.filter { $0.childId == nil }
+        Task { await OnThisDay.schedule(summaries: dayMemories, childNames: childNames) }
 
         func memory(_ s: MemorySummary) -> RecentMemory? {
             switch s.kind {

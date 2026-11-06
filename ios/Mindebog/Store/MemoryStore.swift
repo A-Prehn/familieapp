@@ -470,6 +470,10 @@ actor MemoryStore: Store {
     func deleteComment(familyId: String, id: String) async throws { commentsByFamily[familyId]?.removeAll { $0.id == id } }
     func traditionAudio(familyId: String, id: String) async throws -> URL? { mediaByRecord[id]?.audio }
 
+    private var hidesChildren: [String: Bool] = [:]
+    func familyHidesChildren(familyId: String) async -> Bool? { hidesChildren[familyId] }
+    func setFamilyHidesChildren(familyId: String, _ hidden: Bool) async throws { hidesChildren[familyId] = hidden }
+
     // MARK: Premium (kun i hukommelsen)
     private var premiumByFamily: [String: Date] = [:]
     func familyPremium(familyId: String) async -> Date? { premiumByFamily[familyId] }

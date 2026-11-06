@@ -46,6 +46,10 @@ func performSave(saving: Binding<Bool>, errorMessage: Binding<String?>,
         dismiss()
         NotificationCenter.default.post(name: .storeDidChange, object: nil)
         ReviewPrompt.noteSaved()
+    } catch StoreError.queuedOffline {
+        // Ligger i udbakken (#63) og sendes af sig selv — luk formularen, så der ikke gemmes to gange.
+        dismiss()
+        NotificationCenter.default.post(name: .storeDidChange, object: nil)
     } catch {
         errorMessage.wrappedValue = SaveError.message(for: error)
     }

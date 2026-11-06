@@ -217,7 +217,7 @@ struct FamilyAccessView: View {
             let (share, container) = try await cloud.shareForSharing(familyId: familyId)
             CloudSharing.present(share: share, container: container, invite: kind,
                                  title: familyName.isEmpty ? "Vores familie" : familyName) {
-                Task { await load() }
+                Task { await cloud.sharesMayHaveChanged(); await load() }
             }
         } catch {
             self.error = "Kunne ikke åbne invitationen: \(error.localizedDescription)"

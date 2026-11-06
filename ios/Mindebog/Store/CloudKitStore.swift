@@ -371,7 +371,7 @@ actor CloudKitStore: Store {
     func canEdit(familyId: String) async -> Bool {
         // Ejeren (familien ligger i egen private database) kan altid redigere.
         guard let (db, zoneID) = try? await locate(familyId), db === sharedDB else { return true }
-        guard let share = try? await readShare(db: db, zoneID: zoneID),
+        guard let share = try? await readShare(db: db, zoneID: zoneID, needsMe: true),
               let me = share.currentUserParticipant else { return true }
         return me.permission != .readOnly
     }
@@ -391,6 +391,7 @@ actor CloudKitStore: Store {
 
     /// Returnerer share-URL (som tekst). Partneren åbner linket, eller indsætter det.
     func createInvite(userId: String, familyId: String) async throws -> String {
+        defer { shareGeneration += 1 }   // delingen kan være ændret: læs den frisk næste gang
         let (db, zoneID) = try await locate(familyId)
         if let existing = try? await fetchShare(db: db, zoneID: zoneID), let url = existing.url {
             return url.absoluteString
@@ -415,6 +416,7 @@ actor CloudKitStore: Store {
     }
 
     func shareForSharing(familyId: String) async throws -> (CKShare, CKContainer) {
+        defer { shareGeneration += 1 }   // delingen kan være ændret: læs den frisk næste gang
         let (db, zoneID) = try await locate(familyId)
         // Navnet folk ser i invitationen: familiens navn (ældre delinger hed "Mindebog").
         let title = shareTitle((try? await familyRecord(db: db, zoneID: zoneID))?["name"] as? String)
@@ -648,6 +650,7 @@ actor CloudKitStore: Store {
     /// Barnezonens deling: oprettes første gang, og familiens medlemmer lægges på med samme adgang,
     /// så partneren stadig ser barnet. Linket gemmes på familiens Child-record til de andre telefoner.
     func shareChild(childId: String, familyId: String) async throws -> (CKShare, CKContainer) {
+        defer { shareGeneration += 1 }   // delingen kan være ændret: læs den frisk næste gang
         if !(await childHasOwnZone(childId: childId)) {
             try await moveChildToOwnZone(childId: childId, familyId: familyId)
         }
@@ -709,6 +712,7 @@ actor CloudKitStore: Store {
     }
 
     func setChildParticipant(childId: String, id: String, readOnly: Bool) async throws {
+        defer { shareGeneration += 1 }   // delingen kan være ændret: læs den frisk næste gang
         let (db, zoneID) = try await locateChild(childId)
         let share = try await fetchShare(db: db, zoneID: zoneID)
         guard let p = share.participants.first(where: { Self.participantKey($0, in: share) == id }), p.role != .owner else { return }
@@ -718,6 +722,7 @@ actor CloudKitStore: Store {
     }
 
     func removeChildParticipant(childId: String, id: String) async throws {
+        defer { shareGeneration += 1 }   // delingen kan være ændret: læs den frisk næste gang
         let (db, zoneID) = try await locateChild(childId)
         let share = try await fetchShare(db: db, zoneID: zoneID)
         guard let p = share.participants.first(where: { Self.participantKey($0, in: share) == id }), p.role != .owner else { return }
@@ -729,7 +734,7 @@ actor CloudKitStore: Store {
     /// Må man redigere dette barn? Familiens børn følger familien; et delt barn følger barnets deling.
     func canEditChild(childId: String) async -> Bool {
         guard let (db, zoneID) = try? await locateChild(childId), db === sharedDB,
-              let share = try? await readShare(db: db, zoneID: zoneID),
+              let share = try? await readShare(db: db, zoneID: zoneID, needsMe: true),
               let me = share.currentUserParticipant else { return true }
         return me.permission != .readOnly
     }
@@ -2131,6 +2136,26 @@ actor CloudKitStore: Store {
         throw StoreError.notFound
     }
 
+    // MARK: - Børn valgfri (#28) — gemt på familien, så alle ser det samme
+
+    /// nil = ikke sat (eller kunne ikke læses): så gælder telefonens eget valg.
+    func familyHidesChildren(familyId: String) async -> Bool? {
+        guard let (db, zoneID) = try? await locate(familyId) else { return nil }
+        let id = CKRecord.ID(recordName: "family", zoneID: zoneID)
+        let record = try? await db.records(for: [id], desiredKeys: ["hideChildren"])[id]?.get()
+        return (record?["hideChildren"] as? Int64).map { $0 != 0 }
+    }
+
+    func setFamilyHidesChildren(familyId: String, _ hidden: Bool) async throws {
+        let (db, zoneID) = try await locate(familyId)
+        let id = CKRecord.ID(recordName: "family", zoneID: zoneID)
+        guard let record = try await db.records(for: [id], desiredKeys: ["hideChildren"])[id]?.get() else { return }
+        record["hideChildren"] = (hidden ? 1 : 0) as CKRecordValue
+        // Uden om udbakken: en indstilling skal ikke ligge og vente (eller blive hængende, hvis feltet
+        // ikke er i iCloud-skemaet endnu) — telefonens eget valg gælder imens.
+        keepSaved(try await saveWithRetry(record, in: db))
+    }
+
     private func familyRecord(db: CKDatabase, zoneID: CKRecordZone.ID) async throws -> CKRecord {
         try await db.record(for: CKRecord.ID(recordName: "family", zoneID: zoneID))
     }
@@ -2199,6 +2224,7 @@ actor CloudKitStore: Store {
     }
 
     private func changeShare(familyId: String, _ change: (CKShare) -> Void) async throws {
+        defer { shareGeneration += 1 }   // delingen kan være ændret: læs den frisk næste gang
         let (db, zoneID) = try await locate(familyId)
         let share = try await fetchShare(db: db, zoneID: zoneID)
         change(share)
@@ -2226,13 +2252,29 @@ actor CloudKitStore: Store {
 
     /// Delingen til visning (deltagere, rettighed, link): fra kopien, hvor den kommer med zone-ændringerne —
     /// ellers fra iCloud (#64). Skal delingen ændres, bruges `fetchShare`, så change tag er frisk.
-    private func readShare(db: CKDatabase, zoneID: CKRecordZone.ID) async throws -> CKShare {
+    /// `needsMe`: til rettigheder skal ens egen deltager være med — mangler den i kopien, hentes delingen.
+    private func readShare(db: CKDatabase, zoneID: CKRecordZone.ID, needsMe: Bool = false) async throws -> CKShare {
         let shareID = CKRecord.ID(recordName: CKRecordNameZoneWideShare, zoneID: zoneID)
-        if let cached = local.record(shareID) as? CKShare { return cached }
-        let share = try await fetchShare(db: db, zoneID: zoneID)
-        local.apply(changed: [share], deleted: [], in: zoneID, createIfMissing: false)
-        return share
+        if (shareFresh[zoneID] ?? 0) == shareGeneration, let cached = local.record(shareID) as? CKShare,
+           !needsMe || cached.currentUserParticipant != nil { return cached }
+        do {
+            let share = try await fetchShare(db: db, zoneID: zoneID)
+            local.apply(changed: [share], deleted: [], in: zoneID, createIfMissing: false)
+            shareFresh[zoneID] = shareGeneration
+            return share
+        } catch let error as CKError where error.code == .unknownItem {
+            // Delingen er stoppet: fjern den også fra kopien, så skærmene ikke viser en gammel.
+            local.apply(changed: [], deleted: [shareID], in: zoneID, createIfMissing: false)
+            shareFresh[zoneID] = shareGeneration
+            throw error
+        }
     }
+
+    /// Tælles op, hver gang delingen kan være ændret (her eller i Apples delingsark). Kopien af en zones
+    /// deling bruges kun, hvis den er læst frisk siden da.
+    private var shareGeneration = 0
+    private var shareFresh: [CKRecordZone.ID: Int] = [:]
+    func sharesMayHaveChanged() { shareGeneration += 1 }
 
     private func fetchShare(db: CKDatabase, zoneID: CKRecordZone.ID) async throws -> CKShare {
         let shareID = CKRecord.ID(recordName: CKRecordNameZoneWideShare, zoneID: zoneID)
@@ -2349,6 +2391,8 @@ actor CloudKitStore: Store {
         defer { Self.removeUploadFiles(of: record) }
         Self.addThumb(to: record)
         Outbox.write(record, shared: db === sharedDB)
+        persisting.insert(record.recordID)   // flushOutbox må ikke sende den samme record imens
+        defer { persisting.remove(record.recordID) }
         let saved: CKRecord
         do {
             saved = try await SyncLog.measure("gem \(record.recordType)") { try await saveWithRetry(record, in: db) }
@@ -2378,6 +2422,8 @@ actor CloudKitStore: Store {
     // MARK: - Udbakke (#63)
 
     private var flushingOutbox = false
+    /// Records, der er ved at blive gemt lige nu — de ligger også i udbakken, men er ikke "ventende".
+    private var persisting: Set<CKRecord.ID> = []
 
     /// Sender gem fra udbakken, der ikke nåede iCloud. Kaldes ved opstart, aktivering og når nettet
     /// er tilbage. Altid oven på iCloud's nyeste udgave af recorden, så genafsendelsen ikke giver konflikt
@@ -2388,7 +2434,7 @@ actor CloudKitStore: Store {
         flushingOutbox = true
         defer { flushingOutbox = false }
         var sentAny = false
-        for entry in Outbox.all() {
+        for entry in Outbox.all() where !persisting.contains(entry.record.recordID) {
             let db = entry.shared ? sharedDB : privateDB
             let id = entry.record.recordID
             do {
@@ -2466,7 +2512,10 @@ actor CloudKitStore: Store {
             func keep(_ asset: CKAsset) -> String? {
                 guard let src = asset.fileURL else { return nil }
                 let name = UUID().uuidString + (src.pathExtension.isEmpty ? "" : "." + src.pathExtension)
-                return (try? fm.copyItem(at: src, to: folder.appendingPathComponent(name))) != nil ? name : nil
+                let dst = folder.appendingPathComponent(name)
+                // Hårdt link: øjeblikkeligt og uden ekstra plads, også for store videoer. Kopi kun som nødløsning.
+                if (try? fm.linkItem(at: src, to: dst)) != nil { return name }
+                return (try? fm.copyItem(at: src, to: dst)) != nil ? name : nil
             }
             for key in copy.allKeys() {
                 switch copy[key] {

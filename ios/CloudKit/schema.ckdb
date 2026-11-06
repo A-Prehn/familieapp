@@ -20,6 +20,7 @@ DEFINE SCHEMA
         "___modTime"    TIMESTAMP,
         "___modifiedBy" REFERENCE,
         "___recordID"   REFERENCE QUERYABLE,
+        hideChildren    INT64,
         name            STRING,
         ownerId         STRING,
         ownerName       STRING,

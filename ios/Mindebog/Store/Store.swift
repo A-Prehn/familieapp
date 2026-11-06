@@ -101,6 +101,9 @@ protocol Store {
     // Premium for hele familien (ejerens køb, så partner/bedsteforældre også får det)
     func familyPremium(familyId: String) async -> Date?
     func setFamilyPremium(familyId: String, until: Date?) async throws
+    /// Børn valgfri (#28), gemt på familien. nil = ikke sat.
+    func familyHidesChildren(familyId: String) async -> Bool?
+    func setFamilyHidesChildren(familyId: String, _ hidden: Bool) async throws
 
     // Pr. familie
     func events(familyId: String) async throws -> [FamilyEvent]

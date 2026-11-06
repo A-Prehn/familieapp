@@ -229,12 +229,13 @@ struct MoreView: View {
                 Toggle(isOn: Binding(get: { state.showChildren }, set: { state.setShowChildren($0) })) {
                     Label("Vis Børn", systemImage: "person.2")
                 }
+                .disabled(!state.canEdit)
             } header: {
                 Text("Børn")
             } footer: {
                 Text(state.showChildren
-                     ? "Slå fra, hvis I ikke har børn. Så forsvinder fanen Børn, og Hjem viser kun familiens fælles minder."
-                     : "Børn er skjult på denne telefon. Intet er slettet — slå til igen, så er alt der som før.")
+                     ? "Slå fra, hvis I ikke har børn. Så forsvinder fanen Børn, og Hjem viser kun familiens fælles minder — for hele familien."
+                     : "Børn er skjult for hele familien. Intet er slettet — slå til igen, så er alt der som før.")
             }
 
             Section {
@@ -633,7 +634,7 @@ struct MoreView: View {
         do {
             let (share, container) = try await cloud.shareForSharing(familyId: familyId)
             CloudSharing.present(share: share, container: container, invite: state.isPremium ? .all : .edit) {
-                Task { await load() }
+                Task { await cloud.sharesMayHaveChanged(); await load() }
             }
         } catch {
             state.errorMessage = error.localizedDescription
@@ -663,7 +664,7 @@ struct MoreView: View {
     }
 
     private func rescheduleReminders() async {
-        let kids = (try? await state.store.children(familyId: state.familyId ?? "")) ?? []
+        let kids = state.showChildren ? ((try? await state.store.children(familyId: state.familyId ?? "")) ?? []) : []
         await Reminders.schedule(children: kids, force: true)
     }
 

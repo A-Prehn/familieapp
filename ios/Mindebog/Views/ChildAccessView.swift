@@ -166,7 +166,7 @@ struct ChildAccessView: View {
             shared = true
             NotificationCenter.default.post(name: .storeDidChange, object: nil)
             CloudSharing.present(share: share, container: container, invite: kind, title: child.name) {
-                Task { await load() }
+                Task { await cloud.sharesMayHaveChanged(); await load() }
             }
             await load()
         } catch {

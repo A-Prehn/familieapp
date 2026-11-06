@@ -64,6 +64,7 @@ struct SaveQueueBanner: View {
     @ObservedObject private var queue = SaveQueue.shared
     @ObservedObject private var sync = SyncStatus.shared
     @ObservedObject private var outbox = OutboxStatus.shared
+    @State private var confirmDiscard = false
     @EnvironmentObject private var state: AppState
 
     var body: some View {
@@ -74,10 +75,16 @@ struct SaveQueueBanner: View {
                     Image(systemName: "icloud.and.arrow.up").font(.caption)
                     Text(outbox.pending == 1 ? "1 venter på iCloud" : "\(outbox.pending) venter på iCloud")
                         .font(.caption.weight(.medium))
-                    Button("Kassér", role: .destructive) {
-                        (state.store as? CloudKitStore)?.discardOutbox()
-                    }
-                    .font(.caption)
+                    Button("Kassér", role: .destructive) { confirmDiscard = true }
+                        .font(.caption)
+                        .confirmationDialog("Kassér det, der venter?", isPresented: $confirmDiscard, titleVisibility: .visible) {
+                            Button(outbox.pending == 1 ? "Kassér det" : "Kassér alle \(outbox.pending)", role: .destructive) {
+                                (state.store as? CloudKitStore)?.discardOutbox()
+                            }
+                            Button("Behold", role: .cancel) {}
+                        } message: {
+                            Text("Det er ikke nået til iCloud endnu og kan ikke hentes frem igen.")
+                        }
                 }
                 .padding(.horizontal, 14).padding(.vertical, 8)
                 .background(Capsule().fill(Theme.card))

@@ -82,6 +82,18 @@ final class AppState: ObservableObject {
     func setShowChildren(_ on: Bool) {
         showChildren = on
         UserDefaults.standard.set(on, forKey: showChildrenKey(familyId))
+        // Gem på familien, så partneren ser det samme. Kun visning (eller et skema uden feltet endnu):
+        // så gælder valget på denne telefon.
+        guard let familyId, canEdit else { return }
+        Task { try? await store.setFamilyHidesChildren(familyId: familyId, !on) }
+    }
+
+    /// Familiens fælles valg (sat af en anden i familien) vinder over telefonens.
+    func refreshShowChildren() async {
+        guard let familyId, let hidden = await store.familyHidesChildren(familyId: familyId),
+              familyId == self.familyId, showChildren == hidden else { return }
+        showChildren = !hidden
+        UserDefaults.standard.set(!hidden, forKey: showChildrenKey(familyId))
     }
     @Published var errorMessage: String?
     /// false for "Kun visning" (fx bedsteforældre): tilføj/redigér/slet skjules overalt.
@@ -95,6 +107,7 @@ final class AppState: ObservableObject {
         canEdit = value
         UserDefaults.standard.set(value, forKey: "mindebog.canEdit")
         await refreshMeChild()
+        await refreshShowChildren()
         await refreshPremium()
     }
 
@@ -339,14 +352,15 @@ final class AppState: ObservableObject {
             if openingInvite { endOpeningInvite() }
         }
     }
-    private func endOpeningInvite() {
+    func endOpeningInvite() {
         openingInvite = false
         PendingShare.opening = false
     }
 
     func didAcceptShare(zoneName: String) async {
-        guard ready, usingCloud else { return }   // bootstrap samler den op via PendingShare
+        guard ready else { return }   // bootstrap samler den op via PendingShare
         defer { endOpeningInvite() }
+        guard usingCloud else { return }
         if user == nil {
             // Ny bruger, der kommer ind via en invitation: log ind med det samme (navnet rettes under Mere).
             guard let u = try? await store.signIn(name: "") else { return }
@@ -362,6 +376,7 @@ final class AppState: ObservableObject {
         if let ownerName { await cloud?.rememberSharedZone(zoneName: zoneName, ownerName: ownerName) }
         // Et enkelt barn delt med én (den anden forælder): vis det under Børn.
         if zoneName.hasPrefix(CloudKitStore.childZonePrefix) {
+            _ = try? await cloud?.refresh()   // hent barnets zone nu — den automatiske sync venter ellers (#64)
             NotificationCenter.default.post(name: .storeDidChange, object: nil)
             return
         }

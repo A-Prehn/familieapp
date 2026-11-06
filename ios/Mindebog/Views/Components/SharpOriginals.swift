@@ -19,18 +19,25 @@ enum SharpOriginals {
         guard status == .authorized || status == .limited else { return nil }
 
         let options = PHFetchOptions()
+        // Optagelsestiden i billedet er lokal tid uden tidszone. Er billedet taget (eller lagt op) i en anden
+        // tidszone, ligger den hele kvarter forskudt fra Fotos' tidspunkt — så der søges et døgn rundt om, og
+        // sekunderne skal passe på nær et helt antal kvarter.
         options.predicate = NSPredicate(format: "creationDate >= %@ AND creationDate <= %@",
-                                        taken.addingTimeInterval(-2) as NSDate, taken.addingTimeInterval(2) as NSDate)
+                                        taken.addingTimeInterval(-14 * 3600 - 2) as NSDate,
+                                        taken.addingTimeInterval(14 * 3600 + 2) as NSDate)
         let result = PHAsset.fetchAssets(with: .image, options: options)
+        let size = Int(ImageTools.longestSide(data) ?? 0)
         var best: PHAsset?
-        var bestDiff = CGFloat.infinity
+        var bestOffset = TimeInterval.infinity
         result.enumerateObjects { asset, _, _ in
-            guard asset.pixelHeight > 0 else { return }
+            guard asset.pixelHeight > 0, let created = asset.creationDate else { return }
+            let offset = created.timeIntervalSince(taken)
+            guard abs(offset - (offset / 900).rounded() * 900) <= 2 else { return }
             // Samme form (ellers er billedet beskåret i appen, og originalen ville fjerne beskæringen).
             let diff = abs(CGFloat(asset.pixelWidth) / CGFloat(asset.pixelHeight) - ratio)
-            if diff < 0.02 && diff < bestDiff, max(asset.pixelWidth, asset.pixelHeight) > Int(ImageTools.longestSide(data) ?? 0) {
+            if diff < 0.02, max(asset.pixelWidth, asset.pixelHeight) > size, abs(offset) < bestOffset {
                 best = asset
-                bestDiff = diff
+                bestOffset = abs(offset)
             }
         }
         guard let best else { return nil }

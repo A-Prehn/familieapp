@@ -20,6 +20,11 @@ struct RootView: View {
         .overlay {
             if state.openingInvite {
                 InviteOpeningView().transition(.opacity)
+                    // Sikkerhedsnet: laget må aldrig blive stående (fx uden iCloud, eller hvis accepten aldrig svarer).
+                    .task {
+                        try? await Task.sleep(for: .seconds(25))
+                        if !Task.isCancelled { state.endOpeningInvite() }
+                    }
             }
         }
         .animation(.easeInOut(duration: 0.25), value: state.openingInvite)
@@ -95,7 +100,7 @@ struct MainTabView: View {
 
     @State private var openedOwnBook = false
     private func openOwnBook() async {
-        guard !openedOwnBook, let childId = state.meChildId, let familyId = state.familyId else { return }
+        guard !openedOwnBook, state.showChildren, let childId = state.meChildId, let familyId = state.familyId else { return }
         let kids = (try? await state.store.children(familyId: familyId)) ?? []
         guard let child = kids.first(where: { $0.id == childId }) else { return }
         openedOwnBook = true
