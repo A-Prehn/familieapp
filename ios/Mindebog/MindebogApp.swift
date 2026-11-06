@@ -237,6 +237,7 @@ final class AppState: ObservableObject {
             // Familien fra sidst mangler. En delt familie kan være et øjeblik om at dukke op i den delte
             // database — spørg igen, før den glemmes, så bedsteforældre ikke skal indsætte linket igen (#60).
             try? await Task.sleep(for: .seconds(3))
+            _ = try? await (store as? CloudKitStore)?.refresh()   // forbi den automatiske ventetid (#64)
             guard let again = try? await store.families(for: userId) else { return }
             fams = again
             rememberFamilies(fams)
@@ -342,6 +343,8 @@ final class AppState: ObservableObject {
         }
         // Den delte zone kan være et øjeblik om at dukke op i den delte database — prøv et par gange.
         for attempt in 0..<4 {
+            // Spørg iCloud hver gang — ellers ville den automatiske ventetid (#64) skjule den nye familie.
+            _ = try? await (store as? CloudKitStore)?.refresh()
             let fams = (try? await store.families(for: user.id)) ?? []
             if let match = fams.first(where: { $0.id == zoneName }) {
                 rememberFamilies(fams)

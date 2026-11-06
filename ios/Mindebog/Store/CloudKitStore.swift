@@ -236,7 +236,7 @@ actor CloudKitStore: Store {
         // bedsteforælders familie "forsvinder" ikke, bare fordi nettet var væk et øjeblik (#60).
         // Kun hvis der slet ingen kopi er, kastes fejlen videre.
         do {
-            try await sync.syncAll(throttle: 3)
+            try await sync.syncAll(throttle: Self.autoSyncThrottle)
         } catch {
             if local.snapshotZones().isEmpty { throw error }
         }
@@ -322,7 +322,7 @@ actor CloudKitStore: Store {
     func members(familyId: String) async throws -> [AppUser] {
         let (db, zoneID) = try await locate(familyId)
         var members: [AppUser] = []
-        if let share = try? await fetchShare(db: db, zoneID: zoneID) {
+        if let share = try? await readShare(db: db, zoneID: zoneID) {
             // Ejeren er selv en "deltager" i en CKShare. Navne: først det medlemmet selv har
             // gemt under "Dit navn" (Member-records), så iCloud-navn, så mail/telefon.
             let me = share.currentUserParticipant
@@ -371,7 +371,7 @@ actor CloudKitStore: Store {
     func canEdit(familyId: String) async -> Bool {
         // Ejeren (familien ligger i egen private database) kan altid redigere.
         guard let (db, zoneID) = try? await locate(familyId), db === sharedDB else { return true }
-        guard let share = try? await fetchShare(db: db, zoneID: zoneID),
+        guard let share = try? await readShare(db: db, zoneID: zoneID),
               let me = share.currentUserParticipant else { return true }
         return me.permission != .readOnly
     }
@@ -410,7 +410,7 @@ actor CloudKitStore: Store {
     /// Delingens tilstand til Mere-skærmen: ét opslag, ingen skrivning (#58). nil = ikke delt endnu.
     func shareInfo(familyId: String) async -> (isPublic: Bool, url: String?)? {
         guard let (db, zoneID) = try? await locate(familyId),
-              let share = try? await fetchShare(db: db, zoneID: zoneID) else { return nil }
+              let share = try? await readShare(db: db, zoneID: zoneID) else { return nil }
         return (share.publicPermission != .none, share.url?.absoluteString)
     }
 
@@ -501,7 +501,7 @@ actor CloudKitStore: Store {
 
     /// Børn, der er delt med én direkte (fx fra den anden forælders familie) — uden at man er med i familien.
     func sharedChildren() async throws -> [Child] {
-        _ = try? await sync.syncAll(throttle: 10)
+        _ = try? await sync.syncAll(throttle: Self.autoSyncThrottle)
         var out: [Child] = []
         for zoneID in local.snapshotZones()
         where zoneID.zoneName.hasPrefix(Self.childZonePrefix) && zoneID.ownerName != CKCurrentUserDefaultName {
@@ -699,7 +699,7 @@ actor CloudKitStore: Store {
     /// Deltagere på barnets deling — til "Del barn"-skærmen.
     func childParticipants(childId: String) async throws -> [FamilyParticipant] {
         let (db, zoneID) = try await locateChild(childId)
-        guard let share = try? await fetchShare(db: db, zoneID: zoneID) else { return [] }
+        guard let share = try? await readShare(db: db, zoneID: zoneID) else { return [] }
         return participants(of: share, db: db, zoneID: zoneID, namesFrom: nil)
     }
 
@@ -729,7 +729,7 @@ actor CloudKitStore: Store {
     /// Må man redigere dette barn? Familiens børn følger familien; et delt barn følger barnets deling.
     func canEditChild(childId: String) async -> Bool {
         guard let (db, zoneID) = try? await locateChild(childId), db === sharedDB,
-              let share = try? await fetchShare(db: db, zoneID: zoneID),
+              let share = try? await readShare(db: db, zoneID: zoneID),
               let me = share.currentUserParticipant else { return true }
         return me.permission != .readOnly
     }
@@ -2145,7 +2145,7 @@ actor CloudKitStore: Store {
     /// Alle i den delte familie med deres adgang — til "Familie og adgang".
     func participants(familyId: String) async throws -> [FamilyParticipant] {
         let (db, zoneID) = try await locate(familyId)
-        guard let share = try? await fetchShare(db: db, zoneID: zoneID) else { return [] }
+        guard let share = try? await readShare(db: db, zoneID: zoneID) else { return [] }
         var savedNames: [String: String] = [:]
         for r in (try? await all(db: db, zoneID: zoneID, type: "Member")) ?? [] {
             if let uid = r["userId"] as? String, let n = r["name"] as? String, !n.isEmpty { savedNames[uid] = n }
@@ -2203,7 +2203,9 @@ actor CloudKitStore: Store {
         let share = try await fetchShare(db: db, zoneID: zoneID)
         change(share)
         let (saved, _) = try await db.modifyRecords(saving: [share], deleting: [], savePolicy: .changedKeys)
-        _ = try saved[share.recordID]?.get()
+        let fresh = try saved[share.recordID]?.get()
+        // Kopien får den nye deling med det samme, så Mere og Familie og adgang viser ændringen (#64).
+        if let fresh { local.apply(changed: [fresh], deleted: [], in: zoneID, createIfMissing: false) }
     }
 
     /// Et id for deltageren, der er det samme fra gang til gang (#37). Uden bruger-id, mail eller telefon
@@ -2216,6 +2218,20 @@ actor CloudKitStore: Store {
             ?? identity.lookupInfo?.phoneNumber { return key }
         let index = share.participants.firstIndex(of: p) ?? 0
         return "p-\(p.role.rawValue)-\(p.permission.rawValue)-\(p.acceptanceStatus.rawValue)-\(index)"
+    }
+
+    /// Automatiske synkroniseringer (Mere, rettigheder, opslag af familier) springes over, hvis der er
+    /// synkroniseret inden for dette tidsrum (#64). Push, aktivering og træk-for-at-opdatere henter straks.
+    static let autoSyncThrottle: TimeInterval = 45
+
+    /// Delingen til visning (deltagere, rettighed, link): fra kopien, hvor den kommer med zone-ændringerne —
+    /// ellers fra iCloud (#64). Skal delingen ændres, bruges `fetchShare`, så change tag er frisk.
+    private func readShare(db: CKDatabase, zoneID: CKRecordZone.ID) async throws -> CKShare {
+        let shareID = CKRecord.ID(recordName: CKRecordNameZoneWideShare, zoneID: zoneID)
+        if let cached = local.record(shareID) as? CKShare { return cached }
+        let share = try await fetchShare(db: db, zoneID: zoneID)
+        local.apply(changed: [share], deleted: [], in: zoneID, createIfMissing: false)
+        return share
     }
 
     private func fetchShare(db: CKDatabase, zoneID: CKRecordZone.ID) async throws -> CKShare {
