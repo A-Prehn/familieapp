@@ -51,6 +51,9 @@ struct MindebogApp: App {
                 .onReceive(NotificationCenter.default.publisher(for: .networkBack)) { _ in
                     Task { await state.syncFromCloud() }
                 }
+                .onReceive(NotificationCenter.default.publisher(for: .cloudKitShareOpening)) { _ in
+                    state.beginOpeningInvite()
+                }
                 .onReceive(NotificationCenter.default.publisher(for: .cloudKitShareAccepted)) { note in
                     if let zoneName = note.object as? String {
                         Task { await state.didAcceptShare(zoneName: zoneName) }
@@ -326,8 +329,24 @@ final class AppState: ObservableObject {
 
     /// Kaldes når brugeren har trykket på et delelink og iOS har accepteret delingen.
     /// Virker også for en helt ny bruger (ingen "Kom i gang" endnu) og lige efter koldstart.
+    /// Et delelink er trykket, og invitationen er ved at blive åbnet (#67): vises som et lag over alt,
+    /// så det aldrig ser ud, som om der ikke sker noget. Forsvinder, når familien er åbnet (eller efter 25 s).
+    @Published private(set) var openingInvite = PendingShare.opening
+    func beginOpeningInvite() {
+        openingInvite = true
+        Task {
+            try? await Task.sleep(for: .seconds(25))
+            if openingInvite { endOpeningInvite() }
+        }
+    }
+    private func endOpeningInvite() {
+        openingInvite = false
+        PendingShare.opening = false
+    }
+
     func didAcceptShare(zoneName: String) async {
         guard ready, usingCloud else { return }   // bootstrap samler den op via PendingShare
+        defer { endOpeningInvite() }
         if user == nil {
             // Ny bruger, der kommer ind via en invitation: log ind med det samme (navnet rettes under Mere).
             guard let u = try? await store.signIn(name: "") else { return }

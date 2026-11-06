@@ -54,12 +54,21 @@ struct OnboardingView: View {
                 .padding(.horizontal, 24)
             } else {
                 VStack(spacing: 12) {
-                    TextField(state.usingCloud ? "Indsæt delelink" : "Invitationskode", text: $code)
-                        .textFieldStyle(.roundedBorder)
-                        .textInputAutocapitalization(state.usingCloud ? .never : .characters)
-                        .autocorrectionDisabled()
+                    HStack(spacing: 8) {
+                        TextField(state.usingCloud ? "Indsæt delelink" : "Invitationskode", text: $code)
+                            .textFieldStyle(.roundedBorder)
+                            .textInputAutocapitalization(state.usingCloud ? .never : .characters)
+                            .autocorrectionDisabled()
+                        // Indsæt med ét tryk (#67) — iOS spørger ikke om lov, når man selv trykker.
+                        PasteButton(payloadType: String.self) { strings in
+                            if let text = strings.first { code = text.trimmingCharacters(in: .whitespacesAndNewlines) }
+                        }
+                        .labelStyle(.iconOnly)
+                        .buttonBorderShape(.capsule)
+                        .tint(Theme.rose)
+                    }
                     if state.usingCloud {
-                        Text("Har du fået en invitation? Gå tilbage til beskeden, og tryk på linket igen — så åbner appen og tilmelder dig af sig selv. Du kan også holde fingeren på linket, vælge Kopiér og indsætte det her.")
+                        Text("Har du fået en invitation? Gå tilbage til beskeden, og tryk på linket igen — så åbner appen og tilmelder dig af sig selv. Du kan også kopiere linket og indsætte det her.")
                             .font(.footnote).foregroundStyle(Theme.muted)
                             .multilineTextAlignment(.center)
                     }

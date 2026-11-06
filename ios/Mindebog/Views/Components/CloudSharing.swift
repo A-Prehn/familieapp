@@ -48,3 +48,16 @@ enum CloudSharing {
         func cloudSharingControllerDidStopSharing(_ csc: UICloudSharingController) { onChange() }
     }
 }
+
+/// Teksten, der sendes med et delelink (#67). Har modtageren ikke appen, åbner linket App Store, og iOS
+/// husker ikke linket efter installationen — så man skal trykke på det igen bagefter.
+enum Invitation {
+    static let appStoreURL = "https://apps.apple.com/dk/app/vores-familie/id6823090981"
+    static let message = """
+        Du er inviteret til vores familie i appen Vores familie 💛
+
+        1. Hent appen her (gratis): \(appStoreURL)
+        2. Åbn den, og skriv dit navn.
+        3. Tryk så på linket her i beskeden igen — så kommer du ind i familien.
+        """
+}

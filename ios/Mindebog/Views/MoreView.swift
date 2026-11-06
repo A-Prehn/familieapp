@@ -195,7 +195,8 @@ struct MoreView: View {
                             }
                             .disabled(busy)
                             if shareIsPublic, let invite, let url = URL(string: invite) {
-                                ShareLink(item: url) { Label("Send delelink", systemImage: "square.and.arrow.up") }
+                                // #67: iOS husker ikke linket efter installation — derfor "tryk på linket igen" og App Store-linket.
+                                ShareLink(item: url, message: Text(Invitation.message)) { Label("Send delelink", systemImage: "square.and.arrow.up") }
                                 Button { showQR = true } label: { Label("Vis QR-kode", systemImage: "qrcode") }
                             }
                         }

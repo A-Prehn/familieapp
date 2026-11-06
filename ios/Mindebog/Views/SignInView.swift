@@ -49,6 +49,16 @@ struct SignInView: View {
                     }
 
                     if state.usingCloud {
+                        // #67: iOS husker ikke delelinket efter installation — sig, hvad man skal gøre.
+                        Label("Har du fået en invitation? Skriv dit navn, og tryk så på linket i beskeden igen.",
+                              systemImage: "envelope.open")
+                            .font(.footnote).foregroundStyle(Theme.text)
+                            .multilineTextAlignment(.leading)
+                            .padding(12)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .background(Theme.card)
+                            .clipShape(RoundedRectangle(cornerRadius: Radius.card))
+                            .overlay(RoundedRectangle(cornerRadius: Radius.card).stroke(Theme.sep))
                         Text("Der er ikke noget login. Alt gemmes i din egen iCloud, som denne enhed allerede er logget på — ingen konto, ingen adgangskode.")
                             .font(.caption).foregroundStyle(Theme.muted).multilineTextAlignment(.center)
                     } else {

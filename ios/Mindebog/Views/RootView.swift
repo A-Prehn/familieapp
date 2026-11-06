@@ -16,6 +16,38 @@ struct RootView: View {
             }
         }
         .background(Theme.bg.ignoresSafeArea())
+        // Tryk på et delelink (#67): vis med det samme, at invitationen åbnes, i stedet for ingenting.
+        .overlay {
+            if state.openingInvite {
+                InviteOpeningView().transition(.opacity)
+            }
+        }
+        .animation(.easeInOut(duration: 0.25), value: state.openingInvite)
+    }
+}
+
+/// "Åbner invitationen…" over hele appen, mens iCloud accepterer delingen og familien hentes.
+private struct InviteOpeningView: View {
+    var body: some View {
+        ZStack {
+            Theme.bg.opacity(0.94).ignoresSafeArea()
+            VStack(spacing: 14) {
+                Image(systemName: "heart.text.square")
+                    .font(.system(size: 44, weight: .light))
+                    .foregroundStyle(Theme.rose)
+                    .symbolEffect(.pulse)
+                Text("Åbner invitationen …")
+                    .font(.serifTitle(24))
+                    .foregroundStyle(Theme.text)
+                Text("Familien hentes fra iCloud. Det tager som regel kun et par sekunder.")
+                    .font(.subheadline)
+                    .foregroundStyle(Theme.muted)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 32)
+                DelayedProgress(delay: 1.5)
+            }
+        }
+        .accessibilityElement(children: .combine)
     }
 }
 

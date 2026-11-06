@@ -4,6 +4,8 @@ import UserNotifications
 
 extension Notification.Name {
     static let cloudKitShareAccepted = Notification.Name("mindebog.cloudKitShareAccepted")
+    /// Et delelink er trykket — vises med det samme som "Åbner invitationen…" (#67).
+    static let cloudKitShareOpening = Notification.Name("mindebog.cloudKitShareOpening")
     /// iCloud har sendt en stille push: noget er ændret i familien (#62).
     static let cloudKitChanged = Notification.Name("mindebog.cloudKitChanged")
 }
@@ -19,6 +21,8 @@ enum PendingShare {
     static var zoneName: String?
     /// Ejeren af zonen (fra invitationen), så familien kan slås op direkte i den delte database.
     static var ownerName: String?
+    /// Et delelink er ved at blive åbnet (#67) — også ved koldstart, før AppState findes.
+    static var opening = false
 }
 
 // Nødvendig for at modtage CloudKit-delelinks (iOS kalder scene-delegaten).
@@ -71,6 +75,11 @@ final class SceneDelegate: NSObject, UIWindowSceneDelegate {
         let zoneName = metadata.share.recordID.zoneID.zoneName
         let ownerName = metadata.share.recordID.zoneID.ownerName
         Task {
+            // Vis med det samme, at invitationen åbnes — accept og opslag kan tage nogle sekunder (#67).
+            await MainActor.run {
+                PendingShare.opening = true
+                NotificationCenter.default.post(name: .cloudKitShareOpening, object: nil)
+            }
             // Er delingen allerede accepteret (fx partneren trykker igen), fejler accept — det er fint.
             _ = try? await container.accept(metadata)
             await MainActor.run {
