@@ -5,6 +5,7 @@ struct OnboardingView: View {
     @State private var mode = 0   // 0 = opret, 1 = deltag
     @State private var name = ""
     @State private var code = ""
+    @State private var hasChildren = true
 
     var body: some View {
         VStack(spacing: 18) {
@@ -32,10 +33,14 @@ struct OnboardingView: View {
                     TextField("Familiens navn", text: $name)
                         .textFieldStyle(.roundedBorder)
                         .submitLabel(.go)
-                        .onSubmit { Task { await state.createFamily(name: name) } }
+                        .onSubmit { Task { await state.createFamily(name: name, hasChildren: hasChildren) } }
+                    // Familier uden børn (#28) får ingen Børn-fane; kan ændres under Mere.
+                    Toggle("Vi har børn (eller et på vej)", isOn: $hasChildren)
+                        .font(.subheadline)
+                        .tint(Theme.rose)
                     // Viser, at iCloud arbejder, og tager ikke imod flere tryk imens (#59).
                     Button {
-                        Task { await state.createFamily(name: name) }
+                        Task { await state.createFamily(name: name, hasChildren: hasChildren) }
                     } label: {
                         HStack(spacing: 8) {
                             if state.joiningFamily { ProgressView().tint(Theme.buttonPrimaryText) }

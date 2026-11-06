@@ -223,6 +223,19 @@ struct MoreView: View {
                 }
             }
 
+            // Børn valgfri (#28): familier uden børn (par, bedsteforældre, voksne søskende) kan slå fanen fra.
+            Section {
+                Toggle(isOn: Binding(get: { state.showChildren }, set: { state.setShowChildren($0) })) {
+                    Label("Vis Børn", systemImage: "person.2")
+                }
+            } header: {
+                Text("Børn")
+            } footer: {
+                Text(state.showChildren
+                     ? "Slå fra, hvis I ikke har børn. Så forsvinder fanen Børn, og Hjem viser kun familiens fælles minder."
+                     : "Børn er skjult på denne telefon. Intet er slettet — slå til igen, så er alt der som før.")
+            }
+
             Section {
                 Toggle(isOn: Binding(get: { notificationsOn }, set: { on in Task { await setNotifications(on) } })) {
                     Label("Nyt i familien", systemImage: "bell")
@@ -432,9 +445,6 @@ struct MoreView: View {
                     .disabled(resyncing)
                     if let resyncMessage {
                         Text(resyncMessage).font(.footnote).foregroundStyle(resyncMessage.hasPrefix("Kunne") ? Theme.rose : Theme.muted)
-                    }
-                    if SyncLog.isVisible {
-                        NavigationLink("iCloud-tider (test)") { SyncTimingsView() }
                     }
                 }
                 Button("Log ud / skift bruger", role: .destructive) { state.signOut() }

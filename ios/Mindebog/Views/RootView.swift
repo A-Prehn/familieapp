@@ -124,9 +124,11 @@ struct MainTabView: View {
                 .tabItem { tabLabel("Hjem", "house", .home) }
                 .tag(MainTab.home)
 
-            NavigationStack { ChildrenView().tabSwipe(.family, selection: $selection) }
-                .tabItem { tabLabel("Børn", "person.2", .family) }
-                .tag(MainTab.family)
+            if state.showChildren {
+                NavigationStack { ChildrenView().tabSwipe(.family, selection: $selection) }
+                    .tabItem { tabLabel("Børn", "person.2", .family) }
+                    .tag(MainTab.family)
+            }
 
             NavigationStack { FamilyView().tabSwipe(.shared, selection: $selection) }
                 .tabItem { tabLabel("Familie", "heart.text.square", .shared) }
@@ -136,6 +138,8 @@ struct MainTabView: View {
                 .tabItem { tabLabel("Mere", "gearshape", .more) }
                 .tag(MainTab.more)
         }
+        // Børn slået fra mens fanen er åben: gå til Hjem i stedet for en fane, der ikke findes.
+        .onChange(of: state.showChildren) { _, shown in if !shown && selection == .family { selection = .home } }
         // "Gemmer…" og fejl fra gem i baggrunden, lige over fanebjælken.
         .overlay(alignment: .bottom) { SaveQueueBanner().padding(.bottom, 56) }
         // Tryk på interview-påmindelsen: åbn interviewet for barnet.
@@ -259,6 +263,7 @@ struct MainTabView: View {
 private struct TabSwipe: ViewModifier {
     let tab: MainTab
     @Binding var selection: MainTab
+    @EnvironmentObject private var state: AppState
     /// Områder (fx en vandret rullende række), hvor et swipe ikke må skifte fane.
     @State private var blocked: [CGRect] = []
 
@@ -273,7 +278,7 @@ private struct TabSwipe: ViewModifier {
                 let dx = value.translation.width
                 let dy = value.translation.height
                 guard abs(dx) > 80, abs(dx) > abs(dy) * 2 else { return }
-                let all = MainTab.allCases
+                let all = MainTab.allCases.filter { $0 != .family || state.showChildren }
                 guard let index = all.firstIndex(of: tab) else { return }
                 let next = dx < 0 ? index + 1 : index - 1
                 guard all.indices.contains(next) else { return }

@@ -11,10 +11,16 @@ enum HomeAction: String, CaseIterable, Identifiable {
     static let defaults: [HomeAction] = [.highlight, .diary, .event]
     static let maxCount = 4
 
+    /// Standard for familier uden børn (#28).
+    static let familyDefaults: [HomeAction] = [.memory, .event, .vacation]
+
     /// Læser valget; ukendte værdier ignoreres, og et tomt valg giver standarden.
-    static func load(_ raw: String) -> [HomeAction] {
-        let list = raw.split(separator: ",").compactMap { HomeAction(rawValue: String($0)) }
-        return list.isEmpty ? defaults : Array(list.prefix(maxCount))
+    /// Uden børn (`showChildren` false) udelades knapper, der kræver et barn.
+    static func load(_ raw: String, showChildren: Bool = true) -> [HomeAction] {
+        var list = raw.split(separator: ",").compactMap { HomeAction(rawValue: String($0)) }
+        if !showChildren { list = list.filter { !$0.isForChild } }
+        if list.isEmpty { return showChildren ? defaults : familyDefaults }
+        return Array(list.prefix(maxCount))
     }
     static func save(_ list: [HomeAction]) -> String { list.map(\.rawValue).joined(separator: ",") }
 
@@ -83,8 +89,10 @@ enum HomeAction: String, CaseIterable, Identifiable {
 /// Vælg op til fire hurtigknapper til Hjem — tryk for at tilføje/fjerne, træk for at ændre rækkefølgen.
 struct HomeActionsEditor: View {
     @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject private var state: AppState
     @AppStorage(HomeAction.storageKey) private var raw = ""
     @State private var chosen: [HomeAction] = []
+    private var available: [HomeAction] { HomeAction.allCases.filter { state.showChildren || !$0.isForChild } }
 
     var body: some View {
         NavigationStack {
@@ -103,7 +111,7 @@ struct HomeActionsEditor: View {
                 }
 
                 Section("Tilføj") {
-                    ForEach(HomeAction.allCases.filter { !chosen.contains($0) }) { action in
+                    ForEach(available.filter { !chosen.contains($0) }) { action in
                         Button {
                             if chosen.count < HomeAction.maxCount { chosen.append(action) }
                         } label: {
@@ -129,10 +137,10 @@ struct HomeActionsEditor: View {
                         .disabled(chosen.isEmpty)
                 }
                 ToolbarItem(placement: .bottomBar) {
-                    Button("Gendan standard") { chosen = HomeAction.defaults }
+                    Button("Gendan standard") { chosen = state.showChildren ? HomeAction.defaults : HomeAction.familyDefaults }
                 }
             }
-            .onAppear { chosen = HomeAction.load(raw) }
+            .onAppear { chosen = HomeAction.load(raw, showChildren: state.showChildren) }
         }
     }
 }

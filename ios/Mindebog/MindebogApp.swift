@@ -63,7 +63,19 @@ final class AppState: ObservableObject {
     @Published private(set) var ready = false
 
     @Published var user: AppUser?
-    @Published var familyId: String?
+    @Published var familyId: String? { didSet { loadShowChildren() } }
+
+    /// Børn valgfri (#28): slås fra for familier uden børn — fanen Børn og alt, der handler om børn, skjules.
+    /// Gemmes på telefonen pr. familie; intet slettes, og børnene dukker op igen, når det slås til.
+    @Published private(set) var showChildren = true
+    private func showChildrenKey(_ id: String?) -> String { "mindebog.showChildren_\(id ?? "")" }
+    private func loadShowChildren() {
+        showChildren = UserDefaults.standard.object(forKey: showChildrenKey(familyId)) as? Bool ?? true
+    }
+    func setShowChildren(_ on: Bool) {
+        showChildren = on
+        UserDefaults.standard.set(on, forKey: showChildrenKey(familyId))
+    }
     @Published var errorMessage: String?
     /// false for "Kun visning" (fx bedsteforældre): tilføj/redigér/slet skjules overalt.
     @Published private(set) var canEdit: Bool =
@@ -254,7 +266,7 @@ final class AppState: ObservableObject {
     /// Kører et opret/deltag lige nu? Et ekstra tryk, mens iCloud arbejder, må ikke give to familier (#59).
     @Published private(set) var joiningFamily = false
 
-    func createFamily(name: String) async {
+    func createFamily(name: String, hasChildren: Bool = true) async {
         guard let user, !joiningFamily else { return }
         joiningFamily = true
         defer { joiningFamily = false }
@@ -262,6 +274,7 @@ final class AppState: ObservableObject {
             let family = try await store.createFamily(userId: user.id, name: name)
             rememberFamilies(families + [family])
             setFamily(family.id)
+            setShowChildren(hasChildren)   // #28: kan ændres senere under Mere
         } catch { errorMessage = error.userMessage }
     }
 

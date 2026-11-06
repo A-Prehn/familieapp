@@ -56,13 +56,16 @@ struct HomeView: View {
 
                 quoteCard.softAppear(index: 2)
 
-                if children.isEmpty {
+                if children.isEmpty && state.showChildren {
                     emptyState
                 } else {
                     if state.canEdit { quickAddSection.softAppear(index: 3) }
                     if showFirstSteps { firstSteps.softAppear(index: 4) }
-                    yearCards.softAppear(index: 4)
-                    if let holiday, state.canEdit, !holidayChildren.isEmpty { holidayCard(holiday).softAppear(index: 4) }
+                    // Uden børn (#28): ingen "Året der gik" eller skoleferie — de handler om børnene.
+                    if state.showChildren {
+                        yearCards.softAppear(index: 4)
+                        if let holiday, state.canEdit, !holidayChildren.isEmpty { holidayCard(holiday).softAppear(index: 4) }
+                    }
                     if !onThisDay.isEmpty {
                         memorySection("På denne dag", onThisDay) { m in
                             "\(yearsAgo(m.date)) · \(m.childName) · \(m.kind)"
@@ -174,6 +177,7 @@ struct HomeView: View {
         .reloadOnStoreChange { await load() }
         // Kommer appen frem igen midt i en hentning, kan den hentning være gået i stå — start en ny,
         // så hjulet ikke bliver stående (#22).
+        .onChange(of: state.showChildren) { _, _ in Task { await load() } }
         .onChange(of: scenePhase) { _, phase in
             guard phase == .active else { return }
             spinnerToken += 1
@@ -289,7 +293,11 @@ struct HomeView: View {
 
     // MARK: De første skridt
     private var firstStepsKey: String { "mindebog.firstSteps.hidden_\(state.familyId ?? "")" }
-    private var showFirstSteps: Bool { state.canEdit && !firstStepsHidden && memoryCount < 5 }
+    private var showFirstSteps: Bool {
+        guard state.canEdit && !firstStepsHidden && memoryCount < 5 else { return false }
+        // Uden børn er der kun invitationen tilbage som første skridt.
+        return state.showChildren || ((memberCount ?? 2) < 2 && state.usingCloud)
+    }
 
     private var firstSteps: some View {
         VStack(spacing: 10) {
@@ -300,13 +308,15 @@ struct HomeView: View {
                     UserDefaults.standard.set(true, forKey: firstStepsKey)
                 } label: { Text("Skjul").font(.caption.weight(.semibold)) }
             }
-            stepCard("photo.on.rectangle.angled", Theme.tint, "Tilføj det første billede",
-                     "Et højdepunkt med et billede — fx hjemkomsten eller det første smil.") { start(.highlight) }
-            stepCard("book", Theme.neutralDark, "Skriv, hvad du husker fra fødslen",
-                     "Det glemmes hurtigere, end man tror. Tre linjer er nok.") {
-                if children.count == 1 { birthDiary = children[0] } else { start(.diary) }
+            if state.showChildren {
+                stepCard("photo.on.rectangle.angled", Theme.tint, "Tilføj det første billede",
+                         "Et højdepunkt med et billede — fx hjemkomsten eller det første smil.") { start(.highlight) }
+                stepCard("book", Theme.neutralDark, "Skriv, hvad du husker fra fødslen",
+                         "Det glemmes hurtigere, end man tror. Tre linjer er nok.") {
+                    if children.count == 1 { birthDiary = children[0] } else { start(.diary) }
+                }
             }
-            if !bornChildren.isEmpty {
+            if state.showChildren && !bornChildren.isEmpty {
                 stepCard("photo.stack", Theme.green, "Hent billeder fra det første år",
                          "Vælg op til \(FirstYearImportView.maxPhotos) billeder fra Fotos — de får selv dato og alder.") {
                     if bornChildren.count == 1 { importChild = bornChildren[0] } else { chooseImportChild = true }
@@ -348,7 +358,7 @@ struct HomeView: View {
                 }
             }
             HStack(spacing: 10) {
-                ForEach(HomeAction.load(homeActionsRaw)) { quickButton($0) }
+                ForEach(HomeAction.load(homeActionsRaw, showChildren: state.showChildren)) { quickButton($0) }
             }
         }
     }
@@ -557,7 +567,9 @@ struct HomeView: View {
         guard let loadedKids = try? await kidsTask, isCurrent() else { return }
         children = loadedKids
         ChildPalette.update(children)
-        Task { await Reminders.schedule(children: loadedKids) }
+        // Uden børn (#28) planlægges ingen påmindelser om billeder, interview eller ugens spørgsmål.
+        let reminderKids = state.showChildren ? loadedKids : []
+        Task { await Reminders.schedule(children: reminderKids) }
         defer {
             // Skærm-cachen rummer kortenes billeder (flere MB) — skriv den kun, når indholdet er et andet end sidst.
             if isCurrent() {
@@ -620,7 +632,8 @@ struct HomeView: View {
                                     date: s.date, sortDate: s.date ?? s.createdAt, text: s.text, photo: nil)
             }
         }
-        let all = summaries.compactMap(memory)
+        // Uden børn (#28): kun familiens fælles minder på Hjem; børnenes ligger urørt og vender tilbage.
+        let all = summaries.filter { state.showChildren || $0.childId == nil }.compactMap(memory)
         memoryCount = summaries.count
         firstStepsHidden = UserDefaults.standard.bool(forKey: firstStepsKey)
         if showFirstSteps, memberCount == nil, let members = try? await store.members(familyId: familyId), isCurrent() {
