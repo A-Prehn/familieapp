@@ -4,6 +4,23 @@ Udkast til App Store Connect. Tegngrænser står i parentes; tallene efter er de
 
 ---
 
+## Version 1.4 — for hele familien
+
+### Nyheder i denne version (What's New, 4000)
+```
+Til hele familien – også jer uden børn:
+• Børn er nu valgfri. Har I ikke børn, kan fanen slås fra under Mere, og appen handler om familiens fælles minder, rejser og traditioner
+• Lettere at komme med: når nogen trykker på jeres invitation, viser appen straks, at den åbner – og invitationen forklarer selv, hvad man skal gøre
+• Skarpe udgaver: ældre billeder i fx Maven måned for måned kan hentes i fuld kvalitet fra Fotos med ét tryk
+• Gem uden net: det, I gemmer i flytilstand eller på dårligt net, ligger sikkert på telefonen og sendes til iCloud af sig selv
+• Nyt app-ikon til mørk og tonet hjemmeskærm
+• Hurtigere og roligere: færre ventehjul og færre kald til iCloud
+• Mindre rettelser og forbedringer af stabiliteten
+```
+
+### Build
+Første build efter commit "Version 1.4" (develop). CloudKit-skemaet (hideChildren på Family) er deployet til Production 6. nov. 2026.
+
 ## Version 1.3.1 — hurtig rettelse
 
 ### Nyheder i denne version (What's New, 4000)
