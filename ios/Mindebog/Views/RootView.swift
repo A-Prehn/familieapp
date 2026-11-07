@@ -157,21 +157,21 @@ struct MainTabView: View {
 
     var body: some View {
         TabView(selection: $selection) {
-            NavigationStack { HomeView().tabSwipe(.home, selection: $selection).solidTabBar() }
+            NavigationStack { HomeView().tabSwipe(.home, selection: $selection) }
                 .tabItem { tabLabel("Hjem", "house", .home) }
                 .tag(MainTab.home)
 
             if state.showChildren {
-                NavigationStack { ChildrenView().tabSwipe(.family, selection: $selection).solidTabBar() }
+                NavigationStack { ChildrenView().tabSwipe(.family, selection: $selection) }
                     .tabItem { tabLabel("Børn", "person.2", .family) }
                     .tag(MainTab.family)
             }
 
-            NavigationStack { FamilyView().tabSwipe(.shared, selection: $selection).solidTabBar() }
+            NavigationStack { FamilyView().tabSwipe(.shared, selection: $selection) }
                 .tabItem { tabLabel("Familie", "heart.text.square", .shared) }
                 .tag(MainTab.shared)
 
-            NavigationStack { MoreView().tabSwipe(.more, selection: $selection).solidTabBar() }
+            NavigationStack { MoreView().tabSwipe(.more, selection: $selection) }
                 .tabItem { tabLabel("Mere", "gearshape", .more) }
                 .tag(MainTab.more)
         }
@@ -335,12 +335,6 @@ private struct NoTabSwipeKey: PreferenceKey {
 extension View {
     func tabSwipe(_ tab: MainTab, selection: Binding<MainTab>) -> some View {
         modifier(TabSwipe(tab: tab, selection: selection))
-    }
-
-    /// Fanebjælken i appens egen farve: gennemsigtigt glas over et lyst billede gjorde ikonerne ulæselige.
-    func solidTabBar() -> some View {
-        toolbarBackground(Theme.bg, for: .tabBar)
-            .toolbarBackground(.visible, for: .tabBar)
     }
 
     /// Markér en vandret rullende række, så swipes i den ikke skifter hovedfane.
