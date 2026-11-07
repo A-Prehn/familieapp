@@ -1461,7 +1461,7 @@ actor CloudKitStore: Store {
             }
         }
         let record = try await photoRecord(db: db, id: id, memory: memory, keys: keys)
-        return record.map { Self.memoryPhotoSet($0, kind: memory.kind).coverPhoto }
+        return record.flatMap { Self.memoryPhotoSet($0, kind: memory.kind).coverPhoto }
     }
 
     /// Alle billeder i ét minde (originalerne) — til fuld skærm fra Hjem (#72).
