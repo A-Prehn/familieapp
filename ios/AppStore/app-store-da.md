@@ -12,14 +12,18 @@ Til hele familien – også jer uden børn:
 • Børn er nu valgfri. Har I ikke børn, kan fanen slås fra under Mere, og appen handler om familiens fælles minder, rejser og traditioner
 • Lettere at komme med: når nogen trykker på jeres invitation, viser appen straks, at den åbner – og invitationen forklarer selv, hvad man skal gøre
 • Skarpe udgaver: ældre billeder i fx Maven måned for måned kan hentes i fuld kvalitet fra Fotos med ét tryk
+• Flere billeder ad gangen: vælg mange billeder i Fotos på én gang – også i dagbogen, der nu kan have flere billeder pr. indlæg
+• Fuld skærm fra Hjem viser hele billedserien, ikke kun forsiden
+• Video på milepæle: de første skridt som film, valgt sammen med billederne – og et stilbillede fra videoen bliver forsiden
 • Gem uden net: det, I gemmer i flytilstand eller på dårligt net, ligger sikkert på telefonen og sendes til iCloud af sig selv
 • Nyt app-ikon til mørk og tonet hjemmeskærm
+• Fanebjælken er lettere at læse over lyse billeder
 • Hurtigere og roligere: færre ventehjul og færre kald til iCloud
 • Mindre rettelser og forbedringer af stabiliteten
 ```
 
 ### Build
-Build 119 (develop, commit "Version 1.4"). Build 118 startede aldrig (ingen ledig macOS-maskine hos GitHub). CloudKit-skemaet (hideChildren på Family) er deployet til Production 6. nov. 2026.
+Build 122 (develop). Build 118 startede aldrig (ingen ledig macOS-maskine hos GitHub). CloudKit-skemaet er deployet til Production 6. nov. (hideChildren på Family) og 7. nov. 2026 (video/videoDuration på Milestone; photos/captions/coverIndex på Diary).
 
 ## Version 1.3.1 — hurtig rettelse
 
