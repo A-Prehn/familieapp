@@ -41,13 +41,16 @@ protocol Store {
     func highlightMedia(childId: String, id: String) async throws -> (video: URL?, audio: URL?)
 
     func milestones(childId: String) async throws -> [String: MilestoneEntry]
-    func setMilestone(childId: String, key: String, value: String?, photos: PhotoSet) async throws
+    /// `video` .keep rører ikke en video, der allerede ligger på milepælen (#74).
+    func setMilestone(childId: String, key: String, value: String?, photos: PhotoSet, video: MediaChange) async throws
+    /// Milepælens video som lokal fil, klar til afspilning (#74).
+    func milestoneVideo(childId: String, key: String) async throws -> URL?
 
     func answers(childId: String) async throws -> [String: String]
     func setAnswer(childId: String, question: String, answer: String) async throws
 
     func diary(childId: String) async throws -> [DiaryEntry]
-    func addDiary(childId: String, date: Date?, text: String, photo: Data?) async throws -> DiaryEntry
+    func addDiary(childId: String, date: Date?, text: String, photos: PhotoSet) async throws -> DiaryEntry
     func updateDiary(childId: String, _ entry: DiaryEntry) async throws
     func deleteDiary(childId: String, id: String) async throws
 
@@ -122,6 +125,8 @@ protocol Store {
     // Hjem: lette oversigter uden billeder, og billede kun til de minder der vises.
     func memorySummaries(familyId: String) async throws -> [MemorySummary]
     func coverPhoto(familyId: String, memory: MemorySummary) async throws -> Data?
+    /// Alle billeder i mindet (originalerne) — fuld skærm fra Hjem viser hele serien (#72).
+    func memoryPhotos(familyId: String, memory: MemorySummary) async throws -> PhotoSet?
 
     func birthdays(familyId: String) async throws -> [CustomBirthday]
     func addBirthday(familyId: String, name: String, date: Date, emoji: String) async throws -> CustomBirthday
@@ -132,6 +137,18 @@ protocol Store {
     func persons(familyId: String) async throws -> [Person]
     func savePerson(familyId: String, _ person: Person) async throws   // opret eller opdatér
     func deletePerson(familyId: String, id: String) async throws
+}
+
+extension Store {
+    /// Ét billede (eller intet) — til demo-familien og hurtig-tilføj.
+    func addDiary(childId: String, date: Date?, text: String, photo: Data?) async throws -> DiaryEntry {
+        try await addDiary(childId: childId, date: date, text: text, photos: PhotoSet(single: photo))
+    }
+
+    /// Uden video-ændring: en evt. video på milepælen bevares.
+    func setMilestone(childId: String, key: String, value: String?, photos: PhotoSet) async throws {
+        try await setMilestone(childId: childId, key: key, value: value, photos: photos, video: .keep)
+    }
 }
 
 enum StoreError: LocalizedError {

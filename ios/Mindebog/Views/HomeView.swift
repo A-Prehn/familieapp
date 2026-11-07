@@ -10,6 +10,8 @@ struct HomeView: View {
     @State private var recent: [RecentMemory] = []
     /// Originalerne til kortene (ikke i skærm-cachen): miniaturen vises, til originalen er hentet.
     @State private var originals: [String: Data] = [:]
+    /// Hele billedserien pr. minde — hentet første gang, fuld skærm åbnes fra kortet (#72).
+    @State private var allPhotos: [String: PhotoSet] = [:]
     @State private var quickAdd: QuickAdd?
     @State private var chooseChildFor: HomeAction?
     @State private var pendingAdd: QuickAdd?
@@ -423,16 +425,22 @@ struct HomeView: View {
         .animation(.easeInOut(duration: 0.25), value: refreshing)
     }
 
-    /// Fuld skærm: det kortet viser med det samme, og originalen så snart den er hentet (#62).
+    /// Fuld skærm: det kortet viser med det samme — og hele serien i originalstørrelse, så snart den er
+    /// hentet (#62, #72). Forsiden ligger først, så billedet ikke skifter, når resten kommer til.
     private func openLightbox(_ shown: LightboxState, for memory: RecentMemory) {
         lightbox = shown
-        guard originals[memory.id] == nil, let s = memory.summary, let familyId = state.familyId else { return }
+        guard let s = memory.summary, let familyId = state.familyId else { return }
+        if let series = allPhotos[memory.id] {
+            lightbox = LightboxState.coverFirst(series, sourceId: shown.sourceId).replacing(shown)
+            return
+        }
         Task {
-            let original = try? await CloudKitStore.withOriginals { try await state.store.coverPhoto(familyId: familyId, memory: s) }
-            guard let original else { return }
-            originals[memory.id] = original
-            guard original != memory.photo, lightbox?.id == shown.id else { return }
-            lightbox = LightboxState(photos: [original], index: 0, captions: shown.captions, sourceId: shown.sourceId).replacing(shown)
+            let series = try? await CloudKitStore.withOriginals { try await state.store.memoryPhotos(familyId: familyId, memory: s) }
+            guard let series, !series.photos.isEmpty else { return }
+            allPhotos[memory.id] = series
+            if let cover = series.coverPhoto { originals[memory.id] = cover }
+            guard lightbox?.id == shown.id else { return }
+            lightbox = LightboxState.coverFirst(series, sourceId: shown.sourceId).replacing(shown)
         }
     }
 
@@ -691,6 +699,7 @@ struct HomeView: View {
         onThisDay = newOnThisDay
         let shown = Set((newRecent + newOnThisDay).map(\.id))
         originals = originals.filter { shown.contains($0.key) }
+        allPhotos = [:]   // serierne hentes igen (fra cachen), så en redigering i mellemtiden ses
         Task { await loadOriginals(for: newRecent + newOnThisDay, familyId: familyId, isCurrent: isCurrent) }
 
         // Widget og notifikationer: skriv det nyeste til App Group'en (i baggrunden).

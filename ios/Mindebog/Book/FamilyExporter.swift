@@ -236,10 +236,13 @@ final class FamilyExport: ObservableObject {
         var msJSON: [[String: Any]] = []
         var msText = ""
         for def in Constants.milestones {
-            guard let entry = ms[def.key], entry.value != nil || !entry.photos.isEmpty else { continue }
+            guard let entry = ms[def.key], !entry.isEmpty else { continue }
             let value = entry.value.map { MilestoneValue.display($0, kind: def.kind) } ?? ""
             msText += "\(def.label): \(value)\n"
-            let files = try writePhotoSet(entry.photos, name: Self.safe(def.label), in: msDir)
+            var files = try writePhotoSet(entry.photos, name: Self.safe(def.label), in: msDir)
+            if entry.videoDuration != nil, let v = try? await store.milestoneVideo(childId: child.id, key: def.key) {
+                files.append(try copy(v, to: msDir, name: Self.safe(def.label) + " video"))
+            }
             msJSON.append(["milepæl": def.label, "værdi": value, "filer": files])
         }
         if !msText.isEmpty { overview += "\nMILEPÆLE\n" + msText }
@@ -303,8 +306,7 @@ final class FamilyExport: ObservableObject {
         var diaryJSON: [[String: Any]] = []
         for (i, d) in diary.sorted(by: { ($0.date ?? $0.createdAt) < ($1.date ?? $1.createdAt) }).enumerated() {
             let name = Self.prefix(d.date ?? d.createdAt) + String(format: "%03d", i + 1)
-            var files: [String] = []
-            if let p = d.photo { files.append(try writePhoto(p, to: diaryDir, name: name)) }
+            let files = try writePhotoSet(d.photos, name: name, in: diaryDir)
             try write(d.text, to: diaryDir.appendingPathComponent(name + ".txt"))
             diaryJSON.append(["dato": (d.date ?? d.createdAt).isoDay, "tekst": d.text, "filer": files])
         }

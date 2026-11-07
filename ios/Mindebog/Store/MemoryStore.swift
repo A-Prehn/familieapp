@@ -142,15 +142,26 @@ actor MemoryStore: Store {
         milestonesByChild[childId] ?? [:]
     }
 
-    func setMilestone(childId: String, key: String, value: String?, photos: PhotoSet) async throws {
+    private var milestoneVideos: [String: URL] = [:]   // "childId/key" → fil
+
+    func setMilestone(childId: String, key: String, value: String?, photos: PhotoSet, video: MediaChange) async throws {
         let trimmed = value?.trimmingCharacters(in: .whitespaces)
         let cleanValue = (trimmed?.isEmpty ?? true) ? nil : trimmed
-        if cleanValue == nil && photos.isEmpty {
+        var entry = MilestoneEntry(value: cleanValue, photos: photos,
+                                   videoDuration: milestonesByChild[childId]?[key]?.videoDuration)
+        switch video {
+        case .keep: break
+        case .remove: entry.videoDuration = nil; milestoneVideos["\(childId)/\(key)"] = nil
+        case .set(let url, let d): entry.videoDuration = d; milestoneVideos["\(childId)/\(key)"] = url
+        }
+        if entry.isEmpty {
             milestonesByChild[childId]?[key] = nil
         } else {
-            milestonesByChild[childId, default: [:]][key] = MilestoneEntry(value: cleanValue, photos: photos)
+            milestonesByChild[childId, default: [:]][key] = entry
         }
     }
+
+    func milestoneVideo(childId: String, key: String) async throws -> URL? { milestoneVideos["\(childId)/\(key)"] }
 
     // MARK: Om dig
     func answers(childId: String) async throws -> [String: String] {
@@ -173,10 +184,10 @@ actor MemoryStore: Store {
         }
     }
 
-    func addDiary(childId: String, date: Date?, text: String, photo: Data?) async throws -> DiaryEntry {
+    func addDiary(childId: String, date: Date?, text: String, photos: PhotoSet) async throws -> DiaryEntry {
         let entry = DiaryEntry(id: newId("diary"), date: date,
                                text: text.trimmingCharacters(in: .whitespaces),
-                               photo: photo, createdAt: Date())
+                               photos: photos, createdAt: Date())
         diaryByChild[childId, default: []].append(entry)
         return entry
     }
@@ -272,15 +283,20 @@ actor MemoryStore: Store {
     }
 
     func coverPhoto(familyId: String, memory: MemorySummary) async throws -> Data? {
+        try await memoryPhotos(familyId: familyId, memory: memory)?.coverPhoto
+    }
+
+    func memoryPhotos(familyId: String, memory: MemorySummary) async throws -> PhotoSet? {
         switch memory.kind {
         case .highlight:
-            return highlightsByChild.values.joined().first { $0.id == memory.id }?.photos.first
+            return highlightsByChild.values.joined().first { $0.id == memory.id }
+                .map { PhotoSet(photos: $0.photos, cover: $0.coverIndex) }
         case .diary:
-            return diaryByChild.values.joined().first { $0.id == memory.id }?.photo
+            return diaryByChild.values.joined().first { $0.id == memory.id }?.photos
         case .event:
-            return eventsByFamily[familyId]?.first { $0.id == memory.id }?.photo
+            return eventsByFamily[familyId]?.first { $0.id == memory.id }?.photos
         case .vacation:
-            return vacationsByFamily[familyId]?.first { $0.id == memory.id }?.photo
+            return vacationsByFamily[familyId]?.first { $0.id == memory.id }?.photos
         case .photo, .interview, .tradition, .letter, .memory:
             return nil
         }

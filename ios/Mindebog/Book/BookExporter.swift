@@ -530,7 +530,12 @@ final class BookWriter {
         } else {
             ensure(80)
             kicker("Dagbog · \(dateLine(d.date ?? d.createdAt))", color: muted, after: 6)
-            if let p = d.photo { photo(p, maxHeight: 260, after: 10) }
+            let photos = d.photos.photos
+            if photos.count == 1 {
+                photo(photos[0], maxHeight: 260, after: 10)
+            } else if !photos.isEmpty {
+                grid(photos.map { ($0, "") }, columns: photos.count <= 4 ? 2 : 3)
+            }
             text(d.text, serif(13), ink, after: 18)
         }
     }

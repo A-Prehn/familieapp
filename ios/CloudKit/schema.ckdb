@@ -92,6 +92,8 @@ DEFINE SCHEMA
         photos          LIST<ASSET>,
         captions        LIST<STRING>,
         coverIndex      INT64,
+        video           ASSET,
+        videoDuration   DOUBLE,
         GRANT WRITE TO "_creator",
         GRANT CREATE TO "_icloud",
         GRANT READ TO "_world"
@@ -124,6 +126,9 @@ DEFINE SCHEMA
         text            STRING,
         photo           ASSET,
         thumb           ASSET,
+        photos          LIST<ASSET>,
+        captions        LIST<STRING>,
+        coverIndex      INT64,
         GRANT WRITE TO "_creator",
         GRANT CREATE TO "_icloud",
         GRANT READ TO "_world"

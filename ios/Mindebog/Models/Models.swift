@@ -137,19 +137,35 @@ struct PhotoSet: Hashable, Codable {
 struct MilestoneEntry: Hashable, Codable {
     var value: String?
     var photos: PhotoSet = PhotoSet()
+    /// Varighed i sekunder, hvis der er en video (#74). Selve filen hentes først ved afspilning.
+    var videoDuration: Double? = nil
     /// Forsidebilledet (det der vises på flisen).
     var photo: Data? { photos.coverPhoto }
+    var isEmpty: Bool { value == nil && photos.isEmpty && videoDuration == nil }
 }
 
 struct DiaryEntry: Identifiable, Hashable, Codable {
     let id: String
     var date: Date?
     var text: String
-    var photo: Data?
+    /// Flere billeder pr. indlæg (#71); ældre indlæg har ét.
+    var photos: PhotoSet
     var createdAt: Date
-    var thumb: Data? = nil
-    var photoLoaded: Bool = true
-    var listPhoto: Data? { thumb ?? photo }
+
+    init(id: String, date: Date?, text: String, photos: PhotoSet, createdAt: Date) {
+        self.id = id; self.date = date; self.text = text; self.photos = photos; self.createdAt = createdAt
+    }
+
+    init(id: String, date: Date?, text: String, photo: Data?, createdAt: Date, thumb: Data? = nil, photoLoaded: Bool = true) {
+        self.init(id: id, date: date, text: text,
+                  photos: PhotoSet(single: photo, thumb: thumb, loaded: photoLoaded), createdAt: createdAt)
+    }
+
+    /// Forsidebilledet.
+    var photo: Data? { photos.coverPhoto }
+    var thumb: Data? { photos.thumb }
+    var photoLoaded: Bool { photos.loaded }
+    var listPhoto: Data? { photos.listPhoto }
 }
 
 enum GalleryKind: String, Codable, Hashable {

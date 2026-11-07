@@ -282,7 +282,7 @@ struct MultiPhotoField: View {
     var cover: Binding<Int>? = nil
     /// Periode, forslagene hentes fra (ellers de seneste 31 dage).
     var suggestRange: ClosedRange<Date>? = nil
-    @State private var pickerItem: PhotosPickerItem?
+    @State private var pickerItems: [PhotosPickerItem] = []
     @State private var cropping: CropTarget?
     @State private var showSuggestions = false
     @State private var showCamera = false
@@ -348,8 +348,9 @@ struct MultiPhotoField: View {
                 }
             }
             HStack(spacing: 16) {
-                PhotosPicker(selection: $pickerItem, matching: .images) {
-                    Label("Tilføj billede", systemImage: "photo.badge.plus")
+                // Flere ad gangen (#73) — så man ikke skal ind i Fotos én gang pr. billede.
+                PhotosPicker(selection: $pickerItems, maxSelectionCount: 100, matching: .images) {
+                    Label(photos.isEmpty ? "Vælg billeder" : "Tilføj flere billeder", systemImage: "photo.badge.plus")
                 }
                 TakePhotoButton(showCamera: $showCamera)
                 Button { showSuggestions = true } label: {
@@ -373,14 +374,16 @@ struct MultiPhotoField: View {
         .sheet(isPresented: $showSuggestions) {
             PhotoSuggestionsView(range: suggestRange) { photos.append(contentsOf: $0) }
         }
-        .onChange(of: pickerItem) { _, newItem in
-            guard let newItem else { return }
+        .onChange(of: pickerItems) { _, items in
+            guard !items.isEmpty else { return }
             Task {
-                if let raw = try? await newItem.loadTransferable(type: Data.self),
-                   let resized = ImageTools.resized(raw) {
-                    photos.append(resized)
+                for item in items {
+                    if let raw = try? await item.loadTransferable(type: Data.self),
+                       let resized = ImageTools.resized(raw) {
+                        photos.append(resized)
+                    }
                 }
-                pickerItem = nil
+                pickerItems = []
             }
         }
     }

@@ -55,13 +55,11 @@ struct DiaryView: View {
                 Text(Fmt.long(date)).font(.caption).foregroundStyle(Theme.muted)
             }
             Text(entry.text).font(.body).foregroundStyle(Theme.text)
-            if let photo = entry.listPhoto {
-                Color.clear
-                    .aspectRatio(ImageTools.displayAspect(photo), contentMode: .fit)   // billedets egen form
-                    .overlay { DataImage(data: photo) }
-                    .zoomSource(id: entry.id, in: zoomNS)
-                    .clipShape(RoundedRectangle(cornerRadius: Radius.small))
-                    .onTapGesture { openLightbox(entry) }
+            if !entry.photos.isEmpty {
+                // Forsidebillede + "+N" for resten (#71); tryk viser alle billeder.
+                CoverPhotoView(set: entry.photos, cornerRadius: Radius.small, zoomId: entry.id, zoomNamespace: zoomNS) {
+                    openLightbox($0, entry: entry)
+                }
             }
             CommentsBar(targetId: entry.id, title: entry.text)
         }
@@ -77,22 +75,15 @@ struct DiaryView: View {
         }
     }
 
-    /// Fuld skærm: originalen, hvis den er hentet — ellers thumb nu, og originalen så snart den er hentet (#62).
-    private func openLightbox(_ entry: DiaryEntry) {
-        if entry.photoLoaded, let photo = entry.photo {
-            lightbox = LightboxState(photos: [photo], sourceId: entry.id)
-            return
-        }
-        let shown = entry.thumb.map { LightboxState(photos: [$0], sourceId: entry.id) }
+    /// Fuld skærm: thumb med det samme, og originalerne så snart de er hentet (#62).
+    private func openLightbox(_ shown: LightboxState, entry: DiaryEntry) {
         lightbox = shown
+        guard shown.needsOriginals else { return }
         Task {
             await CloudKitStore.withOriginals { await load() }
-            guard let fresh = entries.first(where: { $0.id == entry.id }), let photo = fresh.photo else { return }
-            if let shown, lightbox?.id == shown.id {
-                lightbox = LightboxState(photos: [photo], sourceId: entry.id).replacing(shown)
-            } else if lightbox == nil, shown == nil {
-                lightbox = LightboxState(photos: [photo], sourceId: entry.id)
-            }
+            guard let fresh = entries.first(where: { $0.id == entry.id }), !fresh.photos.photos.isEmpty,
+                  lightbox?.id == shown.id else { return }
+            lightbox = LightboxState.coverFirst(fresh.photos, sourceId: entry.id).replacing(shown)
         }
     }
 
@@ -130,7 +121,8 @@ struct AddDiaryView: View {
     var initialText: String = ""
     @State private var date = Date()
     @State private var text = ""
-    @State private var photo: Data?
+    @State private var photos: [Data] = []
+    @State private var cover = 0
     @State private var saving = false
     @State private var saveError: String?
     @State private var savedFor: Set<String> = []   // ved fejl midt i flere børn: undgå dubletter ved nyt forsøg
@@ -147,9 +139,9 @@ struct AddDiaryView: View {
                     TextField("Skriv dit indlæg…", text: $text, axis: .vertical)
                         .lineLimit(3...8)
                 }
-                Section("Billede") {
-                    // Forslag fra dagene omkring den dato, man skriver om.
-                    PhotoField(data: $photo, suggestRange: .around(date, days: 3))
+                Section("Billeder") {
+                    // Flere billeder pr. indlæg (#71); forslag fra dagene omkring den dato, man skriver om.
+                    MultiPhotoField(photos: $photos, cover: $cover, suggestRange: .around(date, days: 3))
                 }
                 if editing != nil {
                     Section {
@@ -165,8 +157,12 @@ struct AddDiaryView: View {
                 ToolbarItem(placement: .cancellationAction) { Button("Annullér") { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Gem") {
+                        // Billedtekster bevares fra før, hvis billederne ikke er rørt.
+                        var set = editing?.photos ?? PhotoSet()
+                        if set.photos != photos { set.captions = [] }
+                        set.photos = photos; set.cover = cover; set.loaded = true
                         if var entry = editing {
-                            entry.date = date; entry.text = text; entry.photo = photo
+                            entry.date = date; entry.text = text; entry.photos = set
                             let updated = entry
                             Task {
                                 await performSave(saving: $saving, errorMessage: $saveError, dismiss: dismiss) {
@@ -175,15 +171,15 @@ struct AddDiaryView: View {
                             }
                         } else {
                             // Nyt indlæg: luk med det samme, gem i baggrunden.
-                            let (store, ids, date, text, photo) = (state.store, [childId] + alsoFor.map(\.id), date, text, photo)
+                            let (store, ids, date, text, set) = (state.store, [childId] + alsoFor.map(\.id), date, text, set)
                             performSaveInBackground(label: "dagbogsindlægget", dismiss: dismiss) {
                                 for id in ids {
-                                    _ = try await store.addDiary(childId: id, date: date, text: text, photo: photo)
+                                    _ = try await store.addDiary(childId: id, date: date, text: text, photos: set)
                                 }
                             }
                         }
                     }
-                    .disabled(saving || (text.trimmingCharacters(in: .whitespaces).isEmpty && photo == nil))
+                    .disabled(saving || (text.trimmingCharacters(in: .whitespaces).isEmpty && photos.isEmpty))
                 }
             }
             .saveErrorAlert($saveError)
@@ -196,13 +192,13 @@ struct AddDiaryView: View {
                     }
                 }
             } message: {
-                Text("Indlægget og dets billede slettes for hele familien.")
+                Text("Indlægget og dets billeder slettes for hele familien.")
             }
             .onAppear {
                 guard !loaded else { return }
                 loaded = true
                 if let e = editing {
-                    date = e.date ?? e.createdAt; text = e.text; photo = e.photo
+                    date = e.date ?? e.createdAt; text = e.text; photos = e.photos.photos; cover = e.photos.coverIndex
                 } else if text.isEmpty {
                     text = initialText
                 }

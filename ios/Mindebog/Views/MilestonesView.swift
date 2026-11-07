@@ -7,6 +7,8 @@ struct MilestonesView: View {
     @State private var entries: [String: MilestoneEntry] = [:]
     @State private var editing: MilestoneDef?
     @State private var lightbox: LightboxState?
+    @State private var playingVideo: VideoPlayerScreen?
+    @State private var loadingVideo: String?   // milepæl, hvis video er ved at blive hentet
 
     private let columns = [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)]
 
@@ -30,9 +32,19 @@ struct MilestonesView: View {
             MilestoneEditView(child: child, def: def, entry: entries[def.key])
         }
         .fullScreenCover(item: $lightbox) { LightboxView(state: $0).zoomTarget(id: $0.sourceId, in: zoomNS) }
+        .fullScreenCover(item: $playingVideo) { $0 }
         .refreshable { await load() }
         .task { await load() }
         .reloadOnStoreChange { await load() }
+    }
+
+    /// Videoen hentes først, når man trykker afspil (#74).
+    private func playVideo(_ key: String) async {
+        loadingVideo = key
+        defer { loadingVideo = nil }
+        if let url = try? await state.store.milestoneVideo(childId: child.id, key: key) {
+            playingVideo = VideoPlayerScreen(url: url)
+        }
     }
 
     private func openJumpTarget(_ proxy: ScrollViewProxy) {
@@ -67,7 +79,7 @@ struct MilestonesView: View {
 
     private func tile(_ def: MilestoneDef) -> some View {
         let entry = entries[def.key]
-        let filled = entry?.value != nil || entry?.photo != nil
+        let filled = entry.map { !$0.isEmpty } ?? false
         return VStack(spacing: 0) {
             Group {
                 if let photos = entry?.photos, !photos.isEmpty {
@@ -87,6 +99,22 @@ struct MilestonesView: View {
                         .clipped()
                         .contentShape(Rectangle())
                         .onTapGesture { if state.canEdit { edit(def) } }
+                }
+            }
+            .overlay(alignment: .bottomTrailing) {
+                // Video på milepælen (#74): hentes og afspilles ved tryk.
+                if let d = entry?.videoDuration {
+                    Button { Task { await playVideo(def.key) } } label: {
+                        Label(loadingVideo == def.key ? "Henter…" : MediaFiles.format(d), systemImage: "play.fill")
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 8).padding(.vertical, 5)
+                            .background(Capsule().fill(.black.opacity(0.55)))
+                            .padding(6)
+                    }
+                    .buttonStyle(.borderless)
+                    .disabled(loadingVideo != nil)
+                    .accessibilityLabel("Se video")
                 }
             }
 
@@ -140,6 +168,7 @@ struct MilestoneEditView: View {
     @State private var text = ""             // fritekst, vægt (g), længde (cm)
     @State private var choice = ""
     @State private var photos = PhotoSet()
+    @State private var video: MediaChange = .keep
     @State private var saving = false
     @State private var saveError: String?
 
@@ -154,6 +183,12 @@ struct MilestoneEditView: View {
                     Text("Billeder")
                 } footer: {
                     Text("Vælg ★ for det billede, der vises på milepælen.")
+                }
+                Section("Video") {
+                    // Fx de første skridt som film (#74).
+                    MediaField(video: $video, audio: .constant(.keep),
+                               existingVideo: entry?.videoDuration, showAudio: false,
+                               loadExisting: { (video: try? await state.store.milestoneVideo(childId: child.id, key: def.key), audio: nil) })
                 }
                 }.listRowBackground(Theme.card)
             }
@@ -276,7 +311,7 @@ struct MilestoneEditView: View {
             value = text
         }
         await performSave(saving: $saving, errorMessage: $saveError, dismiss: dismiss) {
-            try await state.store.setMilestone(childId: child.id, key: def.key, value: value, photos: photos)
+            try await state.store.setMilestone(childId: child.id, key: def.key, value: value, photos: photos, video: video)
         }
     }
 }

@@ -895,24 +895,34 @@ actor CloudKitStore: Store {
 
     func milestones(childId: String) async throws -> [String: MilestoneEntry] {
         let records = try await childRecords(childId, type: "Milestone",
-                                              keys: ["childRef", "key", "value", "captions", "coverIndex"], assetKeys: ["photo", "photos"])
+                                              keys: ["childRef", "key", "value", "captions", "coverIndex", "videoDuration"],
+                                              assetKeys: ["photo", "photos"])
         var result: [String: MilestoneEntry] = [:]
         for r in records {
             guard let key = r["key"] as? String else { continue }
-            result[key] = MilestoneEntry(value: r["value"] as? String, photos: Self.photoSet(from: r))
+            result[key] = MilestoneEntry(value: r["value"] as? String, photos: Self.photoSet(from: r),
+                                         videoDuration: r["videoDuration"] as? Double)
         }
         return result
     }
 
-    func setMilestone(childId: String, key: String, value: String?, photos: PhotoSet) async throws {
+    func setMilestone(childId: String, key: String, value: String?, photos: PhotoSet, video: MediaChange) async throws {
         let (db, zoneID) = try await locateChild(childId)
         let recordID = CKRecord.ID(recordName: "ms_\(childId)_\(key)", zoneID: zoneID)
         let cleanValue = value?.trimmingCharacters(in: .whitespaces)
-        if (cleanValue?.isEmpty ?? true) && photos.isEmpty {
+        // Uden selve videoen (den hentes først ved afspilning) — gem sender kun de ændrede felter.
+        let existing = try? await db.records(for: [recordID], desiredKeys: ["childRef", "key", "value", "videoDuration"])[recordID]?.get()
+        let keepsVideo: Bool
+        switch video {
+        case .keep: keepsVideo = existing?["videoDuration"] != nil
+        case .remove: keepsVideo = false
+        case .set: keepsVideo = true
+        }
+        if (cleanValue?.isEmpty ?? true) && photos.isEmpty && !keepsVideo {
             try? await remove(recordID, in: db)
             return
         }
-        let record = (try? await db.record(for: recordID)) ?? CKRecord(recordType: "Milestone", recordID: recordID)
+        let record = existing ?? CKRecord(recordType: "Milestone", recordID: recordID)
         record["childRef"] = childRef(childId, zoneID)
         record["key"] = key as CKRecordValue
         if let v = cleanValue, !v.isEmpty {
@@ -921,7 +931,13 @@ actor CloudKitStore: Store {
             record["value"] = nil
         }
         Self.setPhotos(photos, on: record)
+        Self.applyMedia(video, asset: "video", duration: "videoDuration", to: record)
         _ = try await persist(record, in: db)
+    }
+
+    func milestoneVideo(childId: String, key: String) async throws -> URL? {
+        let (db, zoneID) = try await locateChild(childId)
+        return try await media(recordID: CKRecord.ID(recordName: "ms_\(childId)_\(key)", zoneID: zoneID), in: db).video
     }
 
     // MARK: Billedsæt (flere billeder + forside + billedtekster)
@@ -1006,27 +1022,27 @@ actor CloudKitStore: Store {
     // MARK: - Dagbog
 
     func diary(childId: String) async throws -> [DiaryEntry] {
-        let records = try await childRecords(childId, type: "Diary", keys: ["childRef", "date", "text"], assetKeys: ["photo"])
+        // Flere billeder (#71) i "photos"; ældre indlæg har kun "photo".
+        let records = try await childRecords(childId, type: "Diary", keys: ["childRef", "date", "text", "captions", "coverIndex"],
+                                              assetKeys: ["photo", "photos"])
         return records.map { r in
             DiaryEntry(id: r.recordID.recordName,
                        date: r["date"] as? Date,
                        text: r["text"] as? String ?? "",
-                       photo: Self.assetData(r["photo"]),
-                       createdAt: r.creationDate ?? Date(),
-                       thumb: Self.assetData(r[Self.thumbKey]),
-                       photoLoaded: Self.assetsLoaded(r, keys: ["photo"]))
+                       photos: Self.photoSet(from: r),
+                       createdAt: r.creationDate ?? Date())
         }.sorted { ($0.date ?? $0.createdAt) > ($1.date ?? $1.createdAt) }
     }
 
-    func addDiary(childId: String, date: Date?, text: String, photo: Data?) async throws -> DiaryEntry {
+    func addDiary(childId: String, date: Date?, text: String, photos: PhotoSet) async throws -> DiaryEntry {
         let (db, zoneID) = try await locateChild(childId)
         let record = CKRecord(recordType: "Diary", recordID: CKRecord.ID(recordName: newId("diary"), zoneID: zoneID))
         record["childRef"] = childRef(childId, zoneID)
         if let date { record["date"] = date as CKRecordValue }
         record["text"] = text.trimmingCharacters(in: .whitespaces) as CKRecordValue
-        record["photo"] = photo.flatMap { Self.asset(from: $0) }
+        Self.setPhotos(photos, on: record)
         let saved = try await persist(record, in: db)
-        return DiaryEntry(id: saved.recordID.recordName, date: date, text: text, photo: photo, createdAt: Date())
+        return DiaryEntry(id: saved.recordID.recordName, date: date, text: text, photos: photos, createdAt: Date())
     }
 
     func updateDiary(childId: String, _ entry: DiaryEntry) async throws {
@@ -1034,7 +1050,7 @@ actor CloudKitStore: Store {
         let record = try await db.record(for: CKRecord.ID(recordName: entry.id, zoneID: zoneID))
         record["date"] = entry.date as CKRecordValue?
         record["text"] = entry.text.trimmingCharacters(in: .whitespaces) as CKRecordValue
-        if entry.photoLoaded { record["photo"] = entry.photo.flatMap { Self.asset(from: $0) } }   // ellers urørt (#62)
+        Self.setPhotos(entry.photos, on: record)   // urørt, hvis originalerne ikke er hentet (#62)
         _ = try await persist(record, in: db)
     }
 
@@ -1430,38 +1446,8 @@ actor CloudKitStore: Store {
 
     /// Henter kun billedfelterne for ét minde og returnerer forsidebilledet.
     func coverPhoto(familyId: String, memory: MemorySummary) async throws -> Data? {
-        // Et barns minde ligger i barnets zone, hvis barnet er flyttet dertil.
-        let (db, zoneID) = memory.childId != nil ? try await locateChild(memory.childId!) : try await locate(familyId)
-        let id = CKRecord.ID(recordName: memory.id, zoneID: zoneID)
-        let keys: [CKRecord.FieldKey]
-        switch memory.kind {
-        case .highlight: keys = ["photos"]
-        case .diary, .photo: keys = ["photo"]
-        case .event, .vacation, .tradition, .memory: keys = ["photos", "photo", "coverIndex"]
-        case .interview: return nil
-        case .letter:
-            // Et forseglet brev viser ikke sit billede, før det må åbnes.
-            if memory.text.hasSuffix("(forseglet)") { return nil }
-            keys = ["photo"]
-        }
-        func cover(_ record: CKRecord) -> Data? {
-            switch memory.kind {
-            case .highlight: return Self.assetsData(record["photos"]).first
-            case .diary, .photo, .letter: return Self.assetData(record["photo"])
-            case .event, .vacation, .tradition, .memory: return Self.photoSet(from: record).coverPhoto
-            case .interview: return nil
-            }
-        }
-        // Fra billedcachen, hvis mindet ikke er ændret, siden forsiden sidst blev hentet.
-        func cachedCover() -> Data? {
-            guard memory.modifiedAt > .distantPast else { return nil }
-            let cached = CKRecord(recordType: "cover", recordID: id)
-            for k in keys {
-                guard let v = AssetCache.read(id: id, modified: memory.modifiedAt, key: k) else { return nil }
-                cached[k] = v
-            }
-            return cover(cached)
-        }
+        guard let keys = Self.photoKeys(for: memory) else { return nil }
+        let (db, id) = try await memoryRecordID(familyId: familyId, memory: memory)
         // Thumb (synkroniseret med kopien) er nok til kortene på Hjem — ingen original hentes (#62).
         // Fuld skærm fra Hjem beder om originalen (`withOriginals`). Et lille thumb fra 1.3 dur kun,
         // hvis originalen selv er så lille; ellers hentes den, og thumbet laves om.
@@ -1469,16 +1455,77 @@ actor CloudKitStore: Store {
            let thumb = AssetCache.read(id: id, modified: memory.modifiedAt, key: Self.thumbKey) as? CKAsset,
            let data = thumb.fileURL.flatMap({ try? Data(contentsOf: $0) }) {
             if !ImageTools.isSmallThumb(data) { return data }
-            if let original = cachedCover() {
-                return ImageTools.isSmallThumb(data, original: original) ? original : data
+            if let original = Self.cachedPhotoRecord(id: id, memory: memory, keys: keys) {
+                let cover = Self.memoryPhotoSet(original, kind: memory.kind).coverPhoto
+                return cover.map { ImageTools.isSmallThumb(data, original: $0) ? $0 : data } ?? data
             }
         }
-        if let original = cachedCover() { return original }
+        let record = try await photoRecord(db: db, id: id, memory: memory, keys: keys)
+        return record.map { Self.memoryPhotoSet($0, kind: memory.kind).coverPhoto }
+    }
+
+    /// Alle billeder i ét minde (originalerne) — til fuld skærm fra Hjem (#72).
+    func memoryPhotos(familyId: String, memory: MemorySummary) async throws -> PhotoSet? {
+        guard let keys = Self.photoKeys(for: memory) else { return nil }
+        let (db, id) = try await memoryRecordID(familyId: familyId, memory: memory)
+        let record = try await photoRecord(db: db, id: id, memory: memory, keys: keys)
+        return record.map { Self.memoryPhotoSet($0, kind: memory.kind) }
+    }
+
+    /// Billedfelterne på mindets record; nil = mindet viser ikke billeder (interview, forseglet brev).
+    private static func photoKeys(for memory: MemorySummary) -> [CKRecord.FieldKey]? {
+        switch memory.kind {
+        case .highlight: return ["photos", "coverIndex"]
+        case .photo: return ["photo"]
+        // Uden billedtekster: dem gemmer billedcachen ikke, og fuld skærm fra Hjem viser dem ikke.
+        case .diary, .event, .vacation, .tradition, .memory: return ["photos", "photo", "coverIndex"]
+        case .interview: return nil
+        case .letter:
+            // Et forseglet brev viser ikke sit billede, før det må åbnes.
+            return memory.text.hasSuffix("(forseglet)") ? nil : ["photo"]
+        }
+    }
+
+    private static func memoryPhotoSet(_ record: CKRecord, kind: MemorySummary.Kind) -> PhotoSet {
+        switch kind {
+        case .highlight:
+            return PhotoSet(photos: assetsData(record["photos"]),
+                            cover: (record["coverIndex"] as? Int64).map(Int.init) ?? 0)
+        case .photo, .letter: return PhotoSet(single: assetData(record["photo"]))
+        case .diary, .event, .vacation, .tradition, .memory:
+            var set = photoSet(from: record)
+            set.thumb = nil
+            return set
+        case .interview: return PhotoSet()
+        }
+    }
+
+    private func memoryRecordID(familyId: String, memory: MemorySummary) async throws -> (CKDatabase, CKRecord.ID) {
+        // Et barns minde ligger i barnets zone, hvis barnet er flyttet dertil.
+        let (db, zoneID) = memory.childId != nil ? try await locateChild(memory.childId!) : try await locate(familyId)
+        return (db, CKRecord.ID(recordName: memory.id, zoneID: zoneID))
+    }
+
+    /// Fra billedcachen, hvis mindet ikke er ændret, siden billederne sidst blev hentet.
+    private static func cachedPhotoRecord(id: CKRecord.ID, memory: MemorySummary, keys: [CKRecord.FieldKey]) -> CKRecord? {
+        guard memory.modifiedAt > .distantPast else { return nil }
+        let cached = CKRecord(recordType: "cover", recordID: id)
+        for k in keys {
+            guard let v = AssetCache.read(id: id, modified: memory.modifiedAt, key: k) else { return nil }
+            cached[k] = v
+        }
+        return cached
+    }
+
+    /// Billedfelterne fra cachen, ellers fra iCloud (og så lægges de i cachen).
+    private func photoRecord(db: CKDatabase, id: CKRecord.ID, memory: MemorySummary,
+                             keys: [CKRecord.FieldKey]) async throws -> CKRecord? {
+        if let cached = Self.cachedPhotoRecord(id: id, memory: memory, keys: keys) { return cached }
         let results = try await db.records(for: [id], desiredKeys: keys)
         guard let record = try results[id]?.get() else { return nil }
         for k in keys { record[k] = AssetCache.store(record, key: k) }
         Self.refreshThumbs([record])   // næste gang er thumbet nok
-        return cover(record)
+        return record
     }
 
     func birthdays(familyId: String) async throws -> [CustomBirthday] {
