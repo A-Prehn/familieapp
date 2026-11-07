@@ -16,6 +16,9 @@ enum Theme {
     static let sep = dyn(light: 0xe8d2c4, dark: 0x6b5560)
     static let tint = dyn(light: 0x6b5560, dark: 0xc7a9a3)
     static let rose = dyn(light: 0xb8536f, dark: 0xe3708f)
+    /// Fanebjælken (Liquid Glass): mørkere end rose/muted, så ikonerne også kan ses over lyse billeder.
+    static let tabSelected = dyn(light: 0x8e3652, dark: 0xf0a3b8)
+    static let tabUnselected = dyn(light: 0x4a3a44, dark: 0xe8d2c4)
     static let green = dyn(light: 0x4f7a5b, dark: 0x8fbf9b)
     static let neutral = dyn(light: 0xc7a9a3, dark: 0x9e8189)
     static let neutralDark = dyn(light: 0x6b5560, dark: 0xe8d2c4)

@@ -275,15 +275,15 @@ struct MainTabView: View {
     // (.renderingMode(.original)) — ellers laves de om til skabeloner igen.
     private func tabLabel(_ title: String, _ symbol: String, _ tab: MainTab) -> some View {
         let selected = selection == tab
-        let color = selected ? Theme.rose : Theme.muted
+        let color = selected ? Theme.tabSelected : Theme.tabUnselected
         _ = tabRedraw   // fanen tegnes igen, når tælleren ændrer sig
         _ = colorScheme // … og når der skiftes mellem lyst og mørkt (ikonerne er færdigfarvede billeder)
-        let config = UIImage.SymbolConfiguration(pointSize: 22, weight: selected ? .semibold : .regular)
+        let config = UIImage.SymbolConfiguration(pointSize: 22, weight: .semibold)
         let image = (UIImage(systemName: symbol, withConfiguration: config) ?? UIImage())
             .withTintColor(UIColor(color), renderingMode: .alwaysOriginal)
-        // Glasset tager farve fra indholdet bagved: over et lyst billede forsvinder de lyse ikoner i mørk
-        // tilstand. En blød skygge i baggrundsfarven lægger sig mellem ikon og billede, så de altid kan ses.
-        let halo = Theme.bg.opacity(colorScheme == .dark ? 0.9 : 0.6)
+        // Glasset tager farve fra indholdet bagved: over et lyst eller uroligt billede drukner ikonerne.
+        // Mørkere farver og en tydelig skygge i baggrundsfarven lægger sig mellem ikon og billede.
+        let halo = Theme.bg.opacity(0.95)
         return Label {
             Text(title).foregroundStyle(color).shadow(color: halo, radius: 3)
         } icon: {
