@@ -64,6 +64,37 @@ enum MediaFiles {
         }
         return out
     }
+
+    struct TooLong: LocalizedError {
+        var errorDescription: String? {
+            "Videoen er for lang (maks \(Int(MediaLimits.maxVideoSeconds / 60)) min). Klip den til i Fotos først."
+        }
+    }
+
+    /// Fælles for video fra Fotos og video optaget med kameraet: tjek længde og komprimér.
+    /// Kildefilen slettes. Returnerer (komprimeret fil, varighed).
+    static func prepareVideo(_ url: URL) async throws -> (URL, Double) {
+        let seconds = await duration(of: url)
+        guard seconds <= MediaLimits.maxVideoSeconds else {
+            try? FileManager.default.removeItem(at: url)
+            throw TooLong()
+        }
+        let compressed = try await compressVideo(url)
+        try? FileManager.default.removeItem(at: url)
+        return (compressed, seconds)
+    }
+
+    /// Et stilbillede lidt inde i videoen — som forside, når der ikke er billeder (#74).
+    static func stillFrame(of url: URL) async -> Data? {
+        let asset = AVURLAsset(url: url)
+        let generator = AVAssetImageGenerator(asset: asset)
+        generator.appliesPreferredTrackTransform = true
+        generator.maximumSize = CGSize(width: ImageTools.uploadPixels, height: ImageTools.uploadPixels)
+        let seconds = await duration(of: url)
+        let at = CMTime(seconds: min(1, seconds / 2), preferredTimescale: 600)
+        guard let (image, _) = try? await generator.image(at: at) else { return nil }
+        return ImageTools.fromCamera(UIImage(cgImage: image))
+    }
 }
 
 /// Video fra Fotos som fil (PhotosPicker → kopi i vores mappe).
@@ -374,16 +405,11 @@ struct MediaField: View {
         working = true
         message = nil
         defer { working = false }
-        let seconds = await MediaFiles.duration(of: url)
-        guard seconds <= MediaLimits.maxVideoSeconds else {
-            message = "Videoen er for lang (maks \(Int(MediaLimits.maxVideoSeconds / 60)) min). Klip den til i Fotos først."
-            try? FileManager.default.removeItem(at: url)
-            return
-        }
         do {
-            let compressed = try await MediaFiles.compressVideo(url)
-            try? FileManager.default.removeItem(at: url)
+            let (compressed, seconds) = try await MediaFiles.prepareVideo(url)
             video = .set(compressed, seconds)
+        } catch let error as MediaFiles.TooLong {
+            message = error.errorDescription
         } catch {
             message = "Kunne ikke forberede videoen."
         }

@@ -439,9 +439,31 @@ struct TakePhotoButton: View {
 /// Formular-felt: tilføj flere billeder, vælg forside (★), skriv billedtekst, fjern.
 struct PhotoSetEditor: View {
     @Binding var set: PhotoSet
+    /// Med en video-binding vælges billeder og video i samme vælger (#74). Video er Premium.
+    var video: Binding<MediaChange>? = nil
+    /// Varighed af en video, der allerede er gemt (ved redigering).
+    var existingVideo: Double? = nil
+    /// Henter den gemte video fra iCloud, så den kan ses i formularen.
+    var loadVideo: (() async -> URL?)? = nil
+    @EnvironmentObject private var state: AppState
     @State private var pickerItems: [PhotosPickerItem] = []
     @State private var cropping: CropTarget?
     @State private var showCamera = false
+    @State private var preparingVideo = false
+    @State private var loadingVideo = false
+    @State private var player: VideoPlayerScreen?
+    @State private var paywall: PaywallReason?
+    @State private var videoMessage: String?
+
+    private var videoDuration: Double? {
+        switch video?.wrappedValue {
+        case nil: return nil
+        case .keep?: return existingVideo
+        case .remove?: return nil
+        case .set(_, let d)?: return d
+        }
+    }
+    private var allowsVideo: Bool { video != nil && state.isPremium && videoDuration == nil }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -498,14 +520,48 @@ struct PhotoSetEditor: View {
                 }
                 }
             }
+            // Videoen (#74): se og fjern.
+            if let video, let d = videoDuration {
+                HStack {
+                    Button { Task { await playVideo() } } label: {
+                        HStack(spacing: 8) {
+                            Label("Se video \(MediaFiles.format(d))", systemImage: "play.rectangle.fill")
+                            if loadingVideo { DelayedProgress(size: .small) }
+                        }
+                    }
+                    .disabled(loadingVideo || !canPlayVideo)
+                    Spacer()
+                    Button("Fjern video", role: .destructive) { video.wrappedValue = .remove }
+                }
+                .buttonStyle(.borderless)
+            }
             // Op til 100 ad gangen (#24) — og "Tilføj flere billeder" kan bruges igen, så der er reelt ingen grænse.
             HStack(spacing: 16) {
-                PhotosPicker(selection: $pickerItems, maxSelectionCount: 100, matching: .images) {
-                    Label(set.isEmpty ? "Vælg billeder" : "Tilføj flere billeder", systemImage: "photo.badge.plus")
+                if preparingVideo {
+                    Label("Forbereder video…", systemImage: "hourglass")
+                } else {
+                    PhotosPicker(selection: $pickerItems, maxSelectionCount: 100,
+                                 matching: allowsVideo ? .any(of: [.images, .videos]) : .images) {
+                        Label(set.isEmpty ? (allowsVideo ? "Vælg billeder eller video" : "Vælg billeder")
+                                          : (allowsVideo ? "Tilføj billeder eller video" : "Tilføj flere billeder"),
+                              systemImage: "photo.badge.plus")
+                    }
+                    TakePhotoButton(showCamera: $showCamera)
+                    if video != nil, !state.isPremium, videoDuration == nil {
+                        // Video er Premium: knappen viser betalingsskærmen.
+                        Button { paywall = .video } label: {
+                            HStack(spacing: 4) {
+                                Label("Video", systemImage: "video.badge.plus")
+                                Image(systemName: "lock.fill").font(.caption2)
+                            }
+                        }
+                    }
                 }
-                TakePhotoButton(showCamera: $showCamera)
             }
             .buttonStyle(.borderless)
+            if let videoMessage {
+                Text(videoMessage).font(.footnote).foregroundStyle(Theme.rose)
+            }
         }
         .fullScreenCover(item: $cropping) { target in
             CropView(image: target.image) { cropped in
@@ -519,17 +575,56 @@ struct PhotoSetEditor: View {
             }
             .ignoresSafeArea()
         }
+        .fullScreenCover(item: $player) { $0 }
+        .sheet(item: $paywall) { PaywallView(reason: $0) }
         .onChange(of: pickerItems) { _, items in
             guard !items.isEmpty else { return }
             Task {
                 for item in items {
-                    if let raw = try? await item.loadTransferable(type: Data.self),
-                       let resized = ImageTools.resized(raw) {
+                    if item.supportedContentTypes.contains(where: { $0.conforms(to: .movie) }) {
+                        await importVideo(item)
+                    } else if let raw = try? await item.loadTransferable(type: Data.self),
+                              let resized = ImageTools.resized(raw) {
                         set.append(resized)
                     }
                 }
                 pickerItems = []
             }
+        }
+    }
+
+    private var canPlayVideo: Bool {
+        if case .set? = video?.wrappedValue { return true }
+        return loadVideo != nil
+    }
+
+    private func playVideo() async {
+        if case .set(let url, _)? = video?.wrappedValue { player = VideoPlayerScreen(url: url); return }
+        guard let loadVideo else { return }
+        loadingVideo = true
+        defer { loadingVideo = false }
+        if let url = await loadVideo() { player = VideoPlayerScreen(url: url) }
+        else { videoMessage = "Kunne ikke hente videoen. Tjek forbindelsen, og prøv igen." }
+    }
+
+    /// Video fra vælgeren: komprimeres, og uden billeder bliver et stilbillede fra videoen forsiden (#74).
+    private func importVideo(_ item: PhotosPickerItem) async {
+        guard let video, allowsVideo else { return }
+        preparingVideo = true
+        videoMessage = nil
+        defer { preparingVideo = false }
+        guard let movie = try? await item.loadTransferable(type: PickedMovie.self) else {
+            videoMessage = "Kunne ikke hente videoen."
+            return
+        }
+        do {
+            let (url, seconds) = try await MediaFiles.prepareVideo(movie.url)
+            video.wrappedValue = .set(url, seconds)
+            if set.photos.isEmpty, let still = await MediaFiles.stillFrame(of: url) { set.append(still) }
+        } catch let error as MediaFiles.TooLong {
+            videoMessage = error.errorDescription
+        } catch {
+            videoMessage = "Kunne ikke forberede videoen."
         }
     }
 }

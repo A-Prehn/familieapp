@@ -178,17 +178,13 @@ struct MilestoneEditView: View {
                 Group {
                 valueSection
                 Section {
-                    PhotoSetEditor(set: $photos)
+                    // Billeder og video (fx de første skridt som film, #74) i samme vælger.
+                    PhotoSetEditor(set: $photos, video: $video, existingVideo: entry?.videoDuration,
+                                   loadVideo: { try? await state.store.milestoneVideo(childId: child.id, key: def.key) })
                 } header: {
-                    Text("Billeder")
+                    Text("Billeder og video")
                 } footer: {
-                    Text("Vælg ★ for det billede, der vises på milepælen.")
-                }
-                Section("Video") {
-                    // Fx de første skridt som film (#74).
-                    MediaField(video: $video, audio: .constant(.keep),
-                               existingVideo: entry?.videoDuration, showAudio: false,
-                               loadExisting: { (video: try? await state.store.milestoneVideo(childId: child.id, key: def.key), audio: nil) })
+                    Text("Vælg ★ for det billede, der vises på milepælen. Vælges en video uden billeder, bliver et stilbillede fra den forsiden.")
                 }
                 }.listRowBackground(Theme.card)
             }
